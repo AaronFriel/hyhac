@@ -1,7 +1,7 @@
 module Database.HyperDex
-  ( hyhac-version
+  ( hyhacVersion
   )
+	where
 
-hyhac-version :: String
-hyhac-version = "0.1.0.0"
-
+hyhacVersion :: String
+hyhacVersion = "0.1.0.0"
