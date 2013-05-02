@@ -12,6 +12,7 @@ category:            Database
 build-type:          Simple
 
 extra-source-files:  README.md
+  include/hyperdex.h
 
 cabal-version:       >=1.10
 
@@ -21,6 +22,7 @@ library
   hs-source-dirs:    src
   exposed-modules:
     Database.HyperDex
+    Database.HyperDex.Internal
 
   -- Modules included in this library but not exported.
   -- other-modules:       
@@ -29,9 +31,19 @@ library
   
   build-depends:
       base             == 4.6.*
-  
+    , test-framework             >= 0.7 && < 0.8
+    , test-framework-hunit
+    , test-framework-quickcheck2 >= 0.3
+    , HUnit
+    , QuickCheck
 
   ghc-options:       -Wall
+
+  include-dirs:      include
+  includes:          hyperdex.h
+
+  extra-libraries:
+    hyperclient
 
 source-repository head
   type: git
