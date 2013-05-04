@@ -13,6 +13,8 @@ build-type:          Simple
 
 extra-source-files:  README.md
   include/hyperdex.h
+  src/Database/HyperDex/Internal/HyperDex.c2hs
+  include/hyperclient.h
   src/Database/HyperDex/Internal/Hyperclient.c2hs
 
 cabal-version:       >=1.10
@@ -27,6 +29,7 @@ library
     Database.HyperDex
     Database.HyperDex.Internal
     Database.HyperDex.Internal.Hyperclient
+    Database.HyperDex.Internal.Hyperdex
 
   -- Modules included in this library but not exported.
   -- other-modules:       
