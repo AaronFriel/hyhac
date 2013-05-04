@@ -1,6 +1,6 @@
 module Database.HyperDex.Internal.Hyperclient where
 
-import Foreign.C.Types hiding (CSize)
+import Foreign.C.Types
 import Foreign.C.String
 import Foreign.Marshal.Utils
 import Foreign.Marshal.Alloc
@@ -9,8 +9,6 @@ import Foreign.Storable
 import Data.Int
 
 import Control.Applicative ((<$>))
-
-type CSize = CULong
 
 #import "hyperclient.h"
 
