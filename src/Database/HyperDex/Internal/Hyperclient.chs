@@ -2,7 +2,7 @@ module Database.HyperDex.Internal.Hyperclient where
 
 import Foreign.C.Types
 import Foreign.C.String
-import Foreign.Marshal.Utils
+-- import Foreign.Marshal.Utils
 import Foreign.Marshal.Alloc
 import Foreign.Ptr
 import Foreign.Storable
@@ -120,3 +120,7 @@ hyperclientDelete client space key = do
                 returnCodePtr
   returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
   return (fromIntegral result, returnCode)
+
+hyperclientDestroyAttributes :: HyperclientAttributePtr -> Int64 -> IO ()
+hyperclientDestroyAttributes attributes attributeSize =
+  {# call hyperclient_destroy_attrs #} attributes (fromIntegral attributeSize)
