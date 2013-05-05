@@ -28,6 +28,7 @@ library
   exposed-modules:
     Database.HyperDex
     Database.HyperDex.Internal
+    Database.HyperDex.Internal.Attributes
     Database.HyperDex.Internal.Hyperclient
     Database.HyperDex.Internal.Hyperdex
 
@@ -37,7 +38,9 @@ library
   -- other-extensions:    
   
   build-depends:
-      base             == 4.6.*
+      base                       == 4.6.*
+    , bytestring                 >= 0.10
+    , containers                 >= 0.5
     , test-framework             >= 0.7 && < 0.8
     , test-framework-hunit
     , test-framework-quickcheck2 >= 0.3
