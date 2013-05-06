@@ -6,7 +6,11 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
 
 import Database.HyperDex.Internal
+import Foreign.C
 import Foreign.Ptr
+
+defaultSpaceName :: String
+defaultSpaceName = "profiles"
 
 defaultSpace :: String
 defaultSpace =
@@ -25,15 +29,16 @@ defaultSpace =
 
 canCreateAndRemoveSpaces :: Test
 canCreateAndRemoveSpaces = testCase "Can create and remove spaces" $ do
-  client <- hyperclientCreate "127.0.0.1" 1982
-  addSpaceResult <- hyperclientAddSpace client defaultSpace
-  assertEqual "Add space: " HyperclientSuccess addSpaceResult
-  print addSpaceResult
-  removeSpaceResult <- hyperclientRemoveSpace client "profiles"
-  assertEqual "Add space: " HyperclientSuccess removeSpaceResult
-  print removeSpaceResult
+  withCString "127.0.0.1" $ \host -> do
+    client <- hyperclientCreate host 1982
+    withCString defaultSpace $ \space -> do
+      addSpaceResult <- hyperclientAddSpace client space
+      assertEqual "Add space: " HyperclientSuccess addSpaceResult
+    withCString defaultSpaceName $ \spaceName -> do
+      removeSpaceResult <- hyperclientRemoveSpace client spaceName
+      assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
 
 internalTests :: Test
 internalTests = testGroup "Internal API Tests"
-                  [ canCreateAndRemoveSpaces
+                  [   canCreateAndRemoveSpaces
                   ]
