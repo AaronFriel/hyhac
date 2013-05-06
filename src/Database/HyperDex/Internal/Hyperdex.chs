@@ -10,8 +10,8 @@ module Database.HyperDex.Internal.Hyperdex where
 
 -- import Control.Applicative ((<$>))
 
-#import <stdbool.h>
-#import "hyperdex.h"
+#include <stdbool.h>
+#include "hyperdex.h"
 
 #c
 int container_type(int X)

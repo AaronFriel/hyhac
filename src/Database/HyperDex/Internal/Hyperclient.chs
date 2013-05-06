@@ -10,7 +10,7 @@ import Data.Int
 
 import Control.Applicative ((<$>))
 
-#import "hyperclient.h"
+#include "hyperclient.h"
 
 data Hyperclient
 {#pointer *hyperclient as HyperclientPtr -> Hyperclient #}

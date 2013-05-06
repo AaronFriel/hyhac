@@ -1,10 +1,8 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances, DataKinds #-}
 
-module Database.HyperDex.Internal.HyperData
+module Database.HyperDex.Internal.Hyperdata
   ( Hyper (..) )
   where
-
-import Database.HyperDex.Internal.Hyperdex
 
 import Data.Int
 import Control.Monad
