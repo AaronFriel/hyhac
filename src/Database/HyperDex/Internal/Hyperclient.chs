@@ -1,5 +1,7 @@
 module Database.HyperDex.Internal.Hyperclient where
 
+import Database.HyperDex.Internal.Hyperdex
+
 import Foreign.C.Types
 import Foreign.C.String
 -- import Foreign.Marshal.Utils
@@ -16,7 +18,7 @@ data Hyperclient
 {#pointer *hyperclient as HyperclientPtr -> Hyperclient #}
 
 data HyperclientAttribute
-{#pointer *hyperclient_attribute as HyperclientAttributePtr -> HyperclientAttribute #}
+{# pointer *hyperclient_attribute as HyperclientAttributePtr -> HyperclientAttribute #}
 
 data HyperclientMapAttribute
 {#pointer *hyperclient_map_attribute as HyperclientMapAttributePtr -> HyperclientMapAttribute #}

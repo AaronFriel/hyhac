@@ -28,9 +28,10 @@ library
   exposed-modules:
     Database.HyperDex
     Database.HyperDex.Internal
+    Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
     Database.HyperDex.Internal.Hyperclient
-    Database.HyperDex.Internal.Hyperdex
+    Database.HyperDex.Internal.Attribute
 
   -- Modules included in this library but not exported.
   -- other-modules:       
