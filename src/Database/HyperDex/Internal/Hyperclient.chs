@@ -1,12 +1,10 @@
 
 module Database.HyperDex.Internal.Hyperclient where
 
-import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Attribute
 import Database.HyperDex.Internal.Util
 
 import Foreign.C.Types
-import Foreign.C.String
 import Foreign.Marshal
 import Foreign.Ptr
 import Foreign.Storable
@@ -62,68 +60,76 @@ hyperclientRemoveSpace client s = withCBString s $ \space -> do
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
 --                 size_t key_sz, const struct hyperclient_attribute* attrs,
 --                 size_t attrs_sz, enum hyperclient_returncode* status);
-hyperclientGet :: HyperclientPtr -> CString -> CString -> Int64
+hyperclientGet :: HyperclientPtr -> ByteString -> ByteString
                   -> IO (HyperclientHandle, HyperclientReturnCode, AttributeList) 
-hyperclientGet client space key keySize = do
+hyperclientGet client s k = do
   alloca $ \returnCodePtr ->
    alloca $ \attributePtrPtr ->
-    alloca $ \attributeSizePtr -> do
-      result <- {#call hyperclient_get#} 
-                     client
-                     space key (fromIntegral keySize)
-                     returnCodePtr attributePtrPtr attributeSizePtr
-      returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
-      attributePtr <- peek attributePtrPtr
-      attributeSize <- fromIntegral <$> peek attributeSizePtr 
-      attributes <- fromHyperDexAttributeList attributePtr attributeSize
-      return (toHyperclientHandle result, returnCode, attributes)
+    alloca $ \attributeSizePtr ->
+     withCBString s $ \space ->
+      withCBStringLen k $ \(key,keySize) -> do
+        result <- {#call hyperclient_get#} 
+                       client
+                       space key (fromIntegral keySize)
+                       returnCodePtr attributePtrPtr attributeSizePtr
+        returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
+        attributePtr <- peek attributePtrPtr
+        attributeSize <- fromIntegral <$> peek attributeSizePtr 
+        attributes <- fromHyperDexAttributeList attributePtr attributeSize
+        return (toHyperclientHandle result, returnCode, attributes)
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
 --                 size_t key_sz, const struct hyperclient_attribute* attrs,
 --                 size_t attrs_sz, enum hyperclient_returncode* status);
-hyperclientPut :: HyperclientPtr -> CString -> CString -> Int64
+hyperclientPut :: HyperclientPtr -> ByteString -> ByteString
                   -> AttributeList
                   -> IO (HyperclientHandle, HyperclientReturnCode)
-hyperclientPut client space key keySize attributes = do
-  alloca $ \returnCodePtr -> do
-    let attributePtr = attributeListPointer attributes
-        attributeSize = attributeListSize attributes
-    result <- {# call hyperclient_put #} 
-                  client
-                  space key (fromIntegral keySize)
-                  attributePtr (fromIntegral attributeSize) returnCodePtr
-    returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
-    return (toHyperclientHandle result, returnCode)
+hyperclientPut client s k attributes = do
+  alloca $ \returnCodePtr ->
+   withCBString s $ \space ->
+    withCBStringLen k $ \(key,keySize) -> do
+      let attributePtr = attributeListPointer attributes
+          attributeSize = attributeListSize attributes
+      result <- {# call hyperclient_put #} 
+                    client
+                    space key (fromIntegral keySize)
+                    attributePtr (fromIntegral attributeSize) returnCodePtr
+      returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
+      return (toHyperclientHandle result, returnCode)
 
 -- int64_t
 -- hyperclient_put_if_not_exist(struct hyperclient* client, const char* space, const char* key,
 --                              size_t key_sz, const struct hyperclient_attribute* attrs,
 --                              size_t attrs_sz, enum hyperclient_returncode* status);
-hyperclientPutIfNotExist :: HyperclientPtr -> CString -> CString -> Int64
+hyperclientPutIfNotExist :: HyperclientPtr -> ByteString -> ByteString
                             -> AttributeList
                             -> IO (HyperclientHandle, HyperclientReturnCode)
-hyperclientPutIfNotExist client space key keySize attributes = do
-  alloca $ \returnCodePtr -> do
-    let attributePtr = attributeListPointer attributes
-        attributeSize = attributeListSize attributes
-    result <- {# call hyperclient_put_if_not_exist #} 
-                  client
-                  space key (fromIntegral keySize)
-                  attributePtr (fromIntegral attributeSize) returnCodePtr
-    returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
-    return (toHyperclientHandle result, returnCode)
+hyperclientPutIfNotExist client s k attributes = do
+  alloca $ \returnCodePtr ->
+   withCBString s $ \space ->
+    withCBStringLen k $ \(key,keySize) -> do
+      let attributePtr = attributeListPointer attributes
+          attributeSize = attributeListSize attributes
+      result <- {# call hyperclient_put_if_not_exist #} 
+                    client
+                    space key (fromIntegral keySize)
+                    attributePtr (fromIntegral attributeSize) returnCodePtr
+      returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
+      return (toHyperclientHandle result, returnCode)
 
 -- int64_t
 -- hyperclient_del(struct hyperclient* client, const char* space, const char* key,
 --                 size_t key_sz, enum hyperclient_returncode* status);
-hyperclientDelete :: HyperclientPtr -> CString -> CString -> Int64 
+hyperclientDelete :: HyperclientPtr -> ByteString -> ByteString
                      -> IO (HyperclientHandle, HyperclientReturnCode)
-hyperclientDelete client space key keySize = do
+hyperclientDelete client s k = do
   alloca $ \returnCodePtr -> do
-    result <- {# call hyperclient_del #} 
-                  client
-                    space key (fromIntegral keySize)
-                  returnCodePtr
-    returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
-    return (toHyperclientHandle result, returnCode)
+   withCBString s $ \space ->
+    withCBStringLen k $ \(key,keySize) -> do
+      result <- {# call hyperclient_del #} 
+                    client
+                      space key (fromIntegral keySize)
+                    returnCodePtr
+      returnCode <- toEnum . fromIntegral <$> peek returnCodePtr :: IO HyperclientReturnCode
+      return (toHyperclientHandle result, returnCode)
