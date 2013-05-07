@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Test.HyperDex.Internal (internalTests)
   where
 
@@ -5,22 +7,28 @@ import Test.Framework (testGroup, Test)
 import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
 
-import Database.HyperDex.Internal
+import Test.Framework.Providers.QuickCheck2
+import Test.QuickCheck
+import Test.QuickCheck.Monadic
 
+import Database.HyperDex.Internal
+import Database.HyperDex.Internal.Util
+
+import Data.ByteString (ByteString (..))
 import Data.Int
 import Foreign.C
 import Foreign.Ptr
 
-defaultHost :: String
+defaultHost :: ByteString
 defaultHost = "127.0.0.1"
 
 defaultPort :: Int16
 defaultPort = 1982
 
-defaultSpaceName :: String
+defaultSpaceName :: ByteString
 defaultSpaceName = "profiles"
 
-defaultSpace :: String
+defaultSpace :: ByteString
 defaultSpace =
   "space profiles                           \n\
   \key username                             \n\
@@ -36,27 +44,23 @@ defaultSpace =
   \subspace profile_views"
 
 withDefaultHost :: (HyperclientPtr -> IO a) -> IO a
-withDefaultHost f =
-  withCString defaultHost $ \host -> do
-    client <- hyperclientCreate host defaultPort
-    res <- f client
-    hyperclientDestroy client
-    return res
+withDefaultHost f = do
+  client <- hyperclientCreate defaultHost defaultPort
+  res <- f client
+  hyperclientDestroy client
+  return res
 
 canCreateSpace :: Test
 canCreateSpace = testCase "Can create a space" $ do
   withDefaultHost $ \client -> do
-    withCString defaultSpace $ \space -> do
-      addSpaceResult <- hyperclientAddSpace client space
-      assertEqual "Add space: " HyperclientSuccess addSpaceResult
-
+    addSpaceResult <- hyperclientAddSpace client defaultSpace
+    assertEqual "Add space: " HyperclientSuccess addSpaceResult
 
 canRemoveSpace :: Test
 canRemoveSpace = testCase "Can remove a space" $ do
   withDefaultHost $ \client -> do
-    withCString defaultSpaceName $ \spaceName -> do
-      removeSpaceResult <- hyperclientRemoveSpace client spaceName
-      assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
+    removeSpaceResult <- hyperclientRemoveSpace client defaultSpaceName
+    assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
 
 canCreateAndRemoveSpaces :: Test
 canCreateAndRemoveSpaces = testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]

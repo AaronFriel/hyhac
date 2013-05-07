@@ -3,12 +3,15 @@ module Database.HyperDex.Internal.Hyperclient where
 
 import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Attribute
+import Database.HyperDex.Internal.Util
 
 import Foreign.C.Types
 import Foreign.C.String
 import Foreign.Marshal
 import Foreign.Ptr
 import Foreign.Storable
+
+import Data.ByteString (ByteString)
 import Data.Int
 
 import Control.Applicative ((<$>))
@@ -35,8 +38,8 @@ toHyperclientHandle = HyperclientHandle . fromIntegral
 
 -- struct hyperclient*
 -- hyperclient_create(const char* coordinator, uint16_t port);
-hyperclientCreate :: CString -> Int16 -> IO HyperclientPtr
-hyperclientCreate host port = {# call hyperclient_create #} host (fromIntegral port)
+hyperclientCreate :: ByteString -> Int16 -> IO HyperclientPtr
+hyperclientCreate h port = withCBString h $ \host -> {# call hyperclient_create #} host (fromIntegral port)
 
 -- void
 -- hyperclient_destroy(struct hyperclient* client);
@@ -45,14 +48,14 @@ hyperclientDestroy = {# call hyperclient_destroy #}
 
 -- enum hyperclient_returncode
 -- hyperclient_add_space(struct hyperclient* client, const char* description);
-hyperclientAddSpace :: HyperclientPtr -> CString -> IO HyperclientReturnCode
-hyperclientAddSpace client description = do
+hyperclientAddSpace :: HyperclientPtr -> ByteString -> IO HyperclientReturnCode
+hyperclientAddSpace client d = withCBString d $ \description -> do
   toEnum . fromIntegral <$> {#call hyperclient_add_space #} client description
 
 -- enum hyperclient_returncode
 -- hyperclient_rm_space(struct hyperclient* client, const char* space);
-hyperclientRemoveSpace :: HyperclientPtr -> CString -> IO HyperclientReturnCode
-hyperclientRemoveSpace client space = do
+hyperclientRemoveSpace :: HyperclientPtr -> ByteString -> IO HyperclientReturnCode
+hyperclientRemoveSpace client s = withCBString s $ \space -> do
   toEnum . fromIntegral <$> {#call hyperclient_rm_space #} client space
 
 -- int64_t
