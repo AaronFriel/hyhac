@@ -7,6 +7,7 @@ import Test.HUnit
 
 import Database.HyperDex
 import Test.HyperDex.Internal (internalTests)
+import Test.HyperDex.CBString (cBStringTests)
 
 testVersion :: Assertion
 testVersion =
@@ -15,4 +16,5 @@ testVersion =
 main = defaultMain
 				[ testCase "Version match" testVersion
         , internalTests
+        , cBStringTests
 				]
