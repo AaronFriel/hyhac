@@ -1,3 +1,4 @@
+
 module Database.HyperDex.Internal.Hyperdex where
 
 -- import Foreign.C.Types

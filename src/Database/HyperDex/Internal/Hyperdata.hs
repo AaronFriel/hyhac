@@ -31,7 +31,7 @@ instance HyperSerialize Int64 where
   putH = putWord64le . fromIntegral
 
 instance HyperSerialize Double where
-  getH = const $ getFloat64le
+  getH = const getFloat64le
   putH = putFloat64le
 
 instance HyperSerialize ByteString where

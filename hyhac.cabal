@@ -28,6 +28,7 @@ library
   exposed-modules:
     Database.HyperDex
     Database.HyperDex.Internal
+    Database.HyperDex.Internal.Util
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
     Database.HyperDex.Internal.Hyperclient
