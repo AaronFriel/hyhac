@@ -20,14 +20,14 @@ data HyperclientAttributeCheck
 {#pointer *hyperclient_attribute_check -> HyperclientAttributeCheck nocode #}
 
 hyperGet :: Client -> ByteString -> ByteString
-            -> IO (IO (HyperclientReturnCode, AttributeList))
+            -> IO (IO (HyperclientReturnCode, [Attribute]))
 hyperGet c s k = withClient c (\hc -> hyperclientGet hc s k)
 
-hyperPut :: Client -> ByteString -> ByteString -> AttributeList
+hyperPut :: Client -> ByteString -> ByteString -> [Attribute]
             -> IO (IO (HyperclientReturnCode))
 hyperPut c s k a = withClient c (\hc -> hyperclientPut hc s k a)
 
-hyperPutIfNotExist :: Client -> ByteString -> ByteString -> AttributeList
+hyperPutIfNotExist :: Client -> ByteString -> ByteString -> [Attribute]
             -> IO (IO (HyperclientReturnCode))
 hyperPutIfNotExist c s k a = withClient c (\hc -> hyperclientPutIfNotExist hc s k a)
 
@@ -41,7 +41,7 @@ hyperDelete c s k = withClient c (\hc -> hyperclientDelete hc s k)
 --                 size_t key_sz, const struct hyperclient_attribute* attrs,
 --                 size_t attrs_sz, enum hyperclient_returncode* status);
 hyperclientGet :: Hyperclient -> ByteString -> ByteString
-                  -> Result (HyperclientReturnCode, AttributeList) 
+                  -> Result (HyperclientReturnCode, [Attribute]) 
 hyperclientGet client s k = do
   returnCodePtr <- malloc
   attributePtrPtr <- malloc
@@ -52,14 +52,14 @@ hyperclientGet client s k = do
               client
               space key (fromIntegral keySize)
               returnCodePtr attributePtrPtr attributeSizePtr
-  let result :: IO (HyperclientReturnCode, AttributeList)
+  let result :: IO (HyperclientReturnCode, [Attribute])
       result = do
         print "Inside get!"
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
         print $ "Got a returnCode!" ++ show returnCode
         attributePtr <- peek attributePtrPtr
         attributeSize <- fmap fromIntegral $ peek attributeSizePtr
-        attributes <- fromHyperDexAttributeList attributePtr attributeSize
+        attributes <- fromHyperDexAttributeArray attributePtr attributeSize
         free returnCodePtr
         free attributePtrPtr
         free attributeSizePtr
@@ -73,14 +73,13 @@ hyperclientGet client s k = do
 --                 size_t key_sz, const struct hyperclient_attribute* attrs,
 --                 size_t attrs_sz, enum hyperclient_returncode* status);
 hyperclientPut :: Hyperclient -> ByteString -> ByteString
-                  -> AttributeList
+                  -> [Attribute]
                   -> Result (HyperclientReturnCode)
 hyperclientPut client s k attributes = do
   returnCodePtr <- malloc
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
-  let attributePtr = attributeListPointer attributes
-      attributeSize = attributeListSize attributes
+  (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   handle <- {# call hyperclient_put #} 
               client
               space key (fromIntegral keySize)
@@ -90,6 +89,7 @@ hyperclientPut client s k attributes = do
         free returnCodePtr
         free space
         free key
+        hyperdexFreeAttributes attributePtr attributeSize
         return returnCode
   return (handle, continuation)
 
@@ -98,14 +98,13 @@ hyperclientPut client s k attributes = do
 --                              size_t key_sz, const struct hyperclient_attribute* attrs,
 --                              size_t attrs_sz, enum hyperclient_returncode* status);
 hyperclientPutIfNotExist :: Hyperclient -> ByteString -> ByteString
-                            -> AttributeList
+                            -> [Attribute]
                             -> Result (HyperclientReturnCode)
 hyperclientPutIfNotExist client s k attributes = do
   returnCodePtr <- malloc
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
-  let attributePtr = attributeListPointer attributes
-      attributeSize = attributeListSize attributes
+  (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   handle <- {# call hyperclient_put_if_not_exist #} 
               client
               space key (fromIntegral keySize)

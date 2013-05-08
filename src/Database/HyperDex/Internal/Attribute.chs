@@ -1,13 +1,10 @@
 module Database.HyperDex.Internal.Attribute 
-  ( AttributeList (..)
-  , fromHyperDexAttributeList
-  , fromHaskellAttributeList
-  , attributeListPointer
-  , attributeListSize
+  ( fromHyperDexAttributeArray
+  , newHyperDexAttributeArray
   , Attribute (..)
   , AttributePtr
-  , hyperclientDestroyAttributes
-  , freeAttributeList
+  , haskellFreeAttributes
+  , hyperdexFreeAttributes
   )
   where
 
@@ -25,31 +22,16 @@ typedef struct hyperclient_attribute hyperclient_attribute_struct;
 
 {# pointer *hyperclient_attribute as AttributePtr -> Attribute #}
 
-newtype AttributeList = 
-  AttributeList { unAttributeList :: ([Attribute], Ptr Attribute, Int, AllocBy) }
-  deriving (Show)
+fromHyperDexAttributeArray :: Ptr Attribute -> Int -> IO [Attribute]
+fromHyperDexAttributeArray p s = peekArray s p
 
-fromHyperDexAttributeList :: Ptr Attribute -> Int -> IO AttributeList
-fromHyperDexAttributeList p s = do
-  list <- peekArray s p
-  return $ AttributeList (list, p, s, AllocHyperDex)
-
-fromHaskellAttributeList :: [Attribute] -> IO AttributeList
-fromHaskellAttributeList attributes = do
-  let s = length attributes
-  array <- newArray attributes
-  return $ AttributeList (attributes, array, s, AllocHaskell)
-
-attributeListPointer :: AttributeList -> Ptr Attribute
-attributeListPointer (AttributeList (_,p,_,_)) = p
-
-attributeListSize :: AttributeList -> Int
-attributeListSize (AttributeList (_,_,s,_)) = s
+newHyperDexAttributeArray :: [Attribute] -> IO (Ptr Attribute, Int)
+newHyperDexAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
 
 data Attribute = Attribute
-  { attr'Attribute      :: ByteString
-  , value'Attribute     :: ByteString
-  , datatype'Attribute  :: Hyperdatatype
+  { attrName     :: ByteString
+  , attrValue    :: ByteString
+  , attrDatatype :: Hyperdatatype
   }
   deriving (Show)
 instance Storable Attribute where
@@ -64,26 +46,20 @@ instance Storable Attribute where
         )
     <*> liftM (toEnum . fromIntegral) ({#get hyperclient_attribute.datatype #} p)
   poke p x = do
-    attr <- newCBString (attr'Attribute x)
-    (value, valueSize) <- newCBStringLen (value'Attribute x)
+    attr <- newCBString (attrName x)
+    (value, valueSize) <- newCBStringLen (attrValue x)
     {#set hyperclient_attribute.attr #} p attr
-    {#set hyperclient_attribute.value #} p (value)
+    {#set hyperclient_attribute.value #} p value
     {#set hyperclient_attribute.value_sz #} p $ (fromIntegral valueSize)
-    {#set hyperclient_attribute.datatype #} p (fromIntegral . fromEnum $ datatype'Attribute x)
+    {#set hyperclient_attribute.datatype #} p (fromIntegral . fromEnum $ attrDatatype x)
 
-hyperclientDestroyAttributes :: Ptr Attribute -> Int -> IO ()
-hyperclientDestroyAttributes attributes attributeSize =
+haskellFreeAttributes :: Ptr Attribute -> Int -> IO ()
+haskellFreeAttributes _ 0 = return ()
+haskellFreeAttributes p n = do
+  free =<< {# get hyperclient_attribute.attr #} p
+  free =<< {# get hyperclient_attribute.value #} p
+  haskellFreeAttributes p (n-1)
+
+hyperdexFreeAttributes :: Ptr Attribute -> Int -> IO ()
+hyperdexFreeAttributes attributes attributeSize =
   {# call hyperclient_destroy_attrs #} attributes (fromIntegral attributeSize)
-
-freeAttributeList :: AttributeList -> IO ()
-freeAttributeList attr =
-  case unAttributeList attr of
-    (_,p,s,AllocHaskell) -> freeGHCAlloc p s >> free p
-    (_,p,s,AllocHyperDex) -> hyperclientDestroyAttributes p s
-  where
-    freeGHCAlloc :: Ptr Attribute -> Int -> IO ()
-    freeGHCAlloc _ 0 = return ()
-    freeGHCAlloc p n = do
-      free =<< {# get hyperclient_attribute.attr #} p
-      free =<< {# get hyperclient_attribute.value #} p
-      freeGHCAlloc p (n-1)

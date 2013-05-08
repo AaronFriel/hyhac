@@ -77,12 +77,11 @@ canRemoveSpace = testCase "Can remove a space" $ do
 canPutInteger ::  Client -> ByteString -> ByteString -> ByteString -> Int64 -> QC.PropertyM IO ()
 canPutInteger client space key attribute value = do
     let serializedValue = runPut . put . Hyper $ value
-    attrList <- QC.run $ fromHaskellAttributeList [Attribute attribute serializedValue HyperdatatypeInt64]
-    returnCode <- QC.run . join $ hyperPut client space key attrList
+    returnCode <- QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeInt64]
     QC.run $ print returnCode
     return ()
 
-canGetInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO AttributeList
+canGetInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO [Attribute]
 canGetInteger client space key = do
     (returnCode, attrList) <- QC.run . join $ hyperGet client space key
     QC.run $ print attrList
