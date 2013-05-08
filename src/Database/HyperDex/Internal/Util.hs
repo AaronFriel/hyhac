@@ -3,15 +3,26 @@ module Database.HyperDex.Internal.Util
  , peekCBString, peekCBStringLen
  , newCBString, newCBStringLen
  , withCBString, withCBStringLen
+ , ByteString
+ , module Foreign.C
+ , module Foreign.Marshal
+ , module Foreign.Ptr
+ , module Foreign.Storable
+ , module Data.Int
  )
  where
 
 import Data.ByteString.Char8
-import Foreign.C.String
+import Foreign.C
+import Foreign.Marshal
+import Foreign.Ptr
+import Foreign.Storable
+import Data.Int
 
 -- | Indicates whether an object or array has been allocated 
 -- by Haskell or by the HyperDex library.
 data AllocBy = AllocHaskell | AllocHyperDex
+  deriving (Show, Eq)
 
 -- | Marshal a NUL terminated C string into a ByteString.
 --

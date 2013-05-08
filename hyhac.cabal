@@ -13,9 +13,7 @@ build-type:          Simple
 
 extra-source-files:  README.md
   include/hyperdex.h
-  src/Database/HyperDex/Internal/HyperDex.c2hs
   include/hyperclient.h
-  src/Database/HyperDex/Internal/Hyperclient.c2hs
 
 cabal-version:       >=1.10
 
@@ -28,11 +26,14 @@ library
   exposed-modules:
     Database.HyperDex
     Database.HyperDex.Internal
+    Database.HyperDex.Internal.ReturnCode
+    Database.HyperDex.Internal.Client
+    Database.HyperDex.Internal.Space
+    Database.HyperDex.Internal.Attribute
     Database.HyperDex.Internal.Util
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
     Database.HyperDex.Internal.Hyperclient
-    Database.HyperDex.Internal.Attribute
 
   -- Modules included in this library but not exported.
   -- other-modules:       
@@ -44,7 +45,7 @@ library
     , bytestring                 >= 0.10
     , cereal                     >= 0.3.5
     , containers                 >= 0.5
-    , test-framework             >= 0.7 && < 0.8
+    , test-framework             >= 0.8
     , test-framework-hunit
     , test-framework-quickcheck2 >= 0.3
     , HUnit
@@ -75,7 +76,7 @@ Test-suite tests
     , bytestring                 >= 0.10
     , cereal                     >= 0.3.5
     , containers                 >= 0.5
-    , test-framework             >= 0.7 && < 0.8
+    , test-framework             >= 0.8
     , test-framework-hunit
     , test-framework-quickcheck2 >= 0.3
     , HUnit

@@ -5,6 +5,7 @@ module Database.HyperDex.Internal.Attribute
   , attributeListPointer
   , attributeListSize
   , Attribute (..)
+  , AttributePtr
   , hyperclientDestroyAttributes
   , freeAttributeList
   )
@@ -12,13 +13,6 @@ module Database.HyperDex.Internal.Attribute
 
 import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Util
-
-import Data.ByteString (ByteString)
-
-import Foreign.C
-import Foreign.Marshal
-import Foreign.Ptr
-import Foreign.Storable
 
 import Control.Monad
 import Control.Applicative ((<$>), (<*>))
@@ -33,6 +27,7 @@ typedef struct hyperclient_attribute hyperclient_attribute_struct;
 
 newtype AttributeList = 
   AttributeList { unAttributeList :: ([Attribute], Ptr Attribute, Int, AllocBy) }
+  deriving (Show)
 
 fromHyperDexAttributeList :: Ptr Attribute -> Int -> IO AttributeList
 fromHyperDexAttributeList p s = do
@@ -56,6 +51,7 @@ data Attribute = Attribute
   , value'Attribute     :: ByteString
   , datatype'Attribute  :: Hyperdatatype
   }
+  deriving (Show)
 instance Storable Attribute where
   sizeOf _ = {#sizeof hyperclient_attribute_struct #}
   alignment _ = {#alignof hyperclient_attribute_struct #}
