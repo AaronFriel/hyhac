@@ -74,29 +74,48 @@ canRemoveSpace = testCase "Can remove a space" $ do
     removeSpaceResult <- removeSpace client defaultSpace
     assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
 
-canPutInteger ::  Client -> ByteString -> ByteString -> ByteString -> Int64 -> QC.PropertyM IO ()
+canPutInteger ::  Client -> ByteString -> ByteString -> ByteString -> Int64 -> QC.PropertyM IO HyperclientReturnCode
 canPutInteger client space key attribute value = do
     let serializedValue = runPut . put . Hyper $ value
-    returnCode <- QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeInt64]
-    QC.run $ print returnCode
-    return ()
+    QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeInt64]
 
-canGetInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO [Attribute]
+canGetInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO (HyperclientReturnCode, Either String Int64)
 canGetInteger client space key = do
     (returnCode, attrList) <- QC.run . join $ hyperGet client space key
-    QC.run $ print attrList
-    return attrList
+    let value =
+          case (filter (\a -> attrName a == "profile_views") attrList) of
+            []  -> Left "No returned value"
+            [x] -> fmap unHyper . runGet get $ attrValue x
+            _   -> Left "More than one returned value"
+    return (returnCode, value)
 
 canStoreIntegers :: ByteString -> Test
 canStoreIntegers space =
   testProperty "Can round trip an integer through HyperDex" $
     QC.monadicIO $
       withDefaultHostQC $ \client -> do
-        key <- QC.pick $ arbitraryByteStringIdentifier 
-        value <- QC.pick arbitrary :: QC.PropertyM IO Int64
-        canPutInteger client space key "profile_views" value
-        result <- canGetInteger client space key
-        return True
+        key <- QC.pick $ resize 10 $ arbitraryByteStringIdentifier 
+        input <- QC.pick $ resize 10 $ arbitrary :: QC.PropertyM IO Int64
+        r1 <- canPutInteger client space key "profile_views" input
+        (r2, output) <- canGetInteger client space key
+        case output of
+          Right o ->
+            case o == input of
+              True -> QC.assert True
+              False -> do
+                QC.run $ do
+                  print $ "Failed to insert integer with key " <> (show key) <> " and input: " <> (show input)
+                  print $ "Put had return code: " <> (show r1)
+                  print $ "Get had return code: " <> (show r2)
+                  print $ "Output value:" <> (show o)
+                QC.assert False
+          Left _ -> do
+            QC.run $ do
+              print $ "Failed to insert integer with key " <> show key <> " and input: " <> show input
+              print $ "Put had return code: " <> show r1
+              print $ "Get had return code: " <> show r2
+              print $ "Output string:" <> show output
+            QC.assert False
 
 cleanupSpace :: ByteString -> IO ()
 cleanupSpace space =

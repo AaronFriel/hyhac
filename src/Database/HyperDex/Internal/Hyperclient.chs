@@ -54,12 +54,14 @@ hyperclientGet client s k = do
               returnCodePtr attributePtrPtr attributeSizePtr
   let result :: IO (HyperclientReturnCode, [Attribute])
       result = do
-        print "Inside get!"
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-        print $ "Got a returnCode!" ++ show returnCode
-        attributePtr <- peek attributePtrPtr
-        attributeSize <- fmap fromIntegral $ peek attributeSizePtr
-        attributes <- fromHyperDexAttributeArray attributePtr attributeSize
+        attributes <-
+          case returnCode of
+            HyperclientSuccess -> do
+              attributePtr <- peek attributePtrPtr
+              attributeSize <- fmap fromIntegral $ peek attributeSizePtr
+              fromHyperDexAttributeArray attributePtr attributeSize
+            _ -> return [] 
         free returnCodePtr
         free attributePtrPtr
         free attributeSizePtr
