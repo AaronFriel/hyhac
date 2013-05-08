@@ -114,6 +114,7 @@ hyperclientPutIfNotExist client s k attributes = do
         free returnCodePtr
         free space
         free key
+        hyperdexFreeAttributes attributePtr attributeSize
         return returnCode
   return (handle, continuation)
 
