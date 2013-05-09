@@ -95,8 +95,8 @@ getInteger client space key = do
             _   -> Left "More than one returned value"
     return (returnCode, value)
 
-propCanStoreIntegers :: Client -> ByteString -> (LowerAscii ByteString) -> Int64 -> Property
-propCanStoreIntegers client space (LowerAscii key) input =
+propCanStoreIntegers :: Client -> ByteString -> ByteString -> Int64 -> Property
+propCanStoreIntegers client space key input =
   QC.monadicIO $ do
     r1 <- putInteger client space key "profile_views" input
     (r2, eitherOutput) <- getInteger client space key
