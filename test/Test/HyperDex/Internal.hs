@@ -62,6 +62,12 @@ withDefaultHostQC f = do
   QC.run $ closeClient client
   return res
 
+cleanupSpace :: ByteString -> IO ()
+cleanupSpace space =
+  withDefaultHost $ \client -> do
+    _ <- removeSpace client space
+    return ()
+
 canCreateSpace :: Test
 canCreateSpace = testCase "Can create a space" $ do
   withDefaultHost $ \client -> do
@@ -74,13 +80,13 @@ canRemoveSpace = testCase "Can remove a space" $ do
     removeSpaceResult <- removeSpace client defaultSpace
     assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
 
-canPutInteger ::  Client -> ByteString -> ByteString -> ByteString -> Int64 -> QC.PropertyM IO HyperclientReturnCode
-canPutInteger client space key attribute value = do
+putInteger ::  Client -> ByteString -> ByteString -> ByteString -> Int64 -> QC.PropertyM IO HyperclientReturnCode
+putInteger client space key attribute value = do
     let serializedValue = runPut . put . Hyper $ value
     QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeInt64]
 
-canGetInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO (HyperclientReturnCode, Either String Int64)
-canGetInteger client space key = do
+getInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO (HyperclientReturnCode, Either String Int64)
+getInteger client space key = do
     (returnCode, attrList) <- QC.run . join $ hyperGet client space key
     let value =
           case (filter (\a -> attrName a == "profile_views") attrList) of
@@ -89,54 +95,34 @@ canGetInteger client space key = do
             _   -> Left "More than one returned value"
     return (returnCode, value)
 
-canStoreIntegers :: ByteString -> Test
-canStoreIntegers space =
-  testProperty "Can round trip an integer through HyperDex" $
-    QC.monadicIO $
-      withDefaultHostQC $ \client -> do
-        key <- QC.pick $ resize 10 $ arbitraryByteStringIdentifier 
-        input <- QC.pick $ resize 10 $ arbitrary :: QC.PropertyM IO Int64
-        r1 <- canPutInteger client space key "profile_views" input
-        (r2, output) <- canGetInteger client space key
-        case output of
-          Right o ->
-            case o == input of
-              True -> QC.assert True
-              False -> do
-                QC.run $ do
-                  print $ "Failed to insert integer with key " <> (show key) <> " and input: " <> (show input)
-                  print $ "Put had return code: " <> (show r1)
-                  print $ "Get had return code: " <> (show r2)
-                  print $ "Output value:" <> (show o)
-                QC.assert False
-          Left _ -> do
-            QC.run $ do
-              print $ "Failed to insert integer with key " <> show key <> " and input: " <> show input
-              print $ "Put had return code: " <> show r1
-              print $ "Get had return code: " <> show r2
-              print $ "Output string:" <> show output
-            QC.assert False
-
-cleanupSpace :: ByteString -> IO ()
-cleanupSpace space =
-  withDefaultHost $ \client -> do
-    _ <- removeSpace client space
-    return ()
-
+propCanStoreIntegers :: Client -> ByteString -> (LowerAscii ByteString) -> Int64 -> Property
+propCanStoreIntegers client space (LowerAscii key) input =
+  QC.monadicIO $ do
+    r1 <- putInteger client space key "profile_views" input
+    (r2, eitherOutput) <- getInteger client space key
+    case eitherOutput of
+      Right output -> return $ input == output
+      Left _       -> return False
 
 testCanStoreIntegers :: Test
 testCanStoreIntegers = buildTestBracketed $ do
-  withDefaultHost $ \client -> do
-    let space = "integralstore"
+    client <- makeClient defaultHost defaultPort
+    let space = "testintegers"
     addSpace client (makeSpaceDesc space)
-    return (canStoreIntegers space, cleanupSpace space)
+    let test = testProperty "Can round trip an integer through HyperDex"
+                            (propCanStoreIntegers client space)
+    return (test, closeClient client >> cleanupSpace space)
 
 canCreateAndRemoveSpaces :: Test
-canCreateAndRemoveSpaces = testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
+canCreateAndRemoveSpaces = do
+  testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
 
 internalTests :: Test
 internalTests = mutuallyExclusive 
+                $ plusTestOptions 
+                  (mempty { topt_maximum_generated_tests = Just 1000
+                          , topt_timeout = Just (Just 250000) -- microseconds before considering failure, 250ms
+                          })
                 $ testGroup "Internal API Tests"
-                  [ canCreateAndRemoveSpaces
-                  , testCanStoreIntegers
+                  [ testCanStoreIntegers
                   ]

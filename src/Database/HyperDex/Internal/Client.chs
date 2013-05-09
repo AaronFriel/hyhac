@@ -58,7 +58,7 @@ loopClient (unClient -> c) = do
       case Map.lookup handle handles of
         Nothing -> do
           putMVar c (Just hc, handles)
-          return Nothing
+          return $ Just handle
         Just f  -> do
           f
           putMVar c (Just hc, Map.delete handle handles)

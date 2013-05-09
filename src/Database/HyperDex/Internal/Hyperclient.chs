@@ -61,7 +61,7 @@ hyperclientGet client s k = do
               attributePtr <- peek attributePtrPtr
               attributeSize <- fmap fromIntegral $ peek attributeSizePtr
               fromHyperDexAttributeArray attributePtr attributeSize
-            _ -> return [] 
+            _ -> return []
         free returnCodePtr
         free attributePtrPtr
         free attributeSizePtr
@@ -88,6 +88,9 @@ hyperclientPut client s k attributes = do
               attributePtr (fromIntegral attributeSize) returnCodePtr
   let continuation = do
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        case returnCode of 
+          HyperclientSuccess -> return ()
+          _ -> print $ "Inside hyperclientPut, inserting string: " ++ show key ++ " with handle: " ++ show handle ++ " returnCode: " ++ show returnCode ++ " attributes: " ++ show attributes
         free returnCodePtr
         free space
         free key
