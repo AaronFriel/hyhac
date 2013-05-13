@@ -83,7 +83,8 @@ canRemoveSpace = testCase "Can remove a space" $ do
 putInteger ::  Client -> ByteString -> ByteString -> ByteString -> Int64 -> QC.PropertyM IO HyperclientReturnCode
 putInteger client space key attribute value = do
     let serializedValue = runPut . put . Hyper $ value
-    QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeInt64]
+    returnCode <- QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeInt64]
+    return returnCode
 
 getInteger ::  Client -> ByteString -> ByteString -> QC.PropertyM IO (HyperclientReturnCode, Either String Int64)
 getInteger client space key = do
@@ -101,8 +102,8 @@ propCanStoreIntegers client space key input =
     r1 <- putInteger client space key "profile_views" input
     (r2, eitherOutput) <- getInteger client space key
     case eitherOutput of
-      Right output -> return $ input == output
-      Left _       -> return False
+      Right output -> QC.assert $ input == output
+      Left _       -> QC.assert False
 
 testCanStoreIntegers :: Test
 testCanStoreIntegers = buildTestBracketed $ do
@@ -115,6 +116,42 @@ testCanStoreIntegers = buildTestBracketed $ do
             $ propCanStoreIntegers client space
     return (test, closeClient client >> cleanupSpace space)
 
+putString ::  Client -> ByteString -> ByteString -> ByteString -> ByteString -> QC.PropertyM IO HyperclientReturnCode
+putString client space key attribute value = do
+    let serializedValue = runPut . put . Hyper $ value
+    returnCode <- QC.run . join $ hyperPut client space key [Attribute attribute serializedValue HyperdatatypeString]
+    return returnCode
+
+getString ::  Client -> ByteString -> ByteString -> ByteString -> QC.PropertyM IO (HyperclientReturnCode, Either String ByteString)
+getString client space key attribute = do
+    (returnCode, attrList) <- QC.run . join $ hyperGet client space key
+    let value =
+          case (filter (\a -> attrName a == attribute) attrList) of
+            []  -> Left $ "No returned value, returnCode: " <> show returnCode
+            [x] -> fmap unHyper . runGet get $ attrValue x
+            _   -> Left "More than one returned value"
+    return (returnCode, value)
+
+propCanStoreString :: Client -> ByteString -> ByteString -> ByteString -> ByteString -> Property
+propCanStoreString client space attribute key input =
+  QC.monadicIO $ do
+    r1 <- putString client space key attribute input
+    (r2, eitherOutput) <- getString client space key attribute
+    case eitherOutput of
+      Right output -> QC.assert $ input == output
+      Left _       -> QC.assert False
+
+testCanStoreStrings :: Test
+testCanStoreStrings = buildTestBracketed $ do
+    let space = "testCanStoreString"
+    client <- makeClient defaultHost defaultPort
+    addSpace client (makeSpaceDesc space)
+    let test = 
+          testProperty
+            "Can round trip a string through HyperDex"
+            $ propCanStoreString client space "first"
+    return (test, closeClient client >> cleanupSpace space)
+
 canCreateAndRemoveSpaces :: Test
 canCreateAndRemoveSpaces = do
   testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
@@ -123,8 +160,8 @@ internalTests :: Test
 internalTests = mutuallyExclusive 
                 $ plusTestOptions 
                   (mempty { topt_maximum_generated_tests = Just 1000
-                          , topt_timeout = Just (Just 250000) -- microseconds before considering failure, 250ms
                           })
                 $ testGroup "Internal API Tests"
                   [ testCanStoreIntegers
+                  , testCanStoreStrings
                   ]
