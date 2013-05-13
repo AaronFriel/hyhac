@@ -9,7 +9,7 @@ import Test.HUnit hiding (Test)
 import Control.Monad
 
 import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck
+import Test.QuickCheck hiding (NonEmpty)
 import qualified Test.QuickCheck.Monadic as QC
 
 import Test.HyperDex.Util
@@ -106,11 +106,13 @@ propCanStoreIntegers client space key input =
 
 testCanStoreIntegers :: Test
 testCanStoreIntegers = buildTestBracketed $ do
+    let space = "testCanStoreIntegers"
     client <- makeClient defaultHost defaultPort
-    let space = "testintegers"
     addSpace client (makeSpaceDesc space)
-    let test = testProperty "Can round trip an integer through HyperDex"
-                            (propCanStoreIntegers client space)
+    let test = 
+          testProperty
+            "Can round trip an integer through HyperDex"
+            $ propCanStoreIntegers client space
     return (test, closeClient client >> cleanupSpace space)
 
 canCreateAndRemoveSpaces :: Test

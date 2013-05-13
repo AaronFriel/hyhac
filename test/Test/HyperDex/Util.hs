@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor, MultiParamTypeClasses #-}
 
 module Test.HyperDex.Util where
 
@@ -7,12 +7,14 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isAsciiLower)
 
+import Control.Applicative
+
 notNul :: Char -> Bool
 notNul '\0' = False
 notNul _    = True
 
 newtype NonNul a = NonNul { getNonNul :: a }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
 
 lowerAsciiChar :: Gen (LowerAscii Char)
 lowerAsciiChar = fmap LowerAscii $ choose ('a','z')
@@ -25,7 +27,7 @@ instance Arbitrary (NonNul ByteString) where
   shrink (NonNul xs) = map NonNul $ filter (BS.all notNul) $ shrink xs
 
 newtype LowerAscii a = LowerAscii { getLowerAscii :: a }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
 
 instance Arbitrary (LowerAscii Char) where
   arbitrary = fmap LowerAscii $ choose ('a','z')
@@ -35,11 +37,35 @@ instance Arbitrary (LowerAscii ByteString) where
   shrink (LowerAscii xs) = map LowerAscii $ filter (BS.all isAsciiLower) $ shrink xs 
 
 newtype NonEmpty a = NonEmpty { getNonEmpty :: a }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Functor)
 
-instance Arbitrary (NonEmpty ByteString) where
-  arbitrary = fmap NonEmpty $ arbitrary `suchThat` (not . BS.null)
-  shrink (NonEmpty xs) = map NonEmpty $ filter (not . BS.null) $ shrink xs
+class Empty a where
+  nonEmpty :: a -> Bool
+
+instance Empty ByteString where
+  nonEmpty = not . BS.null
+
+class Functor f => Wrapper f a where
+  wrap :: a -> f a
+  unWrap :: f a -> a
+
+instance Wrapper NonNul a where
+  wrap = NonNul
+  unWrap = getNonNul
+
+instance Wrapper LowerAscii a where
+  wrap = LowerAscii
+  unWrap = getLowerAscii
+
+instance (Wrapper f a, Arbitrary (f a), Empty a) => Arbitrary (NonEmpty (f a)) where
+  arbitrary = fmap NonEmpty $ arbitrary `suchThat` (\x -> nonEmpty $ unWrap x)
+
+-- instance Arbitrary (NonEmpty ByteString) where
+--   arbitrary = fmap NonEmpty $ arbitrary `suchThat` nonEmpty
+--   shrink (NonEmpty xs) = map NonEmpty $ filter nonEmpty $ shrink xs
+-- 
+-- instance (Functor f, Arbitrary (f a), Empty a) => Arbitrary (NonEmpty (f a)) where
+--   arbitrary = fmap NonEmpty $ fmap (liftA (`suchThat` nonEmpty)) $ arbitrary
 
 arbitraryByteStringIdentifier :: Gen ByteString
 arbitraryByteStringIdentifier = fmap getLowerAscii arbitrary
