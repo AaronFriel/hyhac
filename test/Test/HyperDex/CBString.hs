@@ -69,6 +69,6 @@ makeTestVariety label tests =
   testGroup (label <> " of varying size")
   [ smallSizeTests   $ testGroup "Small size tests" tests
   , mediumSizeTests  $ testGroup "Medium size tests" tests
-  , largeSizeTests   $ testGroup "Large size tests" tests
-  , massiveSizeTests $ testGroup "Massive size tests" tests
+  -- , largeSizeTests   $ testGroup "Large size tests" tests
+  -- , massiveSizeTests $ testGroup "Massive size tests" tests
   ]

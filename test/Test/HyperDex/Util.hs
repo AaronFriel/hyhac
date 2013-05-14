@@ -1,13 +1,21 @@
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor, MultiParamTypeClasses, TypeFamilies, UndecidableInstances #-}
 
 module Test.HyperDex.Util where
 
-import Test.QuickCheck hiding (NonEmpty)
+import Test.QuickCheck hiding (NonEmpty, getNonEmpty)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isAsciiLower)
 
 import Control.Applicative
+
+-- | An arbitrary bytestring
+
+instance Arbitrary ByteString where
+  arbitrary = fmap BS.pack $ arbitrary
+  shrink = map BS.pack . shrink . BS.unpack 
+
+-- | Definitions for bytestrings not containing NUL characters
 
 notNul :: Char -> Bool
 notNul '\0' = False
@@ -16,70 +24,37 @@ notNul _    = True
 newtype NonNul a = NonNul { getNonNul :: a }
   deriving (Show, Eq, Functor)
 
-lowerAsciiChar :: Gen (LowerAscii Char)
-lowerAsciiChar = fmap LowerAscii $ choose ('a','z')
-
 instance Arbitrary (NonNul Char) where
-  arbitrary = fmap NonNul $ choose ('\1','\255')
+  arbitrary = fmap NonNul $ choose ('\1', '\255')
 
 instance Arbitrary (NonNul ByteString) where
-  arbitrary = fmap (NonNul . BS.pack . fmap getNonNul) arbitrary
+  arbitrary = fmap (NonNul . BS.pack . fmap getNonNul) arbitrary  
   shrink (NonNul xs) = map NonNul $ filter (BS.all notNul) $ shrink xs
+
+-- | Definitions for lower ASCII bytestrings
 
 newtype LowerAscii a = LowerAscii { getLowerAscii :: a }
   deriving (Show, Eq, Functor)
 
 instance Arbitrary (LowerAscii Char) where
-  arbitrary = fmap LowerAscii $ choose ('a','z')
+  arbitrary = fmap LowerAscii $ choose ('a', 'z')
 
 instance Arbitrary (LowerAscii ByteString) where
-  arbitrary = fmap (LowerAscii . BS.pack . fmap getLowerAscii) arbitrary
-  shrink (LowerAscii xs) = map LowerAscii $ filter (BS.all isAsciiLower) $ shrink xs 
+  arbitrary = fmap (LowerAscii . BS.pack . fmap getLowerAscii) arbitrary  
+  shrink (LowerAscii xs) = map LowerAscii $ filter (BS.all isAsciiLower) $ shrink xs
+
+-- | Definitions for non NonEmptyable bytestrings
 
 newtype NonEmpty a = NonEmpty { getNonEmpty :: a }
   deriving (Show, Eq, Functor)
 
-class Empty a where
-  nonEmpty :: a -> Bool
+instance Arbitrary (NonEmpty ByteString) where
+  arbitrary = fmap NonEmpty $ arbitrary `suchThat` (not . BS.null)
+  shrink (NonEmpty xs) = map NonEmpty $ filter (not . BS.null) $ shrink xs
 
-instance Empty ByteString where
-  nonEmpty = not . BS.null
+newtype Identifier a = Identifier { getIdentifier :: a }
+  deriving (Show, Eq, Functor)
 
-class Functor f => Wrapper f a where
-  wrap :: a -> f a
-  unWrap :: f a -> a
-
-instance Wrapper NonNul a where
-  wrap = NonNul
-  unWrap = getNonNul
-
-instance Wrapper LowerAscii a where
-  wrap = LowerAscii
-  unWrap = getLowerAscii
-
-instance (Wrapper f a, Arbitrary (f a), Empty a) => Arbitrary (NonEmpty (f a)) where
-  arbitrary = fmap NonEmpty $ arbitrary `suchThat` (\x -> nonEmpty $ unWrap x)
-
--- instance Arbitrary (NonEmpty ByteString) where
---   arbitrary = fmap NonEmpty $ arbitrary `suchThat` nonEmpty
---   shrink (NonEmpty xs) = map NonEmpty $ filter nonEmpty $ shrink xs
--- 
--- instance (Functor f, Arbitrary (f a), Empty a) => Arbitrary (NonEmpty (f a)) where
---   arbitrary = fmap NonEmpty $ fmap (liftA (`suchThat` nonEmpty)) $ arbitrary
-
-arbitraryByteStringIdentifier :: Gen ByteString
-arbitraryByteStringIdentifier = fmap getLowerAscii arbitrary
-
-arbitraryNonNulByteString :: Gen ByteString
-arbitraryNonNulByteString = fmap getNonNul arbitrary
-
-arbitraryByteString :: Gen ByteString
-arbitraryByteString = arbitrary
-
-bsFilter :: (String -> Bool) -> ByteString -> Bool
-bsFilter pred = pred . BS.unpack
-
-instance Arbitrary ByteString where
-  arbitrary = fmap BS.pack $ arbitrary
-  -- | Remove substrings of decreasing size, a la quicksort:
-  shrink = map BS.pack . shrink . BS.unpack 
+instance Arbitrary (Identifier ByteString) where
+  arbitrary = fmap (Identifier . BS.pack . fmap getLowerAscii) $ listOf1 arbitrary
+  shrink (Identifier xs) = map Identifier $ filter (\x -> BS.all isAsciiLower x && not (BS.null x)) $ shrink xs

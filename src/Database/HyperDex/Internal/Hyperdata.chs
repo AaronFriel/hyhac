@@ -1,8 +1,11 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances, DataKinds #-}
 
 module Database.HyperDex.Internal.Hyperdata
-  ( Hyper (..) )
+  ( Hyper (..)
+  , HyperSerialize (..) )
   where
+
+{# import Database.HyperDex.Internal.Hyperdex #}
 
 import Data.Int
 import Control.Monad
@@ -25,18 +28,22 @@ instance HyperSerialize a => Serialize (Hyper a) where
 class HyperSerialize a where
   getH :: Int -> Get a
   putH :: a -> Put
+  datatype :: a -> Hyperdatatype
 
 instance HyperSerialize Int64 where
   getH = const $ liftM fromIntegral getWord64le
   putH = putWord64le . fromIntegral
+  datatype = const HyperdatatypeInt64
 
 instance HyperSerialize Double where
   getH = const getFloat64le
   putH = putFloat64le
+  datatype = const HyperdatatypeFloat
 
 instance HyperSerialize ByteString where
   getH = getByteString
   putH = putByteString
+  datatype = const HyperdatatypeString
 
 instance HyperSerialize [Int64] where
   getH 0 = return []
@@ -46,6 +53,7 @@ instance HyperSerialize [Int64] where
     return $ first : rest
   putH []     = return ()
   putH (x:xs) = putH x >> putH xs 
+  datatype = const HyperdatatypeListInt64
 
 instance HyperSerialize [Double] where
   getH i | i <= 0    = return []
@@ -55,6 +63,7 @@ instance HyperSerialize [Double] where
     return $ first : rest
   putH []     = return ()
   putH (x:xs) = putH x >> putH xs
+  datatype = const HyperdatatypeListFloat
 
 instance HyperSerialize [ByteString] where
   getH 0 = return []
@@ -68,10 +77,28 @@ instance HyperSerialize [ByteString] where
     (putH :: Int64 -> Put) . fromIntegral . ByteString.length $ x
     putByteString x
     putH xs
+  datatype = const HyperdatatypeListString
 
-instance (Ord a, HyperSerialize [a]) => HyperSerialize (Set a) where
-  getH = fmap Set.fromList . getH
-  putH = mapM_ (\a -> putH [a]) . Set.toList
+setGet :: (Ord a, HyperSerialize [a]) => Int -> Get (Set a)
+setGet = fmap Set.fromList . getH
+
+setPut :: (Ord a, HyperSerialize [a]) => Set a -> Put
+setPut = mapM_ (\a -> putH [a]) . Set.toList
+
+instance HyperSerialize (Set Int64) where
+  getH = setGet
+  putH = setPut 
+  datatype = const HyperdatatypeSetInt64
+
+instance HyperSerialize (Set Double) where
+  getH = setGet
+  putH = setPut 
+  datatype = const HyperdatatypeSetFloat
+
+instance HyperSerialize (Set ByteString) where
+  getH = setGet
+  putH = setPut 
+  datatype = const HyperdatatypeSetString
 
 hyperMapGet :: (HyperSerialize [a], HyperSerialize [b]) => Int -> Get [(a,b)]
 hyperMapGet i | i <= 0    = return []
@@ -81,9 +108,56 @@ hyperMapGet i | i <= 0    = return []
                   rest <- hyperMapGet (i-16)
                   return $ (key,value) : rest
 
-instance (Ord k, HyperSerialize [k], HyperSerialize [v]) => HyperSerialize (Map k v) where
-  getH = fmap Map.fromList . hyperMapGet
-  putH = mapM_ (\(k,v) -> putH [k] >> putH [v]) . Map.toList
+mapGet :: (Ord k, HyperSerialize [k], HyperSerialize [v]) => Int -> Get (Map k v)
+mapGet = fmap Map.fromList . hyperMapGet
+
+mapPut :: (Ord k, HyperSerialize [k], HyperSerialize [v]) => Map k v -> Put
+mapPut = mapM_ (\(k,v) -> putH [k] >> putH [v]) . Map.toList
+
+instance HyperSerialize (Map Int64 Int64) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapInt64Int64
+
+instance HyperSerialize (Map Int64 Double) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapInt64Int64
+
+instance HyperSerialize (Map Int64 ByteString) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapInt64String
+
+instance HyperSerialize (Map Double Int64) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapFloatInt64
+
+instance HyperSerialize (Map Double Double) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapFloatFloat
+
+instance HyperSerialize (Map Double ByteString) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapFloatString
+
+instance HyperSerialize (Map ByteString Int64) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapStringInt64
+
+instance HyperSerialize (Map ByteString Double) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapStringFloat
+
+instance HyperSerialize (Map ByteString ByteString) where
+  getH = mapGet
+  putH = mapPut
+  datatype = const HyperdatatypeMapStringString
 
 {-
 toList :: a -> [a]
