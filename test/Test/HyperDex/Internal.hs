@@ -46,11 +46,14 @@ makeSpaceDesc name =
   \   float score,                          \n\
   \   int profile_views,                    \n\
   \   list(string) pending_requests,        \n\
+  \   list(float) rankings,                 \n\
+  \   list(int) todolist,                   \n\
   \   set(string) hobbies,                  \n\
   \   map(string, string) unread_messages,  \n\
   \   map(string, int) upvotes              \n\
   \subspace first, last                     \n\
   \subspace profile_views"
+
 
 withDefaultHost :: (Client -> IO a) -> IO a
 withDefaultHost f = do
@@ -175,6 +178,24 @@ testCanStoreListOfStrings = buildTestBracketed $ do
             $ \(value :: [ByteString]) -> propCanStore client "pending_requests" value defaultSpace
     return (test, closeClient client)
 
+testCanStoreListOfDoubles :: Test
+testCanStoreListOfDoubles = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a list of floating point doubles through HyperDex"
+            $ \(value :: [Double]) -> propCanStore client "rankings" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreListOfIntegers :: Test
+testCanStoreListOfIntegers = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a list of integers through HyperDex"
+            $ \(value :: [Int64]) -> propCanStore client "todolist" value defaultSpace
+    return (test, closeClient client)
+
 canCreateAndRemoveSpaces :: Test
 canCreateAndRemoveSpaces = do
   testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
@@ -191,5 +212,7 @@ internalTests = mutuallyExclusive
                   , testCanStoreStrings
                   , testCanStoreDoubles
                   , testCanStoreListOfStrings
+                  , testCanStoreListOfDoubles
+                  , testCanStoreListOfIntegers
                   , canRemoveSpace
                   ]
