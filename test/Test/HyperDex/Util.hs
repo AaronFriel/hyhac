@@ -9,6 +9,9 @@ import Data.Char (isAsciiLower)
 
 import Control.Applicative
 
+import Data.Set (Set)
+import qualified Data.Set as Set
+
 -- | An arbitrary bytestring
 
 instance Arbitrary ByteString where
@@ -58,3 +61,9 @@ newtype Identifier a = Identifier { getIdentifier :: a }
 instance Arbitrary (Identifier ByteString) where
   arbitrary = fmap (Identifier . BS.pack . fmap getLowerAscii) $ listOf1 arbitrary
   shrink (Identifier xs) = map Identifier $ filter (\x -> BS.all isAsciiLower x && not (BS.null x)) $ shrink xs
+
+-- | Definitions for arbitrary sets
+
+instance (Ord a, Arbitrary [a]) => Arbitrary (Set a) where
+  arbitrary = fmap Set.fromList arbitrary
+  shrink = map Set.fromList . shrink . Set.toList 

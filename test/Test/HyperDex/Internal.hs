@@ -8,6 +8,8 @@ import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
 import Control.Monad
 
+import Control.Concurrent (threadDelay)
+
 import Test.Framework.Providers.QuickCheck2
 import Test.QuickCheck hiding (NonEmpty)
 import qualified Test.QuickCheck.Monadic as QC
@@ -19,6 +21,8 @@ import Data.ByteString.Char8 (unpack)
 import Database.HyperDex.Internal
 
 import Data.Serialize (runPut, runGet, put, get)
+
+import Data.Set (Set)
 
 import Data.Int
 import Data.Monoid
@@ -49,6 +53,8 @@ makeSpaceDesc name =
   \   list(float) rankings,                 \n\
   \   list(int) todolist,                   \n\
   \   set(string) hobbies,                  \n\
+  \   set(float) imonafloat,                \n\
+  \   set(int) friendids,                   \n\
   \   map(string, string) unread_messages,  \n\
   \   map(string, int) upvotes              \n\
   \subspace first, last                     \n\
@@ -79,6 +85,7 @@ canCreateSpace :: Test
 canCreateSpace = testCase "Can create a space" $ do
   withDefaultHost $ \client -> do
     addSpaceResult <- addSpace client defaultSpaceDesc
+    threadDelay 500000
     assertEqual "Add space: " HyperclientSuccess addSpaceResult
 
 canRemoveSpace :: Test
@@ -196,6 +203,33 @@ testCanStoreListOfIntegers = buildTestBracketed $ do
             $ \(value :: [Int64]) -> propCanStore client "todolist" value defaultSpace
     return (test, closeClient client)
 
+testCanStoreSetOfStrings :: Test
+testCanStoreSetOfStrings = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a set of strings through HyperDex"
+            $ \(value :: Set ByteString) -> propCanStore client "hobbies" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreSetOfDoubles :: Test
+testCanStoreSetOfDoubles = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a set of floating point doubles through HyperDex"
+            $ \(value :: Set Double) -> propCanStore client "imonafloat" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreSetOfIntegers :: Test
+testCanStoreSetOfIntegers = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a set of integers through HyperDex"
+            $ \(value :: Set Int64) -> propCanStore client "friendids" value defaultSpace
+    return (test, closeClient client)
+
 canCreateAndRemoveSpaces :: Test
 canCreateAndRemoveSpaces = do
   testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
@@ -214,5 +248,8 @@ internalTests = mutuallyExclusive
                   , testCanStoreListOfStrings
                   , testCanStoreListOfDoubles
                   , testCanStoreListOfIntegers
+                  , testCanStoreSetOfStrings
+                  , testCanStoreSetOfDoubles
+                  , testCanStoreSetOfIntegers
                   , canRemoveSpace
                   ]
