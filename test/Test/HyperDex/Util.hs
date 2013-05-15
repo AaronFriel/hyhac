@@ -11,6 +11,8 @@ import Control.Applicative
 
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 -- | An arbitrary bytestring
 
@@ -67,3 +69,7 @@ instance Arbitrary (Identifier ByteString) where
 instance (Ord a, Arbitrary [a]) => Arbitrary (Set a) where
   arbitrary = fmap Set.fromList arbitrary
   shrink = map Set.fromList . shrink . Set.toList 
+
+instance (Ord k, Arbitrary [(k, v)]) => Arbitrary (Map k v) where
+  arbitrary = fmap Map.fromList arbitrary
+  shrink = map Map.fromList . shrink . Map.toList 

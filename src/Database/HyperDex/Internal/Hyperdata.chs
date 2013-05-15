@@ -25,70 +25,78 @@ import Debug.Trace
 newtype Hyper a = Hyper { unHyper :: a }
 
 instance HyperSerialize a => Serialize (Hyper a) where
-  get = fmap Hyper $ remaining >>= getH
+  get = fmap Hyper getH
   put = putH . unHyper
 
 class HyperSerialize a where
-  getH :: Int -> Get a
+  getH :: Get a
   putH :: a -> Put
   datatype :: a -> Hyperdatatype
 
 instance HyperSerialize Int64 where
-  getH = const $ liftM fromIntegral getWord64le
+  getH = liftM fromIntegral getWord64le
   putH = putWord64le . fromIntegral
   datatype = const HyperdatatypeInt64
 
-instance HyperSerialize Word32 where
-  getH = const $ liftM fromIntegral getWord32le
-  putH = putWord32le . fromIntegral
-  datatype = const HyperdatatypeInt64
-
 instance HyperSerialize Double where
-  getH = const getFloat64le
+  getH = getFloat64le
   putH = putFloat64le
   datatype = const HyperdatatypeFloat
 
 instance HyperSerialize ByteString where
-  getH = getByteString
+  getH = remaining >>= getByteString
   putH = putByteString
   datatype = const HyperdatatypeString
 
+newtype ListElem a = ListElem { unListElem :: a }
+
+instance Serialize (ListElem Int64) where
+  get = fmap (ListElem . fromIntegral) getWord64le
+  put = putWord64le . fromIntegral . unListElem
+
+instance Serialize (ListElem Double) where
+  get = fmap ListElem getFloat64le
+  put = putFloat64le . unListElem
+
+instance Serialize (ListElem ByteString) where
+  get = do
+   len <- getWord32le
+   fmap ListElem $ getByteString (fromIntegral len)
+  put (ListElem x) = do
+   putWord32le $ fromIntegral $ ByteString.length x
+   putByteString x
+
+listGet :: (Serialize (ListElem a)) => Get [a]
+listGet = do
+  i <- remaining
+  case i <= 0 of
+    True  -> return []
+    False -> do
+      first <- fmap unListElem get
+      rest <- listGet
+      return $ first : rest
+
+listPut :: (Serialize (ListElem a)) => [a] -> Put 
+listPut []     = return ()
+listPut (x:xs) = (put $ ListElem x) >> listPut xs
+
 instance HyperSerialize [Int64] where
-  getH 0 = return []
-  getH i = do
-    first <- getH i :: Get Int64
-    rest <- getH (i-8) :: Get [Int64]
-    return $ first : rest
-  putH []     = return ()
-  putH (x:xs) = putH x >> putH xs 
+  getH = listGet
+  putH = listPut
   datatype = const HyperdatatypeListInt64
 
 instance HyperSerialize [Double] where
-  getH i | i <= 0    = return []
-         | otherwise = do
-    first <- getH i :: Get Double
-    rest <- getH (i-8) :: Get [Double]
-    return $ first : rest
-  putH []     = return ()
-  putH (x:xs) = putH x >> putH xs
+  getH = listGet
+  putH = listPut
   datatype = const HyperdatatypeListFloat
 
 instance HyperSerialize [ByteString] where
-  getH 0 = return []
-  getH i = do
-    len <- getH i :: Get Word32
-    first <- getByteString (fromIntegral len)
-    rest <- getH (i - (fromIntegral len) - 4) :: Get [ByteString]
-    return $ first : rest
-  putH []     = return ()
-  putH (x:xs) = do
-    (putH :: Word32 -> Put) . fromIntegral . ByteString.length $ x
-    putByteString x
-    putH xs
+  getH = listGet
+  putH = listPut
   datatype = const HyperdatatypeListString
 
-setGet :: (Ord a, HyperSerialize [a]) => Int -> Get (Set a)
-setGet = fmap Set.fromList . getH
+setGet :: (Ord a, HyperSerialize [a]) => Get (Set a)
+setGet = fmap Set.fromList getH
 
 setPut :: (Ord a, HyperSerialize [a]) => Set a -> Put
 setPut = mapM_ (\a -> putH [a]) . Set.toList
@@ -108,19 +116,29 @@ instance HyperSerialize (Set ByteString) where
   putH = setPut 
   datatype = const HyperdatatypeSetString
 
-hyperMapGet :: (HyperSerialize [a], HyperSerialize [b]) => Int -> Get [(a,b)]
-hyperMapGet i | i <= 0    = return []
-              | otherwise = do
-                  [key] <- getH i
-                  [value] <- getH (i-8)
-                  rest <- hyperMapGet (i-16)
-                  return $ (key,value) : rest
+mapListGet :: (Show k, Show v, Ord k, Serialize (ListElem k), Serialize (ListElem v)) => Get [(k, v)]
+mapListGet = do
+  i <- remaining
+  case i <= 0 of
+    True  -> return [] 
+    False -> do
+      key <- fmap unListElem get
+      value <- fmap unListElem get
+      rest <- mapListGet
+      return $ (key, value) : rest
 
-mapGet :: (Ord k, HyperSerialize [k], HyperSerialize [v]) => Int -> Get (Map k v)
-mapGet = fmap Map.fromList . hyperMapGet
+mapListPut :: (Show k, Show v, Ord k, Serialize (ListElem k), Serialize (ListElem v)) => [(k,v)]-> Put
+mapListPut ((k,v):xs) = do
+  put $ ListElem k
+  put $ ListElem v
+  mapListPut xs
+mapListPut []         = return ()
 
-mapPut :: (Ord k, HyperSerialize [k], HyperSerialize [v]) => Map k v -> Put
-mapPut = mapM_ (\(k,v) -> putH [k] >> putH [v]) . Map.toList
+mapGet :: (Show k, Show v, Ord k, Serialize (ListElem k), Serialize (ListElem v)) => Get (Map k v)
+mapGet = fmap Map.fromList mapListGet
+
+mapPut :: (Show k, Show v, Ord k, Serialize (ListElem k), Serialize (ListElem v)) => Map k v -> Put
+mapPut = mapListPut . Map.toList
 
 instance HyperSerialize (Map Int64 Int64) where
   getH = mapGet
@@ -130,7 +148,7 @@ instance HyperSerialize (Map Int64 Int64) where
 instance HyperSerialize (Map Int64 Double) where
   getH = mapGet
   putH = mapPut
-  datatype = const HyperdatatypeMapInt64Int64
+  datatype = const HyperdatatypeMapInt64Float
 
 instance HyperSerialize (Map Int64 ByteString) where
   getH = mapGet

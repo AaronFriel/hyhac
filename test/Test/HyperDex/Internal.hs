@@ -23,6 +23,7 @@ import Database.HyperDex.Internal
 import Data.Serialize (runPut, runGet, put, get)
 
 import Data.Set (Set)
+import Data.Map (Map)
 
 import Data.Int
 import Data.Monoid
@@ -56,7 +57,14 @@ makeSpaceDesc name =
   \   set(float) imonafloat,                \n\
   \   set(int) friendids,                   \n\
   \   map(string, string) unread_messages,  \n\
-  \   map(string, int) upvotes              \n\
+  \   map(string, int) upvotes,             \n\
+  \   map(string, float) friendranks,       \n\
+  \   map(int, string) posts,               \n\
+  \   map(int, int) friendremapping,        \n\
+  \   map(int, float) intfloatmap,          \n\
+  \   map(float, string) still_looking,     \n\
+  \   map(float, int) for_a_reason,         \n\
+  \   map(float, float) for_float_keyed_map \n\
   \subspace first, last                     \n\
   \subspace profile_views"
 
@@ -230,6 +238,87 @@ testCanStoreSetOfIntegers = buildTestBracketed $ do
             $ \(value :: Set Int64) -> propCanStore client "friendids" value defaultSpace
     return (test, closeClient client)
 
+testCanStoreMapOfStringsToStrings :: Test
+testCanStoreMapOfStringsToStrings = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of strings to strings through HyperDex"
+            $ \(value :: Map ByteString ByteString) -> propCanStore client "unread_messages" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfStringsToIntegers :: Test
+testCanStoreMapOfStringsToIntegers = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of strings to integers through HyperDex"
+            $ \(value :: Map ByteString Int64) -> propCanStore client "upvotes" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfStringsToDoubles :: Test
+testCanStoreMapOfStringsToDoubles = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of strings to floating point doubles through HyperDex"
+            $ \(value :: Map ByteString Double) -> propCanStore client "friendranks" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfIntegersToStrings :: Test
+testCanStoreMapOfIntegersToStrings = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of integers to strings through HyperDex"
+            $ \(value :: Map Int64 ByteString) -> propCanStore client "posts" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfIntegersToIntegers :: Test
+testCanStoreMapOfIntegersToIntegers = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of integers to integers through HyperDex"
+            $ \(value :: Map Int64 Int64) -> propCanStore client "friendremapping" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfIntegersToDoubles :: Test
+testCanStoreMapOfIntegersToDoubles = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of integers to floating point doubles through HyperDex"
+            $ \(value :: Map Int64 Double) -> propCanStore client "intfloatmap" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfDoublesToStrings :: Test
+testCanStoreMapOfDoublesToStrings = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of floating point doubles to strings through HyperDex"
+            $ \(value :: Map Double ByteString) -> propCanStore client "still_looking" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfDoublesToIntegers :: Test
+testCanStoreMapOfDoublesToIntegers = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of floating point doubles to integers through HyperDex"
+            $ \(value :: Map Double Int64) -> propCanStore client "for_a_reason" value defaultSpace
+    return (test, closeClient client)
+
+testCanStoreMapOfDoublesToDoubles :: Test
+testCanStoreMapOfDoublesToDoubles = buildTestBracketed $ do
+    client <- makeClient defaultHost defaultPort
+    let test = 
+          testProperty
+            "Can round trip a map of floating point doubles to floating point doubles through HyperDex"
+            $ \(value :: Map Double Double) -> propCanStore client "for_float_keyed_map" value defaultSpace
+    return (test, closeClient client)
+
 canCreateAndRemoveSpaces :: Test
 canCreateAndRemoveSpaces = do
   testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
@@ -251,5 +340,14 @@ internalTests = mutuallyExclusive
                   , testCanStoreSetOfStrings
                   , testCanStoreSetOfDoubles
                   , testCanStoreSetOfIntegers
+                  , testCanStoreMapOfStringsToStrings
+                  , testCanStoreMapOfStringsToIntegers
+                  , testCanStoreMapOfStringsToDoubles
+                  , testCanStoreMapOfIntegersToStrings
+                  , testCanStoreMapOfIntegersToIntegers
+                  , testCanStoreMapOfIntegersToDoubles
+                  , testCanStoreMapOfDoublesToStrings
+                  , testCanStoreMapOfDoublesToIntegers
+                  , testCanStoreMapOfDoublesToDoubles
                   , canRemoveSpace
                   ]
