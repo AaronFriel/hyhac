@@ -8,6 +8,7 @@ module Database.HyperDex.Internal.Hyperdata
 {# import Database.HyperDex.Internal.Hyperdex #}
 
 import Data.Int
+import Data.Word
 import Control.Monad
 
 import Data.ByteString (ByteString)
@@ -18,6 +19,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Data.Serialize
+
+import Debug.Trace
 
 newtype Hyper a = Hyper { unHyper :: a }
 
@@ -33,6 +36,11 @@ class HyperSerialize a where
 instance HyperSerialize Int64 where
   getH = const $ liftM fromIntegral getWord64le
   putH = putWord64le . fromIntegral
+  datatype = const HyperdatatypeInt64
+
+instance HyperSerialize Word32 where
+  getH = const $ liftM fromIntegral getWord32le
+  putH = putWord32le . fromIntegral
   datatype = const HyperdatatypeInt64
 
 instance HyperSerialize Double where
@@ -68,13 +76,13 @@ instance HyperSerialize [Double] where
 instance HyperSerialize [ByteString] where
   getH 0 = return []
   getH i = do
-    len <- getH i :: Get Int64
+    len <- getH i :: Get Word32
     first <- getByteString (fromIntegral len)
-    rest <- getH i :: Get [ByteString]
+    rest <- getH (i - (fromIntegral len) - 4) :: Get [ByteString]
     return $ first : rest
   putH []     = return ()
   putH (x:xs) = do
-    (putH :: Int64 -> Put) . fromIntegral . ByteString.length $ x
+    (putH :: Word32 -> Put) . fromIntegral . ByteString.length $ x
     putByteString x
     putH xs
   datatype = const HyperdatatypeListString

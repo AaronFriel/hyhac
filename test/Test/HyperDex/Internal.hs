@@ -97,13 +97,19 @@ getResult attribute (Right attrList)  =
 putHyper :: HyperSerialize a => Client -> ByteString -> ByteString -> ByteString -> a -> QC.PropertyM IO (Either HyperclientReturnCode ())
 putHyper client space key attribute value = do
     let serializedValue = runPut . put . Hyper $ value
-    returnCode <- QC.run . join $ hyperPut client space key [Attribute attribute serializedValue (datatype value)]
-    return returnCode
-
+    QC.run . join $ hyperPut client space key [Attribute attribute serializedValue (datatype value)]
+    
 getHyper :: HyperSerialize a => Client -> ByteString -> ByteString -> ByteString -> QC.PropertyM IO (Either String a)
 getHyper client space key attribute = do
     eitherAttrList <- QC.run . join $ hyperGet client space key
-    return $ getResult attribute eitherAttrList
+    let retValue = getResult attribute eitherAttrList 
+    case retValue of
+      Left err -> QC.run $ do
+        putStrLn $ "getHyper encountered error: " <> show err
+        putStrLn $ "Attribute: "
+        putStrLn $ show . fmap (filter (\x -> attrName x == attribute)) $ eitherAttrList
+      _ -> return ()
+    return $ retValue
 
 propCanStore :: (Show a, Eq a, HyperSerialize a) => Client -> ByteString -> a 
                 -> ByteString -> NonEmpty ByteString -> Property
@@ -124,7 +130,14 @@ propCanStore client attribute input space (NonEmpty key) =
               putStrLn $ "  input:  " <> show input
               putStrLn $ "  output: " <> show output
             QC.assert False
-      Left reason  -> QC.run (putStrLn reason) >> QC.assert False
+      Left reason  -> do 
+        QC.run $ do
+          putStrLn $ "Failed to retrieve value:"
+          putStrLn $ "  space:  " <> show space
+          putStrLn $ "  key:    " <> show key
+          putStrLn $ "  attr:   " <> show attribute
+          putStrLn $ "  reason: " <> show reason
+        QC.assert False
 
 testCanStoreDoubles :: Test
 testCanStoreDoubles = buildTestBracketed $ do
