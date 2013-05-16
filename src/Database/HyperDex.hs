@@ -4,4 +4,4 @@ module Database.HyperDex
 	where
 
 hyhacVersion :: String
-hyhacVersion = "0.1.0.0"
+hyhacVersion = "0.2.0.0"

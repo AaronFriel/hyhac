@@ -111,8 +111,6 @@ mkHyper = MkHyper
 
 testCanStoreLargeObject :: Test
 testCanStoreLargeObject = testCase "Can store a large object" $ do
-  -- Really what this does, I believe, is prime the HyperDex store to set up all the subspaces
-  -- needed. I think.
   withDefaultHost $ \client -> do
     let attrs :: [(ByteString, HyperSerializable)]
         attrs =
