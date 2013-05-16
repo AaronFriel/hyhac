@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ExistentialQuantification #-}
 
 module Test.HyperDex.Internal (internalTests)
   where
@@ -23,7 +23,9 @@ import Database.HyperDex.Internal
 import Data.Serialize (runPut, runGet, put, get)
 
 import Data.Set (Set)
+import qualified Data.Set as Set
 import Data.Map (Map)
+import qualified Data.Map as Map
 
 import Data.Int
 import Data.Monoid
@@ -65,9 +67,8 @@ makeSpaceDesc name =
   \   map(float, string) still_looking,     \n\
   \   map(float, int) for_a_reason,         \n\
   \   map(float, float) for_float_keyed_map \n\
-  \subspace first, last                     \n\
-  \subspace profile_views"
-
+  \create 10 partitions                     \n\
+  \tolerate 1 failures"
 
 withDefaultHost :: (Client -> IO a) -> IO a
 withDefaultHost f = do
@@ -93,14 +94,54 @@ canCreateSpace :: Test
 canCreateSpace = testCase "Can create a space" $ do
   withDefaultHost $ \client -> do
     addSpaceResult <- addSpace client defaultSpaceDesc
-    threadDelay 500000
+    threadDelay 1000000
     assertEqual "Add space: " HyperclientSuccess addSpaceResult
 
 canRemoveSpace :: Test
 canRemoveSpace = testCase "Can remove a space" $ do
   withDefaultHost $ \client -> do
+    threadDelay 1000000
     removeSpaceResult <- removeSpace client defaultSpace
     assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
+
+data HyperSerializable = forall a. HyperSerialize a => MkHyper a
+
+mkHyper :: HyperSerialize a => a -> HyperSerializable
+mkHyper = MkHyper
+
+testCanStoreLargeObject :: Test
+testCanStoreLargeObject = testCase "Can store a large object" $ do
+  -- Really what this does, I believe, is prime the HyperDex store to set up all the subspaces
+  -- needed. I think.
+  withDefaultHost $ \client -> do
+    let attrs :: [(ByteString, HyperSerializable)]
+        attrs =
+          [ ("first",               mkHyper (""        :: ByteString   ) )
+          , ("last",                mkHyper (""        :: ByteString   ) )
+          , ("score",               mkHyper (0.0       :: Double       ) )
+          , ("profile_views",       mkHyper (0         :: Int64        ) )
+          , ("pending_requests",    mkHyper ([]        :: [ByteString] ) )
+          , ("rankings",            mkHyper ([]        :: [Double]     ) )
+          , ("todolist",            mkHyper ([]        :: [Int64]      ) )
+          , ("hobbies",             mkHyper (Set.empty :: Set ByteString  ) )
+          , ("imonafloat",          mkHyper (Set.empty :: Set Double      ) )
+          , ("friendids",           mkHyper (Set.empty :: Set Int64       ) )
+          , ("unread_messages",     mkHyper (Map.empty :: Map ByteString ByteString  ) )
+          , ("upvotes",             mkHyper (Map.empty :: Map ByteString Int64       ) )
+          , ("friendranks",         mkHyper (Map.empty :: Map ByteString Double      ) )
+          , ("posts",               mkHyper (Map.empty :: Map Int64      ByteString  ) )
+          , ("friendremapping",     mkHyper (Map.empty :: Map Int64      Int64       ) )
+          , ("intfloatmap",         mkHyper (Map.empty :: Map Int64      Double      ) )
+          , ("still_looking",       mkHyper (Map.empty :: Map Double     ByteString  ) )
+          , ("for_a_reason",        mkHyper (Map.empty :: Map Double     Int64       ) )
+          , ("for_float_keyed_map", mkHyper (Map.empty :: Map Double     Double      ) )
+          ]
+    let attributeList =
+          [ Attribute attr serializedValue (datatype value)
+          | (attr, MkHyper value) <- attrs
+          , let serializedValue = runPut . put . Hyper $ value ] 
+    result <- join $ hyperPut client defaultSpace "large" attributeList
+    assertEqual "Remove space: " (Right ()) result
 
 getResult :: HyperSerialize a => ByteString -> Either HyperclientReturnCode [Attribute] -> Either String a
 getResult attribute (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
@@ -324,13 +365,14 @@ canCreateAndRemoveSpaces = do
   testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
 
 internalTests :: Test
-internalTests = mutuallyExclusive 
-                $ plusTestOptions 
-                  (mempty { topt_maximum_generated_tests = Just 1000
-                          , topt_maximum_test_size = Just 64
-                          })
+internalTests = mutuallyExclusive $
+                plusTestOptions 
+                (mempty { topt_maximum_generated_tests = Just 1000
+                        , topt_maximum_test_size = Just 64
+                        })
                 $ testGroup "Internal API Tests"
                   [ canCreateSpace
+                  , testCanStoreLargeObject
                   , testCanStoreIntegers
                   , testCanStoreStrings
                   , testCanStoreDoubles
