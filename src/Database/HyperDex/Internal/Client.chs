@@ -2,7 +2,8 @@
 
 module Database.HyperDex.Internal.Client 
   ( Hyperclient, Client
-  , Handle, Result
+  , Handle
+  , Result, AsyncResult, AsyncResultHandle
   , makeClient, closeClient
   , loopClient, loopClientUntil
   , withClient, withClientImmediate
@@ -29,9 +30,11 @@ newtype Client = Client { unClient :: ClientData }
 
 type Handle = {# type int64_t #}
 
--- | A return value that contains a handle to use with hyperclient_loop and an IO action
--- to be performed to retrieve the result when the handle comes up from the loop.
-type Result a = IO (Handle, IO (Either HyperclientReturnCode a))
+type Result a = IO (Either ReturnCode a)
+
+type AsyncResultHandle a = IO (Handle, Result a)
+
+type AsyncResult a = IO (Result a)
 
 makeClient :: ByteString -> Int16 -> IO Client
 makeClient host port = do
@@ -56,6 +59,7 @@ loopClient (unClient -> c) = do
   case clientData of
     (Nothing, _)        -> return Nothing
     (Just hc, handles)  -> do
+      -- TODO: Examine returnCode for things that might matter.
       (handle, returnCode) <- hyperclientLoop hc 0
       let f = fromMaybe (return ()) $ Map.lookup handle handles
       f
@@ -63,19 +67,19 @@ loopClient (unClient -> c) = do
       return $ Just handle
 
 -- | Run hyperclient_loop at most N times or forever until a handle is returned.
-loopClientUntil :: Client -> Handle -> Maybe Int -> MVar (Either HyperclientReturnCode a) -> IO (Bool)
+loopClientUntil :: Client -> Handle -> Maybe Int -> MVar (Either ReturnCode a) -> IO (Bool)
 loopClientUntil _      _ (Just 0) _ = return False
 
 loopClientUntil client h (Just n) v = do
   empty <- isEmptyMVar v
   case empty of
     True -> do
-      loopResult <- loopClient client
+      _ <- loopClient client
       clientData <- readMVar $ unClient client
       --  TODO: Exponential backoff or some other approach for polling
       case clientData of
         (Nothing, _)       -> return True
-        (Just hc, handles) -> do
+        (Just _, handles)  -> do
           case Map.member h handles of
             False -> return True
             True  -> loopClientUntil client h (Just $ n - 1) v 
@@ -85,12 +89,12 @@ loopClientUntil client h (Nothing) v = do
   empty <- isEmptyMVar v
   case empty of
     True -> do
-      loopResult <- loopClient client
+      _ <- loopClient client
       clientData <- readMVar $ unClient client
       --  TODO: Exponential backoff or some other approach for polling
       case clientData of
         (Nothing, _)       -> return False
-        (Just hc, handles) -> do
+        (Just _, handles)  -> do
           case Map.member h handles of
             False -> return True
             True  -> loopClientUntil client h (Nothing) v 
@@ -105,12 +109,6 @@ peekMVar m = do
       return $ Just r
     Nothing -> return $ Nothing
 
-promise :: Client -> Handle -> MVar (Either HyperclientReturnCode a) -> IO (Either HyperclientReturnCode a)
-promise client h v | h > 0 = do
-                          loopResult <- loopClientUntil client h Nothing v 
-                          res <- peekMVar v
-                          return $ fromMaybe (error "This should not occur!") res
-
 withClientImmediate :: Client -> (Hyperclient -> IO a) -> IO a
 withClientImmediate (unClient -> c) f =
   withMVar c $ \value -> do
@@ -118,7 +116,7 @@ withClientImmediate (unClient -> c) f =
       (Nothing, _) -> error "HyperDex client error - cannot use a closed connection."
       (Just hc, _) -> f hc
 
-withClient :: Client -> (Hyperclient -> Result a) -> IO (IO (Either HyperclientReturnCode a))
+withClient :: Client -> (Hyperclient -> AsyncResultHandle a) -> AsyncResult a
 withClient client@(unClient -> c) f = do
   value <- takeMVar c
   case value of
@@ -127,10 +125,10 @@ withClient client@(unClient -> c) f = do
       (h, cont) <- f hc
       case h > 0 of
         True  -> do
-          v <- newEmptyMVar :: IO (MVar (Either HyperclientReturnCode a))
+          v <- newEmptyMVar :: IO (MVar (Either ReturnCode a))
           putMVar c (Just hc, Map.insert h (cont >>= putMVar v) handles)
           return $ do
-            loopResult <- loopClientUntil client h Nothing v 
+            _ <- loopClientUntil client h Nothing v 
             res <- peekMVar v
             return $ fromMaybe (error "This should not occur!") res
         False -> do
@@ -151,7 +149,7 @@ hyperclientDestroy client = do
 -- int64_t
 -- hyperclient_loop(struct hyperclient* client, int timeout,
 --                  enum hyperclient_returncode* status);
-hyperclientLoop :: Hyperclient -> Int -> IO (Handle, HyperclientReturnCode)
+hyperclientLoop :: Hyperclient -> Int -> IO (Handle, ReturnCode)
 hyperclientLoop client timeout =
   alloca $ \returnCodePtr -> do
     handle <- {# call hyperclient_loop #} client (fromIntegral timeout) returnCodePtr

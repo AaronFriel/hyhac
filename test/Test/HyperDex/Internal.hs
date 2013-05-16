@@ -141,7 +141,7 @@ testCanStoreLargeObject = testCase "Can store a large object" $ do
     result <- join $ hyperPut client defaultSpace "large" attributeList
     assertEqual "Remove space: " (Right ()) result
 
-getResult :: HyperSerialize a => ByteString -> Either HyperclientReturnCode [Attribute] -> Either String a
+getResult :: HyperSerialize a => ByteString -> Either ReturnCode [Attribute] -> Either String a
 getResult attribute (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
 getResult attribute (Right attrList)  =
   case (filter (\a -> attrName a == attribute) attrList) of
@@ -151,7 +151,7 @@ getResult attribute (Right attrList)  =
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: HyperSerialize a => Client -> ByteString -> ByteString -> ByteString -> a -> QC.PropertyM IO (Either HyperclientReturnCode ())
+putHyper :: HyperSerialize a => Client -> ByteString -> ByteString -> ByteString -> a -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute value = do
     let serializedValue = runPut . put . Hyper $ value
     QC.run . join $ hyperPut client space key [Attribute attribute serializedValue (datatype value)]

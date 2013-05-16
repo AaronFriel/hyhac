@@ -8,7 +8,6 @@ module Database.HyperDex.Internal.Hyperdata
 {# import Database.HyperDex.Internal.Hyperdex #}
 
 import Data.Int
-import Data.Word
 import Control.Monad
 
 import Data.ByteString (ByteString)
@@ -19,8 +18,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Data.Serialize
-
-import Debug.Trace
 
 newtype Hyper a = Hyper { unHyper :: a }
 

@@ -9,22 +9,22 @@ import Database.HyperDex.Internal.Util
 
 #import "hyperclient.h"
 
-addSpace :: Client -> ByteString -> IO HyperclientReturnCode
+addSpace :: Client -> ByteString -> IO ReturnCode
 addSpace c desc  = withClientImmediate c $ \hc -> do
   hyperclientAddSpace hc desc
 
-removeSpace :: Client -> ByteString -> IO HyperclientReturnCode
+removeSpace :: Client -> ByteString -> IO ReturnCode
 removeSpace c name = withClientImmediate c $ \hc -> do
   hyperclientRemoveSpace hc name
 
 -- enum hyperclient_returncode
 -- hyperclient_add_space(struct hyperclient* client, const char* description);
-hyperclientAddSpace :: Hyperclient -> ByteString -> IO HyperclientReturnCode
+hyperclientAddSpace :: Hyperclient -> ByteString -> IO ReturnCode
 hyperclientAddSpace client d = withCBString d $ \description -> do
   fmap (toEnum . fromIntegral) $ {#call hyperclient_add_space #} client description
 
 -- enum hyperclient_returncode
 -- hyperclient_rm_space(struct hyperclient* client, const char* space);
-hyperclientRemoveSpace :: Hyperclient -> ByteString -> IO HyperclientReturnCode
+hyperclientRemoveSpace :: Hyperclient -> ByteString -> IO ReturnCode
 hyperclientRemoveSpace client s = withCBString s $ \space -> do
   fmap (toEnum . fromIntegral) $ {#call hyperclient_rm_space #} client space

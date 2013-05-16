@@ -20,19 +20,19 @@ data HyperclientAttributeCheck
 {#pointer *hyperclient_attribute_check -> HyperclientAttributeCheck nocode #}
 
 hyperGet :: Client -> ByteString -> ByteString
-            -> IO (IO (Either HyperclientReturnCode [Attribute]))
+            -> AsyncResult [Attribute]
 hyperGet c s k = withClient c (\hc -> hyperclientGet hc s k)
 
 hyperPut :: Client -> ByteString -> ByteString -> [Attribute]
-            -> IO (IO (Either HyperclientReturnCode ()))
+            -> IO (IO (Either ReturnCode ()))
 hyperPut c s k a = withClient c (\hc -> hyperclientPut hc s k a)
 
 hyperPutIfNotExist :: Client -> ByteString -> ByteString -> [Attribute]
-            -> IO (IO (Either HyperclientReturnCode ()))
+            -> IO (IO (Either ReturnCode ()))
 hyperPutIfNotExist c s k a = withClient c (\hc -> hyperclientPutIfNotExist hc s k a)
 
 hyperDelete :: Client -> ByteString -> ByteString
-                     -> IO (IO (Either HyperclientReturnCode ()))
+                     -> IO (IO (Either ReturnCode ()))
 hyperDelete c s k = withClient c (\hc -> hyperclientDelete hc s k)
 
 -- int64_t
@@ -40,7 +40,7 @@ hyperDelete c s k = withClient c (\hc -> hyperclientDelete hc s k)
 --                 size_t key_sz, const struct hyperclient_attribute* attrs,
 --                 size_t attrs_sz, enum hyperclient_returncode* status);
 hyperclientGet :: Hyperclient -> ByteString -> ByteString
-                  -> Result [Attribute] 
+                  -> AsyncResultHandle [Attribute] 
 hyperclientGet client s k = do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   attributePtrPtr <- malloc
@@ -79,7 +79,7 @@ hyperclientGet client s k = do
 --                 size_t attrs_sz, enum hyperclient_returncode* status);
 hyperclientPut :: Hyperclient -> ByteString -> ByteString
                   -> [Attribute]
-                  -> Result ()
+                  -> AsyncResultHandle ()
 hyperclientPut client s k attributes = do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s
@@ -107,7 +107,7 @@ hyperclientPut client s k attributes = do
 --                              size_t attrs_sz, enum hyperclient_returncode* status);
 hyperclientPutIfNotExist :: Hyperclient -> ByteString -> ByteString
                             -> [Attribute]
-                            -> Result ()
+                            -> AsyncResultHandle ()
 hyperclientPutIfNotExist client s k attributes = do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s
@@ -133,7 +133,7 @@ hyperclientPutIfNotExist client s k attributes = do
 -- hyperclient_del(struct hyperclient* client, const char* space, const char* key,
 --                 size_t key_sz, enum hyperclient_returncode* status);
 hyperclientDelete :: Hyperclient -> ByteString -> ByteString
-                     -> Result ()
+                     -> AsyncResultHandle ()
 hyperclientDelete client s k = do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s
