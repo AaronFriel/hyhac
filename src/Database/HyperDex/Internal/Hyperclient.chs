@@ -24,15 +24,15 @@ hyperGet :: Client -> ByteString -> ByteString
 hyperGet c s k = withClient c (\hc -> hyperclientGet hc s k)
 
 hyperPut :: Client -> ByteString -> ByteString -> [Attribute]
-            -> IO (IO (Either ReturnCode ()))
+            -> AsyncResult ()
 hyperPut c s k a = withClient c (\hc -> hyperclientPut hc s k a)
 
 hyperPutIfNotExist :: Client -> ByteString -> ByteString -> [Attribute]
-            -> IO (IO (Either ReturnCode ()))
+                      -> AsyncResult ()
 hyperPutIfNotExist c s k a = withClient c (\hc -> hyperclientPutIfNotExist hc s k a)
 
 hyperDelete :: Client -> ByteString -> ByteString
-                     -> IO (IO (Either ReturnCode ()))
+               -> AsyncResult ()
 hyperDelete c s k = withClient c (\hc -> hyperclientDelete hc s k)
 
 -- int64_t

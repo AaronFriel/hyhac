@@ -21,6 +21,10 @@ import Data.Serialize
 
 newtype Hyper a = Hyper { unHyper :: a }
 
+serialize :: HyperSerialize a => a -> ByteString
+serialize = runPut . put . Hyper
+
+
 instance HyperSerialize a => Serialize (Hyper a) where
   get = fmap Hyper getH
   put = putH . unHyper

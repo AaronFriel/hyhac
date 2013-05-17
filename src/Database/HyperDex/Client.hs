@@ -20,14 +20,20 @@
 module Database.HyperDex.Client 
   ( Client
   , connect', close
-  , getAsync, putAsync
+  , getAsyncAttr, putAsyncAttr
   , ReturnCode (..)
   , Attribute (..)
   , AsyncResult, Result
   )
   where
 
-import Database.HyperDex.Internal.Client (Client, makeClient, closeClient, AsyncResult, Result)
+import Database.HyperDex.Internal.Client 
+  ( Client
+  , makeClient, closeClient
+  , AsyncResult, Result
+  )
+import Database.HyperDex.Internal.Hyperclient
+  ( hyperGet, hyperPut )
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
 import Database.HyperDex.Internal.Attribute (Attribute (..))
@@ -49,8 +55,10 @@ connect' (encodeUtf8 -> host) (fromIntegral -> port) = do
 close :: Client -> IO ()
 close = closeClient
 
-getAsync :: HyperSerialize a => Text -> a -> AsyncResult [Attribute]
-getAsync = undefined
+getAsyncAttr :: Client -> Text -> Text -> AsyncResult [Attribute]
+getAsyncAttr client (encodeUtf8 -> space) (encodeUtf8 -> key) =
+  hyperGet client space key
 
-putAsync :: a
-putAsync = undefined
+putAsyncAttr :: Client -> Text -> Text -> [Attribute] -> AsyncResult ()
+putAsyncAttr client (encodeUtf8 -> space) (encodeUtf8 -> key) attrs = 
+  hyperPut client space key attrs

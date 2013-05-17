@@ -15,7 +15,7 @@ import Data.Monoid
 
 testVersion :: Assertion
 testVersion =
-	assertEqual "hyhac-version" "0.1.0.0" hyhacVersion
+	assertEqual "hyhac-version" "0.2.0.0" hyhacVersion
 
 main = defaultMainWithOpts
 				[ testCase "Version match" testVersion
