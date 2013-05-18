@@ -26,6 +26,7 @@ library
   exposed-modules:
     Database.HyperDex
     Database.HyperDex.Client
+    Database.HyperDex.Utf8
     Database.HyperDex.Internal
     Database.HyperDex.Internal.ReturnCode
     Database.HyperDex.Internal.Client
