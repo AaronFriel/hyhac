@@ -20,6 +20,7 @@
 module Database.HyperDex.Client 
   ( Client
   , connect', close
+  , addSpace, removeSpace
   , getAsyncAttr, putAsyncAttr
   , ReturnCode (..)
   , Attribute (..)
@@ -37,6 +38,7 @@ import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
 import Database.HyperDex.Internal.Attribute (Attribute (..))
+import qualified Database.HyperDex.Internal.Space as Space (addSpace, removeSpace)
 
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -55,10 +57,21 @@ connect' (encodeUtf8 -> host) (fromIntegral -> port) = do
 close :: Client -> IO ()
 close = closeClient
 
+
+-- | Create a space from a definition.
+addSpace :: Client -> Text -> IO ReturnCode
+addSpace client (encodeUtf8 -> spaceDef) = Space.addSpace client spaceDef
+
+-- | Remove a space by name.
+removeSpace :: Client -> Text -> IO ReturnCode
+removeSpace client (encodeUtf8 -> space) = Space.removeSpace client space
+
+-- | Retrieve attributes from a space by key.
 getAsyncAttr :: Client -> Text -> Text -> AsyncResult [Attribute]
 getAsyncAttr client (encodeUtf8 -> space) (encodeUtf8 -> key) =
   hyperGet client space key
 
+-- | Put attributes in a space by key.
 putAsyncAttr :: Client -> Text -> Text -> [Attribute] -> AsyncResult ()
 putAsyncAttr client (encodeUtf8 -> space) (encodeUtf8 -> key) attrs = 
   hyperPut client space key attrs
