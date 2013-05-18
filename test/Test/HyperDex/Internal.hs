@@ -20,8 +20,6 @@ import Data.ByteString.Char8 (unpack)
 
 import Database.HyperDex.Internal
 
-import Data.Serialize (runPut, runGet, put, get)
-
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -137,7 +135,7 @@ testCanStoreLargeObject = testCase "Can store a large object" $ do
     let attributeList =
           [ Attribute attr serializedValue (datatype value)
           | (attr, MkHyper value) <- attrs
-          , let serializedValue = runPut . put . Hyper $ value ] 
+          , let serializedValue = serialize value ] 
     result <- join $ hyperPut client defaultSpace "large" attributeList
     assertEqual "Remove space: " (Right ()) result
 
@@ -145,7 +143,7 @@ getResult :: HyperSerialize a => ByteString -> Either ReturnCode [Attribute] -> 
 getResult attribute (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
 getResult attribute (Right attrList)  =
   case (filter (\a -> attrName a == attribute) attrList) of
-          [x] -> case fmap unHyper . runGet get $ attrValue x of
+          [x] -> case deserialize $ attrValue x of
             Left serializeError -> Left $ "Error deserializing: " <> serializeError
             Right value         -> Right value
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
@@ -153,7 +151,7 @@ getResult attribute (Right attrList)  =
 
 putHyper :: HyperSerialize a => Client -> ByteString -> ByteString -> ByteString -> a -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute value = do
-    let serializedValue = runPut . put . Hyper $ value
+    let serializedValue = serialize value
     QC.run . join $ hyperPut client space key [Attribute attribute serializedValue (datatype value)]
     
 getHyper :: HyperSerialize a => Client -> ByteString -> ByteString -> ByteString -> QC.PropertyM IO (Either String a)

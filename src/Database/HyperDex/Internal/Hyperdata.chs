@@ -2,7 +2,10 @@
 
 module Database.HyperDex.Internal.Hyperdata
   ( Hyper (..)
-  , HyperSerialize (..) )
+  , HyperSerialize (..)
+  , serialize
+  , deserialize
+  )
   where
 
 {# import Database.HyperDex.Internal.Hyperdex #}
@@ -24,6 +27,8 @@ newtype Hyper a = Hyper { unHyper :: a }
 serialize :: HyperSerialize a => a -> ByteString
 serialize = runPut . put . Hyper
 
+deserialize :: HyperSerialize a => ByteString -> Either String a
+deserialize = fmap unHyper . runGet get
 
 instance HyperSerialize a => Serialize (Hyper a) where
   get = fmap Hyper getH
