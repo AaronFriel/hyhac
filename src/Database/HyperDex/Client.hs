@@ -24,6 +24,8 @@ module Database.HyperDex.Client
   , getAsyncAttr, putAsyncAttr
   , ReturnCode (..)
   , Attribute (..)
+  , AttributeName (..)
+  , mkAttribute
   , AsyncResult, Result
   )
   where
@@ -37,7 +39,7 @@ import Database.HyperDex.Internal.Hyperclient
   ( hyperGet, hyperPut )
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
-import Database.HyperDex.Internal.Attribute (Attribute (..))
+import Database.HyperDex.Internal.Attribute (Attribute (..), AttributeName (..), mkAttribute)
 import qualified Database.HyperDex.Internal.Space as Space (addSpace, removeSpace)
 
 import Data.Text (Text)

@@ -95,6 +95,8 @@ cleanupSpace space =
 canCreateSpace :: Test
 canCreateSpace = testCase "Can create a space" $ do
   withDefaultHost $ \client -> do
+    removeSpace client defaultSpace
+    threadDelay 1000000
     addSpaceResult <- addSpace client defaultSpaceDesc
     threadDelay 1000000
     assertEqual "Add space: " HyperclientSuccess addSpaceResult
@@ -106,41 +108,32 @@ canRemoveSpace = testCase "Can remove a space" $ do
     removeSpaceResult <- removeSpace client defaultSpace
     assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
 
-data HyperSerializable = forall a. HyperSerialize a => MkHyper a
-
-mkHyper :: HyperSerialize a => a -> HyperSerializable
-mkHyper = MkHyper
-
 testCanStoreLargeObject :: Test
 testCanStoreLargeObject = testCase "Can store a large object" $ do
   withDefaultHost $ \client -> do
-    let attrs :: [(ByteString, HyperSerializable)]
+    let attrs :: [Attribute]
         attrs =
-          [ ("first",               mkHyper (""        :: ByteString   ) )
-          , ("last",                mkHyper (""        :: ByteString   ) )
-          , ("score",               mkHyper (0.0       :: Double       ) )
-          , ("profile_views",       mkHyper (0         :: Int64        ) )
-          , ("pending_requests",    mkHyper ([]        :: [ByteString] ) )
-          , ("rankings",            mkHyper ([]        :: [Double]     ) )
-          , ("todolist",            mkHyper ([]        :: [Int64]      ) )
-          , ("hobbies",             mkHyper (Set.empty :: Set ByteString  ) )
-          , ("imonafloat",          mkHyper (Set.empty :: Set Double      ) )
-          , ("friendids",           mkHyper (Set.empty :: Set Int64       ) )
-          , ("unread_messages",     mkHyper (Map.empty :: Map ByteString ByteString  ) )
-          , ("upvotes",             mkHyper (Map.empty :: Map ByteString Int64       ) )
-          , ("friendranks",         mkHyper (Map.empty :: Map ByteString Double      ) )
-          , ("posts",               mkHyper (Map.empty :: Map Int64      ByteString  ) )
-          , ("friendremapping",     mkHyper (Map.empty :: Map Int64      Int64       ) )
-          , ("intfloatmap",         mkHyper (Map.empty :: Map Int64      Double      ) )
-          , ("still_looking",       mkHyper (Map.empty :: Map Double     ByteString  ) )
-          , ("for_a_reason",        mkHyper (Map.empty :: Map Double     Int64       ) )
-          , ("for_float_keyed_map", mkHyper (Map.empty :: Map Double     Double      ) )
+          [ mkAttribute ("first"               :: String) (""        :: ByteString                 )
+          , mkAttribute ("last"                :: String) (""        :: ByteString                 )
+          , mkAttribute ("score"               :: String) (0.0       :: Double                     )
+          , mkAttribute ("profile_views"       :: String) (0         :: Int64                      )
+          , mkAttribute ("pending_requests"    :: String) ([]        :: [ByteString]               )
+          , mkAttribute ("rankings"            :: String) ([]        :: [Double]                   )
+          , mkAttribute ("todolist"            :: String) ([]        :: [Int64]                    )
+          , mkAttribute ("hobbies"             :: String) (Set.empty :: Set ByteString             )
+          , mkAttribute ("imonafloat"          :: String) (Set.empty :: Set Double                 )
+          , mkAttribute ("friendids"           :: String) (Set.empty :: Set Int64                  )
+          , mkAttribute ("unread_messages"     :: String) (Map.empty :: Map ByteString ByteString  )
+          , mkAttribute ("upvotes"             :: String) (Map.empty :: Map ByteString Int64       )
+          , mkAttribute ("friendranks"         :: String) (Map.empty :: Map ByteString Double      )
+          , mkAttribute ("posts"               :: String) (Map.empty :: Map Int64      ByteString  )
+          , mkAttribute ("friendremapping"     :: String) (Map.empty :: Map Int64      Int64       )
+          , mkAttribute ("intfloatmap"         :: String) (Map.empty :: Map Int64      Double      )
+          , mkAttribute ("still_looking"       :: String) (Map.empty :: Map Double     ByteString  )
+          , mkAttribute ("for_a_reason"        :: String) (Map.empty :: Map Double     Int64       )
+          , mkAttribute ("for_float_keyed_map" :: String) (Map.empty :: Map Double     Double      )
           ]
-    let attributeList =
-          [ Attribute attr serializedValue (datatype value)
-          | (attr, MkHyper value) <- attrs
-          , let serializedValue = serialize value ] 
-    result <- join $ putAsyncAttr client defaultSpace "large" attributeList
+    result <- join $ putAsyncAttr client defaultSpace "large" attrs
     assertEqual "Remove space: " (Right ()) result
 
 getResult :: HyperSerialize a => Text -> Either ReturnCode [Attribute] -> Either String a
@@ -155,12 +148,14 @@ getResult attribute (Right attrList)  =
 
 putHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute value = do
-    let serializedValue = serialize value
-    QC.run . join $ putAsyncAttr client space key [Attribute (encodeUtf8 attribute) serializedValue (datatype value)]
+    QC.run $ putStrLn "Test put!"
+    QC.run . join $ putAsyncAttr client space key [mkAttribute attribute value]
     
 getHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> QC.PropertyM IO (Either String a)
 getHyper client space key attribute = do
+    QC.run $ putStrLn "Test get!"
     eitherAttrList <- QC.run . join $ getAsyncAttr client space key
+    QC.run $ putStrLn "Test getAttr!"
     let retValue = getResult attribute eitherAttrList 
     case retValue of
       Left err -> QC.run $ do
@@ -174,6 +169,7 @@ propCanStore :: (Show a, Eq a, HyperSerialize a) => Client -> ByteString -> a
                 -> Text -> NonEmpty ByteString -> Property
 propCanStore client attribute input space (NonEmpty key) =
   QC.monadicIO $ do
+    QC.run $ putStrLn "Test canStore!"
     r1 <- putHyper client space (decodeUtf8 key) (decodeUtf8 attribute) input
     eitherOutput <- getHyper client space (decodeUtf8 key) (decodeUtf8 attribute)
     case eitherOutput of

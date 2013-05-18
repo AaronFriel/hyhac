@@ -19,8 +19,9 @@ module Database.HyperDex.Utf8
   ( )
   where
 
+import Database.HyperDex.Internal.Attribute
 import Database.HyperDex.Internal.Hyperdata
-import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..))
+import Database.HyperDex.Internal.Hyperdex
 import Data.Serialize
 
 import Data.Text (Text)
@@ -36,3 +37,9 @@ instance HyperSerialize Text where
   getH = remaining >>= getByteString >>= return . decodeUtf8
   putH = putByteString . encodeUtf8
   datatype = const HyperdatatypeString
+
+instance AttributeName String where
+  nameToBS = encodeUtf8 . Text.pack
+
+instance AttributeName Text where
+  nameToBS = encodeUtf8
