@@ -148,7 +148,7 @@ getResult attribute (Right attrList)  =
 
 putHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute value = do
-    QC.run . join $ putAsyncAttr client space key [mkAttribute attribute value]
+    QC.run . join $ putAsyncAttr client space key [mkAttributeUtf8 attribute value]
     
 getHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> QC.PropertyM IO (Either String a)
 getHyper client space key attribute = do

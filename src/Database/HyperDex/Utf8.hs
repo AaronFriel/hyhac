@@ -38,9 +38,6 @@ instance HyperSerialize Text where
   putH = putByteString . encodeUtf8
   datatype = const HyperdatatypeString
 
-instance AttributeName Text where
-  nameToBS = encodeUtf8
-
 -- | Create an attribute using a name serialized as a UTF8 bytestring.
 mkAttributeUtf8 :: HyperSerialize a => Text -> a -> Attribute
-mkAttributeUtf8 = mkAttribute
+mkAttributeUtf8 = mkAttribute . encodeUtf8
