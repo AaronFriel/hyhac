@@ -113,25 +113,25 @@ testCanStoreLargeObject = testCase "Can store a large object" $ do
   withDefaultHost $ \client -> do
     let attrs :: [Attribute]
         attrs =
-          [ mkAttribute ("first"               :: String) (""        :: ByteString                 )
-          , mkAttribute ("last"                :: String) (""        :: ByteString                 )
-          , mkAttribute ("score"               :: String) (0.0       :: Double                     )
-          , mkAttribute ("profile_views"       :: String) (0         :: Int64                      )
-          , mkAttribute ("pending_requests"    :: String) ([]        :: [ByteString]               )
-          , mkAttribute ("rankings"            :: String) ([]        :: [Double]                   )
-          , mkAttribute ("todolist"            :: String) ([]        :: [Int64]                    )
-          , mkAttribute ("hobbies"             :: String) (Set.empty :: Set ByteString             )
-          , mkAttribute ("imonafloat"          :: String) (Set.empty :: Set Double                 )
-          , mkAttribute ("friendids"           :: String) (Set.empty :: Set Int64                  )
-          , mkAttribute ("unread_messages"     :: String) (Map.empty :: Map ByteString ByteString  )
-          , mkAttribute ("upvotes"             :: String) (Map.empty :: Map ByteString Int64       )
-          , mkAttribute ("friendranks"         :: String) (Map.empty :: Map ByteString Double      )
-          , mkAttribute ("posts"               :: String) (Map.empty :: Map Int64      ByteString  )
-          , mkAttribute ("friendremapping"     :: String) (Map.empty :: Map Int64      Int64       )
-          , mkAttribute ("intfloatmap"         :: String) (Map.empty :: Map Int64      Double      )
-          , mkAttribute ("still_looking"       :: String) (Map.empty :: Map Double     ByteString  )
-          , mkAttribute ("for_a_reason"        :: String) (Map.empty :: Map Double     Int64       )
-          , mkAttribute ("for_float_keyed_map" :: String) (Map.empty :: Map Double     Double      )
+          [ mkAttributeUtf8 "first"               (""        :: ByteString                 )
+          , mkAttributeUtf8 "last"                (""        :: ByteString                 )
+          , mkAttributeUtf8 "score"               (0.0       :: Double                     )
+          , mkAttributeUtf8 "profile_views"       (0         :: Int64                      )
+          , mkAttributeUtf8 "pending_requests"    ([]        :: [ByteString]               )
+          , mkAttributeUtf8 "rankings"            ([]        :: [Double]                   )
+          , mkAttributeUtf8 "todolist"            ([]        :: [Int64]                    )
+          , mkAttributeUtf8 "hobbies"             (Set.empty :: Set ByteString             )
+          , mkAttributeUtf8 "imonafloat"          (Set.empty :: Set Double                 )
+          , mkAttributeUtf8 "friendids"           (Set.empty :: Set Int64                  )
+          , mkAttributeUtf8 "unread_messages"     (Map.empty :: Map ByteString ByteString  )
+          , mkAttributeUtf8 "upvotes"             (Map.empty :: Map ByteString Int64       )
+          , mkAttributeUtf8 "friendranks"         (Map.empty :: Map ByteString Double      )
+          , mkAttributeUtf8 "posts"               (Map.empty :: Map Int64      ByteString  )
+          , mkAttributeUtf8 "friendremapping"     (Map.empty :: Map Int64      Int64       )
+          , mkAttributeUtf8 "intfloatmap"         (Map.empty :: Map Int64      Double      )
+          , mkAttributeUtf8 "still_looking"       (Map.empty :: Map Double     ByteString  )
+          , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
+          , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
           ]
     result <- join $ putAsyncAttr client defaultSpace "large" attrs
     assertEqual "Remove space: " (Right ()) result
@@ -148,14 +148,11 @@ getResult attribute (Right attrList)  =
 
 putHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute value = do
-    QC.run $ putStrLn "Test put!"
     QC.run . join $ putAsyncAttr client space key [mkAttribute attribute value]
     
 getHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> QC.PropertyM IO (Either String a)
 getHyper client space key attribute = do
-    QC.run $ putStrLn "Test get!"
     eitherAttrList <- QC.run . join $ getAsyncAttr client space key
-    QC.run $ putStrLn "Test getAttr!"
     let retValue = getResult attribute eitherAttrList 
     case retValue of
       Left err -> QC.run $ do
@@ -169,7 +166,6 @@ propCanStore :: (Show a, Eq a, HyperSerialize a) => Client -> ByteString -> a
                 -> Text -> NonEmpty ByteString -> Property
 propCanStore client attribute input space (NonEmpty key) =
   QC.monadicIO $ do
-    QC.run $ putStrLn "Test canStore!"
     r1 <- putHyper client space (decodeUtf8 key) (decodeUtf8 attribute) input
     eitherOutput <- getHyper client space (decodeUtf8 key) (decodeUtf8 attribute)
     case eitherOutput of

@@ -20,6 +20,8 @@ import qualified Data.Map as Map
 
 import Control.Concurrent.MVar
 
+import Debug.Trace
+
 #include "hyperclient.h"
 
 {#pointer *hyperclient as Hyperclient #}
