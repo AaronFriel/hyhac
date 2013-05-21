@@ -69,7 +69,7 @@ makeSpaceDesc name =
   \   map(float, int) for_a_reason,         \n\
   \   map(float, float) for_float_keyed_map \n\
   \create 10 partitions                     \n\
-  \tolerate 1 failures"
+  \tolerate 2 failures"
 
 withDefaultHost :: (Client -> IO a) -> IO a
 withDefaultHost f = do
@@ -382,5 +382,4 @@ internalTests = mutuallyExclusive $
                   , testCanStoreMapOfDoublesToStrings
                   , testCanStoreMapOfDoublesToIntegers
                   , testCanStoreMapOfDoublesToDoubles
-                  , canRemoveSpace
                   ]

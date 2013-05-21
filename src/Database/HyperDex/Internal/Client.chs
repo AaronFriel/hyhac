@@ -55,18 +55,35 @@ closeClient (unClient -> c) = do
       putMVar c (Nothing, Map.empty)
 
 -- | Runs hyperclient_loop exactly once, setting the appropriate MVar.
-loopClient :: Client -> IO (Maybe Handle)
-loopClient (unClient -> c) = do
+loopClient' :: Bool -> Client -> IO (Maybe Handle)
+loopClient' debug client@(unClient -> c) = do
   clientData <- takeMVar c
   case clientData of
     (Nothing, _)        -> return Nothing
     (Just hc, handles)  -> do
       -- TODO: Examine returnCode for things that might matter.
       (handle, returnCode) <- hyperclientLoop hc 0
-      let f = fromMaybe (return ()) $ Map.lookup handle handles
-      f
-      putMVar c (Just hc, Map.delete handle handles)
-      return $ Just handle
+      case returnCode of
+        HyperclientSuccess -> do
+          if debug
+            then traceIO $ "Recovering from failure, returncode: " ++ show returnCode
+            else return ()
+          fromMaybe (return ()) $ Map.lookup handle handles
+          putMVar c (Just hc, Map.delete handle handles)
+          return $ Just handle
+        HyperclientTimeout -> do
+          putMVar c (Just hc, handles)
+          loopClient' False client
+        HyperclientNonepending -> do
+          sequence_ $ Map.elems handles
+          putMVar c (Just hc, Map.empty)
+          return $ Just handle
+        _ -> do
+          traceIO $ "Encountered " ++ show returnCode
+          putMVar c (Just hc, handles)
+          loopClient' True client
+
+loopClient = loopClient' False
 
 -- | Run hyperclient_loop at most N times or forever until a handle is returned.
 loopClientUntil :: Client -> Handle -> Maybe Int -> MVar (Either ReturnCode a) -> IO (Bool)

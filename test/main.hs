@@ -9,6 +9,7 @@ import Test.HUnit
 
 import Database.HyperDex
 import Test.HyperDex.Internal (internalTests)
+import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
 import Data.Monoid
@@ -19,7 +20,8 @@ testVersion =
 
 main = defaultMainWithOpts
 				[ testCase "Version match" testVersion
-        , internalTests
+        -- , internalTests
+        , poolTests
         , cBStringTests
 				]
         (mempty { ropt_hide_successes = Just False}) 
