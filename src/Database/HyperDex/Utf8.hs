@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, ViewPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -16,13 +16,20 @@
 -----------------------------------------------------------------------------
 
 module Database.HyperDex.Utf8
-  ( mkAttributeUtf8 )
+  ( mkAttributeUtf8
+  , getAsyncAttrUtf8
+  , putAsyncAttrUtf8 )
   where
 
+import Database.HyperDex.Internal.Client
 import Database.HyperDex.Internal.Attribute
+import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Hyperdex
+import Database.HyperDex.Client (getAsyncAttr, putAsyncAttr)
 import Data.Serialize
+
+import Data.ByteString (ByteString)
 
 import Data.Text (Text)
 import qualified Data.Text as Text
@@ -38,9 +45,16 @@ instance HyperSerialize Text where
   putH = putByteString . encodeUtf8
   datatype = const HyperdatatypeString
 
-instance AttributeName Text where
-  nameToBS = encodeUtf8
-
 -- | Create an attribute using a name serialized as a UTF8 bytestring.
 mkAttributeUtf8 :: HyperSerialize a => Text -> a -> Attribute
-mkAttributeUtf8 = mkAttribute
+mkAttributeUtf8 (encodeUtf8 -> name) value = mkAttribute name value
+
+-- | Retrieve a value in a space by UTF8-encoded key.
+getAsyncAttrUtf8 :: Client -> Text -> Text -> AsyncResult [Attribute]
+getAsyncAttrUtf8 client (encodeUtf8 -> space) (encodeUtf8 -> key) =
+  hyperGet client space key
+
+-- | Put a value in a space by UTF8-encoded key.
+putAsyncAttrUtf8 :: Client -> Text -> Text -> [Attribute] -> AsyncResult ()
+putAsyncAttrUtf8 client (encodeUtf8 -> space) (encodeUtf8 -> key) attrs =
+  hyperPut client space key attrs

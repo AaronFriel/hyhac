@@ -24,9 +24,10 @@ module Database.HyperDex.Client
   , getAsyncAttr, putAsyncAttr
   , ReturnCode (..)
   , Attribute (..)
-  , AttributeName (..)
   , mkAttribute
   , AsyncResult, Result
+  , HyperSerialize
+  , serialize, deserialize
   )
   where
 
@@ -37,10 +38,12 @@ import Database.HyperDex.Internal.Client
   )
 import Database.HyperDex.Internal.Hyperclient
   ( hyperGet, hyperPut )
-import Database.HyperDex.Internal.Hyperdata (HyperSerialize)
+import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
-import Database.HyperDex.Internal.Attribute (Attribute (..), AttributeName (..), mkAttribute)
+import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)
 import qualified Database.HyperDex.Internal.Space as Space (addSpace, removeSpace)
+
+import Data.ByteString (ByteString)
 
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -59,7 +62,6 @@ connect' (encodeUtf8 -> host) (fromIntegral -> port) = do
 close :: Client -> IO ()
 close = closeClient
 
-
 -- | Create a space from a definition.
 addSpace :: Client -> Text -> IO ReturnCode
 addSpace client (encodeUtf8 -> spaceDef) = Space.addSpace client spaceDef
@@ -68,12 +70,12 @@ addSpace client (encodeUtf8 -> spaceDef) = Space.addSpace client spaceDef
 removeSpace :: Client -> Text -> IO ReturnCode
 removeSpace client (encodeUtf8 -> space) = Space.removeSpace client space
 
--- | Retrieve attributes from a space by key.
-getAsyncAttr :: Client -> Text -> Text -> AsyncResult [Attribute]
-getAsyncAttr client (encodeUtf8 -> space) (encodeUtf8 -> key) =
+-- | Retrieve a value from a space by key.
+getAsyncAttr :: Client -> Text -> ByteString -> AsyncResult [Attribute]
+getAsyncAttr client (encodeUtf8 -> space) key =
   hyperGet client space key
 
--- | Put attributes in a space by key.
-putAsyncAttr :: Client -> Text -> Text -> [Attribute] -> AsyncResult ()
-putAsyncAttr client (encodeUtf8 -> space) (encodeUtf8 -> key) attrs = 
+-- | Put a value in a space by key.
+putAsyncAttr :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAsyncAttr client (encodeUtf8 -> space) key attrs = 
   hyperPut client space key attrs

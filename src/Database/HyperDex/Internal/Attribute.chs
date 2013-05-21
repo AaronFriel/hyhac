@@ -3,7 +3,6 @@ module Database.HyperDex.Internal.Attribute
   , newHyperDexAttributeArray
   , Attribute (..)
   , AttributePtr
-  , AttributeName (..)
   , mkAttribute
   , haskellFreeAttributes
   , hyperdexFreeAttributes
@@ -31,15 +30,9 @@ fromHyperDexAttributeArray p s = peekArray s p
 newHyperDexAttributeArray :: [Attribute] -> IO (Ptr Attribute, Int)
 newHyperDexAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
 
-class AttributeName a where
-  nameToBS :: a -> ByteString
-
-instance AttributeName ByteString where
-  nameToBS = id
-
-mkAttribute :: (AttributeName n, HyperSerialize d) => n -> d -> Attribute
+mkAttribute :: HyperSerialize d => ByteString -> d -> Attribute
 mkAttribute n d = 
-  Attribute { attrName = nameToBS n
+  Attribute { attrName = n
             , attrValue = serialize d
             , attrDatatype = datatype d
             }

@@ -22,7 +22,6 @@ import Data.ByteString.Char8 (ByteString, unpack)
 
 import Database.HyperDex
 import Database.HyperDex.Utf8
-import Database.HyperDex.Internal.Hyperdata
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -146,11 +145,11 @@ getResult attribute (Right attrList)  =
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
+putHyper :: HyperSerialize a => Client -> Text -> ByteString -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute value = do
-    QC.run . join $ putAsyncAttr client space key [mkAttribute attribute value]
-    
-getHyper :: HyperSerialize a => Client -> Text -> Text -> Text -> QC.PropertyM IO (Either String a)
+    QC.run . join $ putAsyncAttr client space key [mkAttributeUtf8 attribute value]
+
+getHyper :: HyperSerialize a => Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String a)
 getHyper client space key attribute = do
     eitherAttrList <- QC.run . join $ getAsyncAttr client space key
     let retValue = getResult attribute eitherAttrList 
@@ -166,8 +165,8 @@ propCanStore :: (Show a, Eq a, HyperSerialize a) => Client -> ByteString -> a
                 -> Text -> NonEmpty ByteString -> Property
 propCanStore client attribute input space (NonEmpty key) =
   QC.monadicIO $ do
-    r1 <- putHyper client space (decodeUtf8 key) (decodeUtf8 attribute) input
-    eitherOutput <- getHyper client space (decodeUtf8 key) (decodeUtf8 attribute)
+    r1 <- putHyper client space key (decodeUtf8 attribute) input
+    eitherOutput <- getHyper client space key (decodeUtf8 attribute)
     case eitherOutput of
       Right output -> do
         case input == output of
