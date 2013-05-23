@@ -1,27 +1,54 @@
+{-# LANGUAGE ExistentialQuantification, TypeOperators #-}
+
 module Main ( main ) where
 
-import Test.Framework (defaultMain, testGroup)
-import Test.Framework.Runners.Console
-import Test.Framework.Runners.Options
-import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck2
-import Test.HUnit
+import Test.HyperDex.Space
 
 import Database.HyperDex
-import Test.HyperDex.Internal (internalTests)
+
+import Control.Concurrent (threadDelay, forkFinally)
+import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
+
+import Test.Framework
+
+-- import Test.HyperDex.Internal (internalTests)
 import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
-import Data.Monoid
+tests :: Test
+tests =
+  testGroup "hyhac-tests"
+  [ testGroup "hyperdex"
+    [ poolTests
+    -- Currently excluded because threading issues with buildTestBracketed
+    -- cause the connections to close before the quickCheck computation is
+    -- completed.
+    -- , internalTests
+    ]
+  , cBStringTests
+  ]
 
-testVersion :: Assertion
-testVersion =
-	assertEqual "hyhac-version" "0.2.0.0" hyhacVersion
+preamble :: IO ()
+preamble = do
+  client <- connect' defaultHost defaultPort
+  removeSpace client defaultSpace
+  threadDelay 250000
+  addSpace client defaultSpaceDesc
+  threadDelay 250000
+  close client
 
-main = defaultMainWithOpts
-				[ testCase "Version match" testVersion
-        -- , internalTests
-        , poolTests
-        , cBStringTests
-				]
-        (mempty { ropt_hide_successes = Just False}) 
+postscript :: IO ()
+postscript = do
+  client <- connect' defaultHost defaultPort
+  removeSpace client defaultSpace
+  close client
+
+main = do
+  preamble
+  -- This hackish solution allows us to get around the fact that defaultMain
+  -- will call exitWith. We fork off the computation and wrap it with forkFinally
+  -- and wait on an MVar before calling our cleanup operation.
+  wait <- newEmptyMVar
+  _ <- forkFinally (defaultMain [tests]) (const $ putMVar wait ())
+  takeMVar wait
+  postscript

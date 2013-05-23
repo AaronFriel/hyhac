@@ -3,12 +3,12 @@
 module Test.HyperDex.Internal (internalTests)
   where
 
+import Test.HyperDex.Space
+
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
 import Control.Monad
-
-import Control.Concurrent (threadDelay)
 
 import Test.Framework.Providers.QuickCheck2
 import Test.QuickCheck hiding (NonEmpty)
@@ -18,7 +18,7 @@ import Test.HyperDex.Util
 
 import Data.Text (Text)
 import Data.Text.Encoding
-import Data.ByteString.Char8 (ByteString, unpack)
+import Data.ByteString.Char8 (ByteString)
 
 import Database.HyperDex
 import Database.HyperDex.Utf8
@@ -30,113 +30,39 @@ import qualified Data.Map as Map
 
 import Data.Int
 import Data.Monoid
-import Data.Serialize
-
-defaultHost :: Text
-defaultHost = "127.0.0.1"
-
-defaultPort :: Int
-defaultPort = 1982
-
-defaultSpace :: Text
-defaultSpace = "profiles"
-
-defaultSpaceDesc :: Text
-defaultSpaceDesc = makeSpaceDesc defaultSpace
-
-makeSpaceDesc :: Text -> Text
-makeSpaceDesc name =
-  "space "<>name<>"                         \n\
-  \key username                             \n\
-  \attributes                               \n\
-  \   string first,                         \n\
-  \   string last,                          \n\
-  \   float score,                          \n\
-  \   int profile_views,                    \n\
-  \   list(string) pending_requests,        \n\
-  \   list(float) rankings,                 \n\
-  \   list(int) todolist,                   \n\
-  \   set(string) hobbies,                  \n\
-  \   set(float) imonafloat,                \n\
-  \   set(int) friendids,                   \n\
-  \   map(string, string) unread_messages,  \n\
-  \   map(string, int) upvotes,             \n\
-  \   map(string, float) friendranks,       \n\
-  \   map(int, string) posts,               \n\
-  \   map(int, int) friendremapping,        \n\
-  \   map(int, float) intfloatmap,          \n\
-  \   map(float, string) still_looking,     \n\
-  \   map(float, int) for_a_reason,         \n\
-  \   map(float, float) for_float_keyed_map \n\
-  \create 10 partitions                     \n\
-  \tolerate 2 failures"
-
-withDefaultHost :: (Client -> IO a) -> IO a
-withDefaultHost f = do
-  client <- connect' defaultHost defaultPort
-  res <- f client
-  close client
-  return res
-
-withDefaultHostQC :: (Client -> QC.PropertyM IO a) -> QC.PropertyM IO a
-withDefaultHostQC f = do
-  client <- QC.run $ connect' defaultHost defaultPort
-  res <- f client
-  QC.run $ close client
-  return res
-
-cleanupSpace :: Text -> IO ()
-cleanupSpace space =
-  withDefaultHost $ \client -> do
-    _ <- removeSpace client space
-    return ()
-
-canCreateSpace :: Test
-canCreateSpace = testCase "Can create a space" $ do
-  withDefaultHost $ \client -> do
-    removeSpace client defaultSpace
-    threadDelay 1000000
-    addSpaceResult <- addSpace client defaultSpaceDesc
-    threadDelay 1000000
-    assertEqual "Add space: " HyperclientSuccess addSpaceResult
-
-canRemoveSpace :: Test
-canRemoveSpace = testCase "Can remove a space" $ do
-  withDefaultHost $ \client -> do
-    threadDelay 1000000
-    removeSpaceResult <- removeSpace client defaultSpace
-    assertEqual "Remove space: " HyperclientSuccess removeSpaceResult
 
 testCanStoreLargeObject :: Test
 testCanStoreLargeObject = testCase "Can store a large object" $ do
-  withDefaultHost $ \client -> do
-    let attrs :: [Attribute]
-        attrs =
-          [ mkAttributeUtf8 "first"               (""        :: ByteString                 )
-          , mkAttributeUtf8 "last"                (""        :: ByteString                 )
-          , mkAttributeUtf8 "score"               (0.0       :: Double                     )
-          , mkAttributeUtf8 "profile_views"       (0         :: Int64                      )
-          , mkAttributeUtf8 "pending_requests"    ([]        :: [ByteString]               )
-          , mkAttributeUtf8 "rankings"            ([]        :: [Double]                   )
-          , mkAttributeUtf8 "todolist"            ([]        :: [Int64]                    )
-          , mkAttributeUtf8 "hobbies"             (Set.empty :: Set ByteString             )
-          , mkAttributeUtf8 "imonafloat"          (Set.empty :: Set Double                 )
-          , mkAttributeUtf8 "friendids"           (Set.empty :: Set Int64                  )
-          , mkAttributeUtf8 "unread_messages"     (Map.empty :: Map ByteString ByteString  )
-          , mkAttributeUtf8 "upvotes"             (Map.empty :: Map ByteString Int64       )
-          , mkAttributeUtf8 "friendranks"         (Map.empty :: Map ByteString Double      )
-          , mkAttributeUtf8 "posts"               (Map.empty :: Map Int64      ByteString  )
-          , mkAttributeUtf8 "friendremapping"     (Map.empty :: Map Int64      Int64       )
-          , mkAttributeUtf8 "intfloatmap"         (Map.empty :: Map Int64      Double      )
-          , mkAttributeUtf8 "still_looking"       (Map.empty :: Map Double     ByteString  )
-          , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
-          , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
-          ]
-    result <- join $ putAsyncAttr client defaultSpace "large" attrs
-    assertEqual "Remove space: " (Right ()) result
+  client <- connect' defaultHost defaultPort
+  let attrs :: [Attribute]
+      attrs =
+        [ mkAttributeUtf8 "first"               (""        :: ByteString                 )
+        , mkAttributeUtf8 "last"                (""        :: ByteString                 )
+        , mkAttributeUtf8 "score"               (0.0       :: Double                     )
+        , mkAttributeUtf8 "profile_views"       (0         :: Int64                      )
+        , mkAttributeUtf8 "pending_requests"    ([]        :: [ByteString]               )
+        , mkAttributeUtf8 "rankings"            ([]        :: [Double]                   )
+        , mkAttributeUtf8 "todolist"            ([]        :: [Int64]                    )
+        , mkAttributeUtf8 "hobbies"             (Set.empty :: Set ByteString             )
+        , mkAttributeUtf8 "imonafloat"          (Set.empty :: Set Double                 )
+        , mkAttributeUtf8 "friendids"           (Set.empty :: Set Int64                  )
+        , mkAttributeUtf8 "unread_messages"     (Map.empty :: Map ByteString ByteString  )
+        , mkAttributeUtf8 "upvotes"             (Map.empty :: Map ByteString Int64       )
+        , mkAttributeUtf8 "friendranks"         (Map.empty :: Map ByteString Double      )
+        , mkAttributeUtf8 "posts"               (Map.empty :: Map Int64      ByteString  )
+        , mkAttributeUtf8 "friendremapping"     (Map.empty :: Map Int64      Int64       )
+        , mkAttributeUtf8 "intfloatmap"         (Map.empty :: Map Int64      Double      )
+        , mkAttributeUtf8 "still_looking"       (Map.empty :: Map Double     ByteString  )
+        , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
+        , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
+        ]
+  result <- join $ putAsyncAttr client defaultSpace "large" attrs
+  close client
+  assertEqual "Remove space: " (Right ()) result
+
 
 getResult :: HyperSerialize a => Text -> Either ReturnCode [Attribute] -> Either String a
-getResult attribute (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
+getResult _         (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
 getResult attribute (Right attrList)  =
   case (filter (\a -> attrName a == encodeUtf8 attribute) attrList) of
           [x] -> case deserialize $ attrValue x of
@@ -165,7 +91,7 @@ propCanStore :: (Show a, Eq a, HyperSerialize a) => Client -> ByteString -> a
                 -> Text -> NonEmpty ByteString -> Property
 propCanStore client attribute input space (NonEmpty key) =
   QC.monadicIO $ do
-    r1 <- putHyper client space key (decodeUtf8 attribute) input
+    _ <- putHyper client space key (decodeUtf8 attribute) input
     eitherOutput <- getHyper client space key (decodeUtf8 attribute)
     case eitherOutput of
       Right output -> do
@@ -351,19 +277,9 @@ testCanStoreMapOfDoublesToDoubles = buildTestBracketed $ do
             $ \(value :: Map Double Double) -> propCanStore client "for_float_keyed_map" value defaultSpace
     return (test, close client)
 
-canCreateAndRemoveSpaces :: Test
-canCreateAndRemoveSpaces = do
-  testGroup "Can create and remove space" [ canCreateSpace, canRemoveSpace ]
-
 internalTests :: Test
-internalTests = mutuallyExclusive $
-                plusTestOptions 
-                (mempty { topt_maximum_generated_tests = Just 1000
-                        , topt_maximum_test_size = Just 64
-                        })
-                $ testGroup "Internal API Tests"
-                  [ canCreateSpace
-                  , testCanStoreLargeObject
+internalTests = testGroup "non-pooled-api-tests"
+                  [ testCanStoreLargeObject
                   , testCanStoreIntegers
                   , testCanStoreStrings
                   , testCanStoreDoubles
