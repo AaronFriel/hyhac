@@ -93,4 +93,4 @@ Test-suite tests
     , HUnit
     , QuickCheck
 
-  ghc-options:       -Werror -threaded -rtsopts
+  ghc-options:       -W -Werror -threaded -rtsopts
