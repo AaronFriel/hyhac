@@ -116,7 +116,7 @@ propCanStore clientPool attribute input space (NonEmpty key) =
         QC.assert False
 
 createAction = do
-  connect' defaultHost defaultPort
+  connect defaultConnectInfo
 
 closeAction client = do
   close client

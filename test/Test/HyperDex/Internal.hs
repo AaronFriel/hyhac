@@ -33,7 +33,7 @@ import Data.Monoid
 
 testCanStoreLargeObject :: Test
 testCanStoreLargeObject = testCase "Can store a large object" $ do
-  client <- connect' defaultHost defaultPort
+  client <- connect defaultConnectInfo
   let attrs :: [Attribute]
       attrs =
         [ mkAttributeUtf8 "first"               (""        :: ByteString                 )
@@ -117,7 +117,7 @@ propCanStore client attribute input space (NonEmpty key) =
 
 testCanStoreDoubles :: Test
 testCanStoreDoubles = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a floating point Double through HyperDex"
@@ -126,7 +126,7 @@ testCanStoreDoubles = buildTestBracketed $ do
 
 testCanStoreIntegers :: Test
 testCanStoreIntegers = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip an integer through HyperDex"
@@ -135,7 +135,7 @@ testCanStoreIntegers = buildTestBracketed $ do
 
 testCanStoreStrings :: Test
 testCanStoreStrings = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a string through HyperDex"
@@ -144,7 +144,7 @@ testCanStoreStrings = buildTestBracketed $ do
 
 testCanStoreListOfStrings :: Test
 testCanStoreListOfStrings = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a list of strings through HyperDex"
@@ -153,7 +153,7 @@ testCanStoreListOfStrings = buildTestBracketed $ do
 
 testCanStoreListOfDoubles :: Test
 testCanStoreListOfDoubles = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a list of floating point doubles through HyperDex"
@@ -162,7 +162,7 @@ testCanStoreListOfDoubles = buildTestBracketed $ do
 
 testCanStoreListOfIntegers :: Test
 testCanStoreListOfIntegers = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a list of integers through HyperDex"
@@ -171,7 +171,7 @@ testCanStoreListOfIntegers = buildTestBracketed $ do
 
 testCanStoreSetOfStrings :: Test
 testCanStoreSetOfStrings = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a set of strings through HyperDex"
@@ -180,7 +180,7 @@ testCanStoreSetOfStrings = buildTestBracketed $ do
 
 testCanStoreSetOfDoubles :: Test
 testCanStoreSetOfDoubles = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a set of floating point doubles through HyperDex"
@@ -189,7 +189,7 @@ testCanStoreSetOfDoubles = buildTestBracketed $ do
 
 testCanStoreSetOfIntegers :: Test
 testCanStoreSetOfIntegers = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a set of integers through HyperDex"
@@ -198,7 +198,7 @@ testCanStoreSetOfIntegers = buildTestBracketed $ do
 
 testCanStoreMapOfStringsToStrings :: Test
 testCanStoreMapOfStringsToStrings = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of strings to strings through HyperDex"
@@ -207,7 +207,7 @@ testCanStoreMapOfStringsToStrings = buildTestBracketed $ do
 
 testCanStoreMapOfStringsToIntegers :: Test
 testCanStoreMapOfStringsToIntegers = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of strings to integers through HyperDex"
@@ -216,7 +216,7 @@ testCanStoreMapOfStringsToIntegers = buildTestBracketed $ do
 
 testCanStoreMapOfStringsToDoubles :: Test
 testCanStoreMapOfStringsToDoubles = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of strings to floating point doubles through HyperDex"
@@ -225,7 +225,7 @@ testCanStoreMapOfStringsToDoubles = buildTestBracketed $ do
 
 testCanStoreMapOfIntegersToStrings :: Test
 testCanStoreMapOfIntegersToStrings = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of integers to strings through HyperDex"
@@ -234,7 +234,7 @@ testCanStoreMapOfIntegersToStrings = buildTestBracketed $ do
 
 testCanStoreMapOfIntegersToIntegers :: Test
 testCanStoreMapOfIntegersToIntegers = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of integers to integers through HyperDex"
@@ -243,7 +243,7 @@ testCanStoreMapOfIntegersToIntegers = buildTestBracketed $ do
 
 testCanStoreMapOfIntegersToDoubles :: Test
 testCanStoreMapOfIntegersToDoubles = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of integers to floating point doubles through HyperDex"
@@ -252,7 +252,7 @@ testCanStoreMapOfIntegersToDoubles = buildTestBracketed $ do
 
 testCanStoreMapOfDoublesToStrings :: Test
 testCanStoreMapOfDoublesToStrings = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of floating point doubles to strings through HyperDex"
@@ -261,7 +261,7 @@ testCanStoreMapOfDoublesToStrings = buildTestBracketed $ do
 
 testCanStoreMapOfDoublesToIntegers :: Test
 testCanStoreMapOfDoublesToIntegers = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of floating point doubles to integers through HyperDex"
@@ -270,7 +270,7 @@ testCanStoreMapOfDoublesToIntegers = buildTestBracketed $ do
 
 testCanStoreMapOfDoublesToDoubles :: Test
 testCanStoreMapOfDoublesToDoubles = buildTestBracketed $ do
-    client <- connect' defaultHost defaultPort
+    client <- connect defaultConnectInfo
     let test = 
           testProperty
             "Can round trip a map of floating point doubles to floating point doubles through HyperDex"

@@ -19,7 +19,11 @@
 
 module Database.HyperDex.Client 
   ( Client
-  , connect', close
+  , connect, close
+  , ConnectInfo (..)
+  , defaultConnectInfo
+  , ConnectOptions (..)
+  , defaultConnectOptions
   , addSpace, removeSpace
   , getAsyncAttr, putAsyncAttr
   , ReturnCode (..)
@@ -31,13 +35,12 @@ module Database.HyperDex.Client
   )
   where
 
-import Database.HyperDex.Internal.Client 
-  ( Client
-  , makeClient, closeClient
-  , AsyncResult, Result
-  )
-import Database.HyperDex.Internal.Hyperclient
-  ( hyperGet, hyperPut )
+import Database.HyperDex.Internal.Client ( 
+        Client, connect, close, AsyncResult, Result
+      , ConnectInfo, defaultConnectInfo
+      , ConnectOptions, defaultConnectOptions
+      )
+import Database.HyperDex.Internal.Hyperclient (hyperGet, hyperPut)
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
 import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)
@@ -47,20 +50,6 @@ import Data.ByteString (ByteString)
 
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
-
--- | /Deprecated:/ Create a client connection.
---
--- This currently this will always return a connection but no guarantees
--- are made that it is open. This API is temporary.
-connect' :: Text -> Int -> IO Client
-connect' (encodeUtf8 -> host) (fromIntegral -> port) = do
-  makeClient host port
-
--- | Close a client connection.
---
--- This additionally ensures all allocated resources are released on close.
-close :: Client -> IO ()
-close = closeClient
 
 -- | Create a space from a definition.
 addSpace :: Client -> Text -> IO ReturnCode

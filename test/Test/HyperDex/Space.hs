@@ -5,12 +5,6 @@ module Test.HyperDex.Space where
 import Data.Text
 import Data.Monoid ((<>))
 
-defaultHost :: Text
-defaultHost = "127.0.0.1"
-
-defaultPort :: Int
-defaultPort = 1982
-
 defaultSpace :: Text
 defaultSpace = "profiles"
 

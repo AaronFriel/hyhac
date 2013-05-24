@@ -30,7 +30,7 @@ tests =
 
 preamble :: IO ()
 preamble = do
-  client <- connect' defaultHost defaultPort
+  client <- connect defaultConnectInfo
   removeSpace client defaultSpace
   threadDelay 250000
   addSpace client defaultSpaceDesc
@@ -39,7 +39,7 @@ preamble = do
 
 postscript :: IO ()
 postscript = do
-  client <- connect' defaultHost defaultPort
+  client <- connect defaultConnectInfo
   removeSpace client defaultSpace
   close client
 

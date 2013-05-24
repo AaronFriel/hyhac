@@ -49,6 +49,7 @@ library
     , containers                 >= 0.5
     , text
     , resource-pool              >= 0.2.0
+    , data-default
 
     -- Only included so cabal install --only-dependencies will bring in
     -- everything required and compatible with the test suite.
@@ -85,6 +86,7 @@ Test-suite tests
     , containers                 >= 0.5
     , text
     , resource-pool              >= 0.2.0
+    , data-default
 
     -- Test suite packages:
     , test-framework             >= 0.8
