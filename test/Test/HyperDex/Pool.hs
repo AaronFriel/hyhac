@@ -234,7 +234,8 @@ testCanStoreMapOfDoublesToDoubles clientPool =
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
-  let tests = testGroup "pooled-api-tests"
+  let tests = mutuallyExclusive $
+              testGroup "pooled-api-tests"
                 [ testCanStoreLargeObject clientPool
                 , testCanStoreIntegers clientPool
                 , testCanStoreStrings clientPool

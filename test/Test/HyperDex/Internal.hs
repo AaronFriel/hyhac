@@ -58,7 +58,7 @@ testCanStoreLargeObject = testCase "Can store a large object" $ do
         ]
   result <- join $ putAsyncAttr client defaultSpace "large" attrs
   close client
-  assertEqual "Remove space: " (Right ()) result
+  assertEqual "Could store large object: " (Right ()) result
 
 
 getResult :: HyperSerialize a => Text -> Either ReturnCode [Attribute] -> Either String a
@@ -71,16 +71,16 @@ getResult attribute (Right attrList)  =
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: HyperSerialize a => Client -> Text -> ByteString -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
+putHyper :: HyperSerialize a => Client -> Text -> ByteString -> Text -> a -> IO (Either ReturnCode ())
 putHyper client space key attribute value = do
-    QC.run . join $ putAsyncAttr client space key [mkAttributeUtf8 attribute value]
+    join $ putAsyncAttr client space key [mkAttributeUtf8 attribute value]
 
-getHyper :: HyperSerialize a => Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String a)
+getHyper :: HyperSerialize a => Client -> Text -> ByteString -> Text -> IO (Either String a)
 getHyper client space key attribute = do
-    eitherAttrList <- QC.run . join $ getAsyncAttr client space key
+    eitherAttrList <- join $ getAsyncAttr client space key
     let retValue = getResult attribute eitherAttrList 
     case retValue of
-      Left err -> QC.run $ do
+      Left err -> do
         putStrLn $ "getHyper encountered error: " <> show err
         putStrLn $ "Attribute: "
         putStrLn $ show . fmap (filter (\x -> decodeUtf8 (attrName x) == attribute)) $ eitherAttrList
@@ -91,8 +91,8 @@ propCanStore :: (Show a, Eq a, HyperSerialize a) => Client -> ByteString -> a
                 -> Text -> NonEmpty ByteString -> Property
 propCanStore client attribute input space (NonEmpty key) =
   QC.monadicIO $ do
-    _ <- putHyper client space key (decodeUtf8 attribute) input
-    eitherOutput <- getHyper client space key (decodeUtf8 attribute)
+    _ <- QC.run $ putHyper client space key (decodeUtf8 attribute) input
+    eitherOutput <- QC.run $ getHyper client space key (decodeUtf8 attribute)
     case eitherOutput of
       Right output -> do
         case input == output of
@@ -278,7 +278,8 @@ testCanStoreMapOfDoublesToDoubles = buildTestBracketed $ do
     return (test, close client)
 
 internalTests :: Test
-internalTests = testGroup "non-pooled-api-tests"
+internalTests = mutuallyExclusive $
+                testGroup "non-pooled-api-tests"
                   [ testCanStoreLargeObject
                   , testCanStoreIntegers
                   , testCanStoreStrings

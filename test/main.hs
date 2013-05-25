@@ -11,7 +11,7 @@ import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
 
 import Test.Framework
 
--- import Test.HyperDex.Internal (internalTests)
+import Test.HyperDex.Internal (internalTests)
 import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
@@ -23,7 +23,7 @@ tests =
     -- Currently excluded because threading issues with buildTestBracketed
     -- cause the connections to close before the quickCheck computation is
     -- completed.
-    -- , internalTests
+    , internalTests
     ]
   , cBStringTests
   ]
