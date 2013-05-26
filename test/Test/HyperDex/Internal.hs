@@ -31,9 +31,8 @@ import qualified Data.Map as Map
 import Data.Int
 import Data.Monoid
 
-testCanStoreLargeObject :: Test
-testCanStoreLargeObject = testCase "Can store a large object" $ do
-  client <- connect defaultConnectInfo
+testCanStoreLargeObject :: Client -> Test
+testCanStoreLargeObject client = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
       attrs =
         [ mkAttributeUtf8 "first"               (""        :: ByteString                 )
@@ -57,7 +56,6 @@ testCanStoreLargeObject = testCase "Can store a large object" $ do
         , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
         ]
   result <- join $ putAsyncAttr client defaultSpace "large" attrs
-  close client
   assertEqual "Could store large object: " (Right ()) result
 
 
@@ -115,188 +113,137 @@ propCanStore client attribute input space (NonEmpty key) =
           putStrLn $ "  reason: " <> show reason
         QC.assert False
 
-testCanStoreDoubles :: Test
-testCanStoreDoubles = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a floating point Double through HyperDex"
-            $ \(value :: Double) -> propCanStore client "score" value defaultSpace
-    return (test, close client)
-
-testCanStoreIntegers :: Test
-testCanStoreIntegers = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip an integer through HyperDex"
-            $ \(value :: Int64) -> propCanStore client "profile_views" value defaultSpace
-    return (test, close client)
-
-testCanStoreStrings :: Test
-testCanStoreStrings = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a string through HyperDex"
-            $ \(value :: ByteString) -> propCanStore client "first" value defaultSpace
-    return (test, close client)
-
-testCanStoreListOfStrings :: Test
-testCanStoreListOfStrings = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a list of strings through HyperDex"
-            $ \(value :: [ByteString]) -> propCanStore client "pending_requests" value defaultSpace
-    return (test, close client)
-
-testCanStoreListOfDoubles :: Test
-testCanStoreListOfDoubles = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a list of floating point doubles through HyperDex"
-            $ \(value :: [Double]) -> propCanStore client "rankings" value defaultSpace
-    return (test, close client)
-
-testCanStoreListOfIntegers :: Test
-testCanStoreListOfIntegers = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a list of integers through HyperDex"
-            $ \(value :: [Int64]) -> propCanStore client "todolist" value defaultSpace
-    return (test, close client)
-
-testCanStoreSetOfStrings :: Test
-testCanStoreSetOfStrings = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a set of strings through HyperDex"
-            $ \(value :: Set ByteString) -> propCanStore client "hobbies" value defaultSpace
-    return (test, close client)
-
-testCanStoreSetOfDoubles :: Test
-testCanStoreSetOfDoubles = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a set of floating point doubles through HyperDex"
-            $ \(value :: Set Double) -> propCanStore client "imonafloat" value defaultSpace
-    return (test, close client)
-
-testCanStoreSetOfIntegers :: Test
-testCanStoreSetOfIntegers = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a set of integers through HyperDex"
-            $ \(value :: Set Int64) -> propCanStore client "friendids" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfStringsToStrings :: Test
-testCanStoreMapOfStringsToStrings = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of strings to strings through HyperDex"
-            $ \(value :: Map ByteString ByteString) -> propCanStore client "unread_messages" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfStringsToIntegers :: Test
-testCanStoreMapOfStringsToIntegers = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of strings to integers through HyperDex"
-            $ \(value :: Map ByteString Int64) -> propCanStore client "upvotes" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfStringsToDoubles :: Test
-testCanStoreMapOfStringsToDoubles = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of strings to floating point doubles through HyperDex"
-            $ \(value :: Map ByteString Double) -> propCanStore client "friendranks" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfIntegersToStrings :: Test
-testCanStoreMapOfIntegersToStrings = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of integers to strings through HyperDex"
-            $ \(value :: Map Int64 ByteString) -> propCanStore client "posts" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfIntegersToIntegers :: Test
-testCanStoreMapOfIntegersToIntegers = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of integers to integers through HyperDex"
-            $ \(value :: Map Int64 Int64) -> propCanStore client "friendremapping" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfIntegersToDoubles :: Test
-testCanStoreMapOfIntegersToDoubles = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of integers to floating point doubles through HyperDex"
-            $ \(value :: Map Int64 Double) -> propCanStore client "intfloatmap" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfDoublesToStrings :: Test
-testCanStoreMapOfDoublesToStrings = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of floating point doubles to strings through HyperDex"
-            $ \(value :: Map Double ByteString) -> propCanStore client "still_looking" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfDoublesToIntegers :: Test
-testCanStoreMapOfDoublesToIntegers = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of floating point doubles to integers through HyperDex"
-            $ \(value :: Map Double Int64) -> propCanStore client "for_a_reason" value defaultSpace
-    return (test, close client)
-
-testCanStoreMapOfDoublesToDoubles :: Test
-testCanStoreMapOfDoublesToDoubles = buildTestBracketed $ do
-    client <- connect defaultConnectInfo
-    let test = 
-          testProperty
-            "Can round trip a map of floating point doubles to floating point doubles through HyperDex"
-            $ \(value :: Map Double Double) -> propCanStore client "for_float_keyed_map" value defaultSpace
-    return (test, close client)
-
+testCanStoreDoubles :: Client -> Test
+testCanStoreDoubles client = 
+  testProperty
+    "Can round trip a floating point Double through HyperDex"
+    $ \(value :: Double) -> propCanStore client "score" value defaultSpace
+    
+testCanStoreIntegers :: Client -> Test
+testCanStoreIntegers client = 
+  testProperty
+    "Can round trip an integer through HyperDex"
+    $ \(value :: Int64) -> propCanStore client "profile_views" value defaultSpace
+    
+testCanStoreStrings :: Client -> Test
+testCanStoreStrings client = 
+  testProperty
+    "Can round trip a string through HyperDex"
+    $ \(value :: ByteString) -> propCanStore client "first" value defaultSpace
+    
+testCanStoreListOfStrings :: Client -> Test
+testCanStoreListOfStrings client = 
+  testProperty
+    "Can round trip a list of strings through HyperDex"
+    $ \(value :: [ByteString]) -> propCanStore client "pending_requests" value defaultSpace
+    
+testCanStoreListOfDoubles :: Client -> Test
+testCanStoreListOfDoubles client = 
+  testProperty
+    "Can round trip a list of floating point doubles through HyperDex"
+    $ \(value :: [Double]) -> propCanStore client "rankings" value defaultSpace
+    
+testCanStoreListOfIntegers :: Client -> Test
+testCanStoreListOfIntegers client = 
+  testProperty
+    "Can round trip a list of integers through HyperDex"
+    $ \(value :: [Int64]) -> propCanStore client "todolist" value defaultSpace
+    
+testCanStoreSetOfStrings :: Client -> Test
+testCanStoreSetOfStrings client = 
+  testProperty
+    "Can round trip a set of strings through HyperDex"
+    $ \(value :: Set ByteString) -> propCanStore client "hobbies" value defaultSpace
+    
+testCanStoreSetOfDoubles :: Client -> Test
+testCanStoreSetOfDoubles client = 
+  testProperty
+    "Can round trip a set of floating point doubles through HyperDex"
+    $ \(value :: Set Double) -> propCanStore client "imonafloat" value defaultSpace
+    
+testCanStoreSetOfIntegers :: Client -> Test
+testCanStoreSetOfIntegers client = 
+  testProperty
+    "Can round trip a set of integers through HyperDex"
+    $ \(value :: Set Int64) -> propCanStore client "friendids" value defaultSpace
+    
+testCanStoreMapOfStringsToStrings :: Client -> Test
+testCanStoreMapOfStringsToStrings client = 
+  testProperty
+    "Can round trip a map of strings to strings through HyperDex"
+    $ \(value :: Map ByteString ByteString) -> propCanStore client "unread_messages" value defaultSpace
+    
+testCanStoreMapOfStringsToIntegers :: Client -> Test
+testCanStoreMapOfStringsToIntegers client = 
+  testProperty
+    "Can round trip a map of strings to integers through HyperDex"
+    $ \(value :: Map ByteString Int64) -> propCanStore client "upvotes" value defaultSpace
+    
+testCanStoreMapOfStringsToDoubles :: Client -> Test
+testCanStoreMapOfStringsToDoubles client = 
+  testProperty
+    "Can round trip a map of strings to floating point doubles through HyperDex"
+    $ \(value :: Map ByteString Double) -> propCanStore client "friendranks" value defaultSpace
+    
+testCanStoreMapOfIntegersToStrings :: Client -> Test
+testCanStoreMapOfIntegersToStrings client = 
+  testProperty
+    "Can round trip a map of integers to strings through HyperDex"
+    $ \(value :: Map Int64 ByteString) -> propCanStore client "posts" value defaultSpace
+    
+testCanStoreMapOfIntegersToIntegers :: Client -> Test
+testCanStoreMapOfIntegersToIntegers client = 
+  testProperty
+    "Can round trip a map of integers to integers through HyperDex"
+    $ \(value :: Map Int64 Int64) -> propCanStore client "friendremapping" value defaultSpace
+    
+testCanStoreMapOfIntegersToDoubles :: Client -> Test
+testCanStoreMapOfIntegersToDoubles client = 
+  testProperty
+    "Can round trip a map of integers to floating point doubles through HyperDex"
+    $ \(value :: Map Int64 Double) -> propCanStore client "intfloatmap" value defaultSpace
+    
+testCanStoreMapOfDoublesToStrings :: Client -> Test
+testCanStoreMapOfDoublesToStrings client = 
+  testProperty
+    "Can round trip a map of floating point doubles to strings through HyperDex"
+    $ \(value :: Map Double ByteString) -> propCanStore client "still_looking" value defaultSpace
+    
+testCanStoreMapOfDoublesToIntegers :: Client -> Test
+testCanStoreMapOfDoublesToIntegers client = 
+  testProperty
+    "Can round trip a map of floating point doubles to integers through HyperDex"
+    $ \(value :: Map Double Int64) -> propCanStore client "for_a_reason" value defaultSpace
+    
+testCanStoreMapOfDoublesToDoubles :: Client -> Test
+testCanStoreMapOfDoublesToDoubles client = 
+  testProperty
+    "Can round trip a map of floating point doubles to floating point doubles through HyperDex"
+    $ \(value :: Map Double Double) -> propCanStore client "for_float_keyed_map" value defaultSpace
+    
 internalTests :: Test
-internalTests = mutuallyExclusive $
-                testGroup "non-pooled-api-tests"
-                  [ testCanStoreLargeObject
-                  , testCanStoreIntegers
-                  , testCanStoreStrings
-                  , testCanStoreDoubles
-                  , testCanStoreListOfStrings
-                  , testCanStoreListOfDoubles
-                  , testCanStoreListOfIntegers
-                  , testCanStoreSetOfStrings
-                  , testCanStoreSetOfDoubles
-                  , testCanStoreSetOfIntegers
-                  , testCanStoreMapOfStringsToStrings
-                  , testCanStoreMapOfStringsToIntegers
-                  , testCanStoreMapOfStringsToDoubles
-                  , testCanStoreMapOfIntegersToStrings
-                  , testCanStoreMapOfIntegersToIntegers
-                  , testCanStoreMapOfIntegersToDoubles
-                  , testCanStoreMapOfDoublesToStrings
-                  , testCanStoreMapOfDoublesToIntegers
-                  , testCanStoreMapOfDoublesToDoubles
-                  ]
+internalTests = buildTest $ do
+  client <- connect defaultConnectInfo
+  return $ testGroup "non-pooled-api-tests"
+    $ map
+      (\f -> f client)
+      [ testCanStoreLargeObject
+      , testCanStoreIntegers
+      , testCanStoreStrings
+      , testCanStoreDoubles
+      , testCanStoreListOfStrings
+      , testCanStoreListOfDoubles
+      , testCanStoreListOfIntegers
+      , testCanStoreSetOfStrings
+      , testCanStoreSetOfDoubles
+      , testCanStoreSetOfIntegers
+      , testCanStoreMapOfStringsToStrings
+      , testCanStoreMapOfStringsToIntegers
+      , testCanStoreMapOfStringsToDoubles
+      , testCanStoreMapOfIntegersToStrings
+      , testCanStoreMapOfIntegersToIntegers
+      , testCanStoreMapOfIntegersToDoubles
+      , testCanStoreMapOfDoublesToStrings
+      , testCanStoreMapOfDoublesToIntegers
+      , testCanStoreMapOfDoublesToDoubles
+      ]
