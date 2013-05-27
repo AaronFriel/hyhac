@@ -7,8 +7,6 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isAsciiLower)
 
-import Control.Applicative
-
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)

@@ -4,6 +4,17 @@ module Test.HyperDex.Space where
 
 import Data.Text
 import Data.Monoid ((<>))
+import Test.QuickCheck.Arbitrary
+
+import Data.Int (Int64)
+import Data.ByteString (ByteString)
+import Data.Set (Set)
+import Data.Map (Map)
+
+import Database.HyperDex
+import Database.HyperDex.Utf8
+
+import Test.HyperDex.Util ()
 
 defaultSpace :: Text
 defaultSpace = "profiles"
@@ -37,3 +48,36 @@ makeSpaceDesc name =
   \   map(float, float) for_float_keyed_map \n\
   \create 10 partitions                     \n\
   \tolerate 2 failures"
+
+newtype DefaultSpaceAttributes = DefaultSpaceAttributes { unDefaultSpace :: [Attribute] }
+  deriving (Show, Eq)
+
+instance Arbitrary DefaultSpaceAttributes where
+  arbitrary = do
+    (first', last', score', profile_views',
+      (pending_requests', rankings', todolist', hobbies',
+        (imonafloat', friendids', unread_messages', upvotes',
+          (friendranks', posts', friendremapping', intfloatmap',
+            (still_looking', for_a_reason', for_float_keyed_map')))))
+      <- arbitrary
+    return $ DefaultSpaceAttributes
+                [ mkAttributeUtf8 "first"               (first'               :: ByteString               )
+                , mkAttributeUtf8 "last"                (last'                :: ByteString               )
+                , mkAttributeUtf8 "score"               (score'               :: Double                   )
+                , mkAttributeUtf8 "profile_views"       (profile_views'       :: Int64                    )
+                , mkAttributeUtf8 "pending_requests"    (pending_requests'    :: [ByteString]             )
+                , mkAttributeUtf8 "rankings"            (rankings'            :: [Double]                 )
+                , mkAttributeUtf8 "todolist"            (todolist'            :: [Int64]                  )
+                , mkAttributeUtf8 "hobbies"             (hobbies'             :: Set ByteString           )
+                , mkAttributeUtf8 "imonafloat"          (imonafloat'          :: Set Double               )
+                , mkAttributeUtf8 "friendids"           (friendids'           :: Set Int64                )
+                , mkAttributeUtf8 "unread_messages"     (unread_messages'     :: Map ByteString ByteString)
+                , mkAttributeUtf8 "upvotes"             (upvotes'             :: Map ByteString Int64     )
+                , mkAttributeUtf8 "friendranks"         (friendranks'         :: Map ByteString Double    )
+                , mkAttributeUtf8 "posts"               (posts'               :: Map Int64      ByteString)
+                , mkAttributeUtf8 "friendremapping"     (friendremapping'     :: Map Int64      Int64     )
+                , mkAttributeUtf8 "intfloatmap"         (intfloatmap'         :: Map Int64      Double    )
+                , mkAttributeUtf8 "still_looking"       (still_looking'       :: Map Double     ByteString)
+                , mkAttributeUtf8 "for_a_reason"        (for_a_reason'        :: Map Double     Int64     )
+                , mkAttributeUtf8 "for_float_keyed_map" (for_float_keyed_map' :: Map Double     Double    )
+                ]

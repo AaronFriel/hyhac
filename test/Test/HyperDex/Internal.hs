@@ -23,6 +23,9 @@ import Data.ByteString.Char8 (ByteString)
 import Database.HyperDex
 import Database.HyperDex.Utf8
 
+import Data.List (sortBy)
+import Data.Function (on)
+
 import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
@@ -220,6 +223,38 @@ testCanStoreMapOfDoublesToDoubles client =
   testProperty
     "Can round trip a map of floating point doubles to floating point doubles through HyperDex"
     $ \(value :: Map Double Double) -> propCanStore client "for_float_keyed_map" value defaultSpace
+
+sortByAttrName :: [Attribute] -> [Attribute]
+sortByAttrName = sortBy (compare `on` attrName)
+
+testCanStore :: Client -> Test
+testCanStore client = 
+  testProperty
+    "roundtrip-arbitrary-value"
+    $ \(DefaultSpaceAttributes attrs) key -> 
+    -- propCanStore client attribute input space (NonEmpty key) = 
+      QC.monadicIO $ do
+      _ <- QC.run $ join $ putAsyncAttr client defaultSpace key attrs
+      eitherOutput <- QC.run $ join $ getAsyncAttr client defaultSpace key
+      case eitherOutput of
+        Right output -> do
+          -- todo: 
+          case sortByAttrName attrs == sortByAttrName output of
+            True -> QC.assert True
+            False -> do
+              QC.run $ do
+                putStrLn $ "Failed to store value:"
+                putStrLn $ "  key:    " <> show key
+                putStrLn $ "  attrs:  " <> show attrs
+                putStrLn $ "  output: " <> show output
+              QC.assert False
+        Left reason  -> do 
+          QC.run $ do
+            putStrLn $ "Failed to retrieve value:"
+            putStrLn $ "  key:    " <> show key
+            putStrLn $ "  attrs:  " <> show attrs
+            putStrLn $ "  reason: " <> show reason
+          QC.assert False
     
 internalTests :: Test
 internalTests = buildTest $ do
@@ -246,4 +281,5 @@ internalTests = buildTest $ do
       , testCanStoreMapOfDoublesToStrings
       , testCanStoreMapOfDoublesToIntegers
       , testCanStoreMapOfDoublesToDoubles
+      , testCanStore
       ]

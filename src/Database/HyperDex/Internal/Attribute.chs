@@ -24,25 +24,21 @@ typedef struct hyperclient_attribute hyperclient_attribute_struct;
 
 {# pointer *hyperclient_attribute as AttributePtr -> Attribute #}
 
+mkAttribute :: HyperSerialize a => ByteString -> a -> Attribute
+mkAttribute name value =  Attribute name (serialize value) (datatype value)
+
 fromHyperDexAttributeArray :: Ptr Attribute -> Int -> IO [Attribute]
 fromHyperDexAttributeArray p s = peekArray s p
 
 newHyperDexAttributeArray :: [Attribute] -> IO (Ptr Attribute, Int)
 newHyperDexAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
 
-mkAttribute :: HyperSerialize d => ByteString -> d -> Attribute
-mkAttribute n d = 
-  Attribute { attrName = n
-            , attrValue = serialize d
-            , attrDatatype = datatype d
-            }
-
 data Attribute = Attribute
   { attrName     :: ByteString
   , attrValue    :: ByteString
   , attrDatatype :: Hyperdatatype
   }
-  deriving (Show)
+  deriving (Show, Eq)
 instance Storable Attribute where
   sizeOf _ = {#sizeof hyperclient_attribute_struct #}
   alignment _ = {#alignof hyperclient_attribute_struct #}
