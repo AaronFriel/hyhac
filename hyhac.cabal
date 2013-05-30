@@ -32,6 +32,7 @@ library
     Database.HyperDex.Internal.Client
     Database.HyperDex.Internal.Space
     Database.HyperDex.Internal.Attribute
+    Database.HyperDex.Internal.AttributeCheck
     Database.HyperDex.Internal.Util
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
