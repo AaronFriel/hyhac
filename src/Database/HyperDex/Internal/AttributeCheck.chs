@@ -1,6 +1,8 @@
 module Database.HyperDex.Internal.AttributeCheck
   ( AttributeCheck (..)
   , AttributeCheckPtr
+  , newHyperDexAttributeCheckArray
+  , haskellFreeAttributeChecks
   )
   where
 
@@ -18,6 +20,9 @@ typedef struct hyperclient_attribute_check hyperclient_attribute_check_struct;
 #endc
 
 {# pointer *hyperclient_attribute_check as AttributeCheckPtr -> AttributeCheck #}
+
+newHyperDexAttributeCheckArray :: [AttributeCheck] -> IO (Ptr AttributeCheck, Int)
+newHyperDexAttributeCheckArray as = newArray as >>= \ptr -> return (ptr, length as)
 
 data AttributeCheck = AttributeCheck
   { attrCheckName      :: ByteString
@@ -46,3 +51,10 @@ instance Storable AttributeCheck where
     {#set hyperclient_attribute_check.value_sz #} p $ (fromIntegral valueSize)
     {#set hyperclient_attribute_check.datatype #} p (fromIntegral . fromEnum $ attrCheckDatatype x)
     {#set hyperclient_attribute_check.predicate #} p (fromIntegral . fromEnum $ attrCheckPredicate x)
+
+haskellFreeAttributeChecks :: Ptr AttributeCheck -> Int -> IO ()
+haskellFreeAttributeChecks _ 0 = return ()
+haskellFreeAttributeChecks p n = do
+  free =<< {# get hyperclient_attribute.attr #} p
+  free =<< {# get hyperclient_attribute.value #} p
+  haskellFreeAttributeChecks p (n-1)

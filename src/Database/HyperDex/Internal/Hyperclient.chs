@@ -9,15 +9,13 @@ module Database.HyperDex.Internal.Hyperclient
 {# import Database.HyperDex.Internal.ReturnCode #}
 {# import Database.HyperDex.Internal.Client #}
 {# import Database.HyperDex.Internal.Attribute #}
+{# import Database.HyperDex.Internal.AttributeCheck #}
 import Database.HyperDex.Internal.Util
 
 #include "hyperclient.h"
 
 data HyperclientMapAttribute
 {#pointer *hyperclient_map_attribute -> HyperclientMapAttribute nocode #}
-
-data HyperclientAttributeCheck
-{#pointer *hyperclient_attribute_check -> HyperclientAttributeCheck nocode #}
 
 hyperGet :: Client -> ByteString -> ByteString
             -> AsyncResult [Attribute]
@@ -147,6 +145,40 @@ hyperclientDelete client s k = do
         free returnCodePtr
         free space
         free key
+        return $ 
+          case returnCode of 
+            HyperclientSuccess -> Right ()
+            _                  -> Left returnCode
+  return (handle, continuation)
+
+-- int64_t
+-- hyperclient_cond_put(struct hyperclient* client, const char* space,
+--                      const char* key, size_t key_sz,
+--                      const struct hyperclient_attribute_check* checks, size_t checks_sz,
+--                      const struct hyperclient_attribute* attrs, size_t attrs_sz,
+--                      enum hyperclient_returncode* status);
+hyperclientConditionalPut :: Hyperclient -> ByteString -> ByteString
+                  -> [AttributeCheck] -> [Attribute]
+                  -> AsyncResultHandle ()
+hyperclientConditionalPut client s k checks attributes = do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+  space <- newCBString s
+  (key,keySize) <- newCBStringLen k
+  (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
+  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  handle <- {# call hyperclient_cond_put #} 
+              client
+              space key (fromIntegral keySize)
+              checkPtr (fromIntegral checkSize)
+              attributePtr (fromIntegral attributeSize)
+              returnCodePtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        free returnCodePtr
+        free space
+        free key
+        haskellFreeAttributes attributePtr attributeSize
+        haskellFreeAttributeChecks checkPtr checkSize
         return $ 
           case returnCode of 
             HyperclientSuccess -> Right ()
