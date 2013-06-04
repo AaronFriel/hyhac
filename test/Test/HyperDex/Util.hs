@@ -95,8 +95,21 @@ pack :: (Eq a, Show a, HyperSerialize a) => a -> HyperSerializable
 pack = MkHyperSerializable
 
 instance Arbitrary HyperSerializable where
-  arbitrary = oneof [ fmap pack (arbitrary :: Gen Int64)
-                    , fmap pack (arbitrary :: Gen ByteString) ]
+  arbitrary = oneof [ fmap pack (arbitrary :: Gen ByteString)
+                    , fmap pack (arbitrary :: Gen Int64)
+                    , fmap pack (arbitrary :: Gen Double)
+                    , fmap pack (arbitrary :: Gen (Set ByteString))
+                    , fmap pack (arbitrary :: Gen (Set Int64))
+                    , fmap pack (arbitrary :: Gen (Set Double))
+                    , fmap pack (arbitrary :: Gen (Map ByteString ByteString))
+                    , fmap pack (arbitrary :: Gen (Map ByteString Int64))
+                    , fmap pack (arbitrary :: Gen (Map ByteString Double))
+                    , fmap pack (arbitrary :: Gen (Map Int64 ByteString))
+                    , fmap pack (arbitrary :: Gen (Map Int64 Int64))
+                    , fmap pack (arbitrary :: Gen (Map Int64 Double))
+                    , fmap pack (arbitrary :: Gen (Map Double ByteString))
+                    , fmap pack (arbitrary :: Gen (Map Double Int64))
+                    , fmap pack (arbitrary :: Gen (Map Double Double)) ]
 
 instance Show HyperSerializable where
   show (MkHyperSerializable a) = show a
