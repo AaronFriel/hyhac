@@ -26,10 +26,7 @@ import Database.HyperDex.Internal.Attribute
 import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Hyperdex
-import Database.HyperDex.Client (getAsyncAttr, putAsyncAttr)
 import Data.Serialize
-
-import Data.ByteString (ByteString)
 
 import Data.Text (Text)
 import qualified Data.Text as Text

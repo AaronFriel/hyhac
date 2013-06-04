@@ -20,18 +20,23 @@
 module Database.HyperDex.Client 
   ( Client
   , connect, close
-  , ConnectInfo (..)
+  , ConnectInfo
   , defaultConnectInfo
-  , ConnectOptions (..)
+  , ConnectOptions
   , defaultConnectOptions
   , addSpace, removeSpace
   , getAsyncAttr, putAsyncAttr
+  , putIfNotExistAsync
+  , deleteAsync
+  , putConditionalAsyncAttr
   , ReturnCode (..)
   , Attribute (..)
   , mkAttribute
   , AsyncResult, Result
+  , Hyperdatatype (..)
   , HyperSerialize
-  , serialize, deserialize
+  , serialize, deserialize, datatype
+  , Hyperpredicate (..)
   )
   where
 
@@ -40,10 +45,12 @@ import Database.HyperDex.Internal.Client (
       , ConnectInfo, defaultConnectInfo
       , ConnectOptions, defaultConnectOptions
       )
-import Database.HyperDex.Internal.Hyperclient (hyperGet, hyperPut)
-import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize)
+import Database.HyperDex.Internal.Hyperclient (hyperGet, hyperPut, hyperDelete, hyperPut, hyperPutConditionally, hyperPutIfNotExist)
+import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
+import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
 import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)
+import Database.HyperDex.Internal.AttributeCheck (AttributeCheck (..))
 import qualified Database.HyperDex.Internal.Space as Space (addSpace, removeSpace)
 
 import Data.ByteString (ByteString)
@@ -68,3 +75,16 @@ getAsyncAttr client (encodeUtf8 -> space) key =
 putAsyncAttr :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 putAsyncAttr client (encodeUtf8 -> space) key attrs = 
   hyperPut client space key attrs
+
+putIfNotExistAsync :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putIfNotExistAsync client (encodeUtf8 -> space) key attrs = 
+  hyperPutIfNotExist client space key attrs
+
+deleteAsync :: Client -> Text -> ByteString -> AsyncResult ()
+deleteAsync client (encodeUtf8 -> space) key = 
+  hyperDelete client space key
+
+putConditionalAsyncAttr :: Client -> Text -> ByteString -> [AttributeCheck] -> [Attribute] -> AsyncResult ()
+putConditionalAsyncAttr client (encodeUtf8 -> space) key checks attrs = 
+  hyperPutConditionally client space key checks attrs
+

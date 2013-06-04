@@ -3,6 +3,7 @@ module Database.HyperDex.Internal.Hyperclient
   , hyperPut
   , hyperPutIfNotExist
   , hyperDelete 
+  , hyperPutConditionally
   )
   where
 
@@ -23,15 +24,20 @@ hyperGet c s k = withClient c (\hc -> hyperclientGet hc s k)
 
 hyperPut :: Client -> ByteString -> ByteString -> [Attribute]
             -> AsyncResult ()
-hyperPut c s k a = withClient c (\hc -> hyperclientPut hc s k a)
+hyperPut c s k attrs = withClient c (\hc -> hyperclientPut hc s k attrs)
 
 hyperPutIfNotExist :: Client -> ByteString -> ByteString -> [Attribute]
                       -> AsyncResult ()
-hyperPutIfNotExist c s k a = withClient c (\hc -> hyperclientPutIfNotExist hc s k a)
+hyperPutIfNotExist c s k attrs = withClient c (\hc -> hyperclientPutIfNotExist hc s k attrs)
 
 hyperDelete :: Client -> ByteString -> ByteString
                -> AsyncResult ()
 hyperDelete c s k = withClient c (\hc -> hyperclientDelete hc s k)
+
+hyperPutConditionally :: Client -> ByteString -> ByteString
+                         -> [AttributeCheck] -> [Attribute]
+                         -> AsyncResult ()
+hyperPutConditionally c s k checks attrs = withClient c (\hc -> hyperclientConditionalPut hc s k checks attrs)
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
@@ -158,8 +164,8 @@ hyperclientDelete client s k = do
 --                      const struct hyperclient_attribute* attrs, size_t attrs_sz,
 --                      enum hyperclient_returncode* status);
 hyperclientConditionalPut :: Hyperclient -> ByteString -> ByteString
-                  -> [AttributeCheck] -> [Attribute]
-                  -> AsyncResultHandle ()
+                             -> [AttributeCheck] -> [Attribute]
+                             -> AsyncResultHandle ()
 hyperclientConditionalPut client s k checks attributes = do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s

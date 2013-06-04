@@ -63,23 +63,23 @@ defaultConnectInfo = def
 -- to a HyperDex cluster.
 data ConnectOptions =
   ConnectOptions
-    { backoff :: BackoffMethod
-    , backoffCap :: Maybe Int
+    { connectionBackoff :: BackoffMethod
+    , connectionBackoffCap :: Maybe Int
     }
   deriving (Eq, Read, Show)
 
 instance Default ConnectOptions where
   def =
     ConnectOptions
-      { backoff = BackoffExponential 10 2 -- 10 * 2^n
-      , backoffCap = Just 500000          -- Half a second.
+      { connectionBackoff = BackoffExponential 10 2 -- 10 * 2^n
+      , connectionBackoffCap = Just 500000          -- Half a second.
       }
 
 -- | Sane defaults for HyperDex connection options.
 defaultConnectOptions :: ConnectOptions
 defaultConnectOptions = def
 
--- | A backoff method controls how frequently the client polls internally.
+-- | A connectionBackoff method controls how frequently the client polls internally.
 -- 
 -- This is provided to allow fine-tuning performance. Do note that 
 -- this does not affect any method the HyperClient C library uses to poll
@@ -199,25 +199,25 @@ doExponentialBackoff b x =
     (result, BackoffExponential result x)
 
 cappedBackoff :: Int -> Maybe Int -> (Int, Bool)
-cappedBackoff n Nothing = (n, False)
-cappedBackoff n (Just c) | n  < c  = (n, False)
-                         | n >= c  = (c, True)
+cappedBackoff n Nothing               = (n, False)
+cappedBackoff n (Just c) | n  < c     = (n, False)
+                         | otherwise  = (c, True)
 
 performBackoff :: BackoffMethod -> Maybe Int -> IO (BackoffMethod)
 performBackoff method cap = do
   let (delay, newBackoff) = case method of
             BackoffYield      -> (0, method)
-            BackoffConstant n -> (0, method)
+            BackoffConstant n -> (n, method)
             BackoffLinear m b -> (m, BackoffLinear (m+b) b)
             BackoffExponential b x -> doExponentialBackoff b x
       (backoff, capped) = cappedBackoff delay cap
-  let delay = case backoff of
+  let doDelay = case backoff of
                 0 -> yield
                 n -> threadDelay n
-      next  = case capped of
+      nextDelay  = case capped of
                 True  -> BackoffConstant backoff
                 False -> newBackoff
-  delay >> return next
+  doDelay >> return nextDelay
 
 -- | Runs hyperclient_loop exactly once, setting the appropriate MVar.
 loopClient' :: Bool -> Client -> IO (Maybe Handle)
@@ -262,14 +262,14 @@ loopClientUntil client back h (Just n) v = do
     True -> do
       _ <- loopClient client
       clientData <- readMVar $ getClient client
-      --  TODO: Exponential backoff or some other approach for polling
+      --  TODO: Exponential connectionBackoff or some other approach for polling
       case clientData of
         (Nothing, _)       -> return True
         (Just _, handles)  -> do
           case Map.member h handles of
             False -> return True
             True  -> do
-              back' <- performBackoff back (backoffCap . getConnectOptions $ client)
+              back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
               loopClientUntil client back' h (Just $ n - 1) v
     False -> return True
 
@@ -279,14 +279,14 @@ loopClientUntil client back h (Nothing) v = do
     True -> do
       _ <- loopClient client
       clientData <- readMVar $ getClient client
-      --  TODO: Exponential backoff or some other approach for polling
+      --  TODO: Exponential connectionBackoff or some other approach for polling
       case clientData of
         (Nothing, _)       -> return False
         (Just _, handles)  -> do
           case Map.member h handles of
             False -> return True
             True  -> do 
-              back' <- performBackoff back (backoffCap . getConnectOptions $ client)
+              back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
               loopClientUntil client back' h (Nothing) v
     False -> return True
 
@@ -331,7 +331,7 @@ withClient client@(getClient -> c) f = do
           v <- newEmptyMVar :: IO (MVar (Either ReturnCode a))
           putMVar c (Just hc, Map.insert h (cont >>= putMVar v) handles)
           return $ do
-            _ <- loopClientUntil client (backoff . getConnectOptions $ client) h Nothing v 
+            _ <- loopClientUntil client (connectionBackoff . getConnectOptions $ client) h Nothing v 
             res <- peekMVar v
             return $ fromMaybe (error "This should not occur!") res
         False -> do

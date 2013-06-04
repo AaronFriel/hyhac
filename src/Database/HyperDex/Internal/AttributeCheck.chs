@@ -7,7 +7,6 @@ module Database.HyperDex.Internal.AttributeCheck
   where
 
 import Database.HyperDex.Internal.Hyperdex
-import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Util
 
 import Control.Monad
