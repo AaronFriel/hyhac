@@ -61,21 +61,19 @@ testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
   result <- join $ withResource clientPool $ \client -> putAsyncAttr client defaultSpace "large" attrs
   assertEqual "Remove space: " (Right ()) result
 
-getResult :: HyperSerialize a => Text -> Either ReturnCode [Attribute] -> Either String a
+getResult :: Text -> Either ReturnCode [Attribute] -> Either String Attribute
 getResult _         (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
 getResult attribute (Right attrList)  =
   case (filter (\a -> attrName a == encodeUtf8 attribute) attrList) of
-          [x] -> case deserialize $ attrValue x of
-            Left serializeError -> Left $ "Error deserializing: " <> serializeError
-            Right value         -> Right value
+          [x] -> Right x
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: HyperSerialize a => Pool Client -> Text -> ByteString -> Text -> a -> QC.PropertyM IO (Either ReturnCode ())
-putHyper clientPool space key attribute value = do
-    QC.run . join $ withResource clientPool $ \client -> putAsyncAttr client space key [mkAttributeUtf8 attribute value]
+putHyper :: Pool Client -> Text -> ByteString -> Attribute -> QC.PropertyM IO (Either ReturnCode ())
+putHyper clientPool space key attribute = do
+    QC.run . join $ withResource clientPool $ \client -> putAsyncAttr client space key [attribute]
 
-getHyper :: HyperSerialize a => Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String a)
+getHyper :: Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
 getHyper clientPool space key attribute = do
     eitherAttrList <- QC.run . join $ withResource clientPool $ \client -> getAsyncAttr client space key
     let retValue = getResult attribute eitherAttrList 
@@ -87,23 +85,31 @@ getHyper clientPool space key attribute = do
       _ -> return ()
     return $ retValue
 
-propCanStore :: (Show a, Eq a, HyperSerialize a) => Pool Client -> ByteString -> a 
+propCanStore :: HyperSerialize a => Pool Client -> ByteString -> a 
                 -> Text -> NonEmpty ByteString -> Property
-propCanStore clientPool attribute input space (NonEmpty key) =
+propCanStore clientPool _ input space (NonEmpty key) =
   QC.monadicIO $ do
-    _ <- putHyper clientPool space key (decodeUtf8 attribute) input
-    eitherOutput <- getHyper clientPool space key (decodeUtf8 attribute)
+    let attributeName = decodeUtf8 $ pickAttributeName input
+        attribute = mkAttributeUtf8 attributeName input
+    _ <- putHyper clientPool space key attribute
+    eitherOutput <- getHyper clientPool space key attributeName
     case eitherOutput of
       Right output -> do
-        case input == output of
-          True -> QC.assert True
+        case attribute == output of
+          True -> do
+            QC.run $ do
+              putStrLn $ "Succeeded! Stored:"
+              putStrLn $ "  space:  " <> show space
+              putStrLn $ "  key:    " <> show key
+              putStrLn $ "  attr:   " <> show attribute
+              putStrLn $ "  output: " <> show output
+            QC.assert True
           False -> do 
             QC.run $ do
               putStrLn $ "Failed to store value:"
               putStrLn $ "  space:  " <> show space
               putStrLn $ "  key:    " <> show key
               putStrLn $ "  attr:   " <> show attribute
-              putStrLn $ "  input:  " <> show input
               putStrLn $ "  output: " <> show output
             QC.assert False
       Left reason  -> do 
@@ -231,6 +237,35 @@ testCanStoreMapOfDoublesToDoubles clientPool =
     "Can round trip a map of floating point doubles to floating point doubles through HyperDex"
     $ \(value :: Map Double Double) -> propCanStore clientPool "for_float_keyed_map" value defaultSpace
 
+pickAttributeName :: HyperSerialize a => a -> ByteString
+pickAttributeName value =
+  case datatype value of 
+    HyperdatatypeString           -> "first"
+    HyperdatatypeInt64            -> "profile_views"
+    HyperdatatypeFloat            -> "score"
+    HyperdatatypeListString       -> "pending_requests"
+    HyperdatatypeListInt64        -> "todolist"
+    HyperdatatypeListFloat        -> "rankings"
+    HyperdatatypeSetString        -> "hobbies"
+    HyperdatatypeSetInt64         -> "friendids"
+    HyperdatatypeSetFloat         -> "imonafloat"
+    HyperdatatypeMapStringString  -> "unread_messages"
+    HyperdatatypeMapStringInt64   -> "upvotes"
+    HyperdatatypeMapStringFloat   -> "friendranks"
+    HyperdatatypeMapInt64String   -> "posts"
+    HyperdatatypeMapInt64Int64    -> "friendremapping"
+    HyperdatatypeMapInt64Float    -> "intfloatmap"
+    HyperdatatypeMapFloatString   -> "still_looking"
+    HyperdatatypeMapFloatInt64    -> "for_a_reason"
+    HyperdatatypeMapFloatFloat    -> "for_float_keyed_map"
+    _                             -> error "Invalid data type"
+
+testCanRoundtrip :: Pool Client -> Test
+testCanRoundtrip clientPool =
+  testProperty
+    "roundtrip-pooled"
+    $ \(MkHyperSerializable value) -> propCanStore clientPool "arbitrary" value defaultSpace
+
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
@@ -255,5 +290,6 @@ poolTests = buildTest $ do
                 , testCanStoreMapOfDoublesToStrings clientPool
                 , testCanStoreMapOfDoublesToIntegers clientPool
                 , testCanStoreMapOfDoublesToDoubles clientPool
+                , testCanRoundtrip clientPool
                 ]
   return tests
