@@ -96,14 +96,7 @@ propCanStore clientPool _ input space (NonEmpty key) =
     case eitherOutput of
       Right output -> do
         case attribute == output of
-          True -> do
-            QC.run $ do
-              putStrLn $ "Succeeded! Stored:"
-              putStrLn $ "  space:  " <> show space
-              putStrLn $ "  key:    " <> show key
-              putStrLn $ "  attr:   " <> show attribute
-              putStrLn $ "  output: " <> show output
-            QC.assert True
+          True -> QC.assert True
           False -> do 
             QC.run $ do
               putStrLn $ "Failed to store value:"
@@ -128,114 +121,6 @@ closeAction client = do
   close client
 
 mkPool = createPool createAction closeAction 4 (fromRational $ 1%2) 10
-
-testCanStoreDoubles :: Pool Client -> Test
-testCanStoreDoubles clientPool =
-  testProperty
-    "Can round trip a floating point Double through HyperDex"
-    $ \(value :: Double) -> propCanStore clientPool "score" value defaultSpace
-
-testCanStoreIntegers :: Pool Client -> Test
-testCanStoreIntegers clientPool =
-  testProperty
-    "Can round trip an integer through HyperDex"
-    $ \(value :: Int64) -> propCanStore clientPool "profile_views" value defaultSpace
-
-testCanStoreStrings :: Pool Client -> Test
-testCanStoreStrings clientPool =
-  testProperty
-    "Can round trip a string through HyperDex"
-    $ \(value :: ByteString) -> propCanStore clientPool "first" value defaultSpace
-
-testCanStoreListOfStrings :: Pool Client -> Test
-testCanStoreListOfStrings clientPool =
-  testProperty
-    "Can round trip a list of strings through HyperDex"
-    $ \(value :: [ByteString]) -> propCanStore clientPool "pending_requests" value defaultSpace
-
-testCanStoreListOfDoubles :: Pool Client -> Test
-testCanStoreListOfDoubles clientPool =
-  testProperty
-    "Can round trip a list of floating point doubles through HyperDex"
-    $ \(value :: [Double]) -> propCanStore clientPool "rankings" value defaultSpace
-
-testCanStoreListOfIntegers :: Pool Client -> Test
-testCanStoreListOfIntegers clientPool =
-  testProperty
-    "Can round trip a list of integers through HyperDex"
-    $ \(value :: [Int64]) -> propCanStore clientPool "todolist" value defaultSpace
-
-testCanStoreSetOfStrings :: Pool Client -> Test
-testCanStoreSetOfStrings clientPool =
-  testProperty
-    "Can round trip a set of strings through HyperDex"
-    $ \(value :: Set ByteString) -> propCanStore clientPool "hobbies" value defaultSpace
-
-testCanStoreSetOfDoubles :: Pool Client -> Test
-testCanStoreSetOfDoubles clientPool =
-  testProperty
-    "Can round trip a set of floating point doubles through HyperDex"
-    $ \(value :: Set Double) -> propCanStore clientPool "imonafloat" value defaultSpace
-
-testCanStoreSetOfIntegers :: Pool Client -> Test
-testCanStoreSetOfIntegers clientPool =
-  testProperty
-    "Can round trip a set of integers through HyperDex"
-    $ \(value :: Set Int64) -> propCanStore clientPool "friendids" value defaultSpace
-
-testCanStoreMapOfStringsToStrings :: Pool Client -> Test
-testCanStoreMapOfStringsToStrings clientPool =
-  testProperty
-    "Can round trip a map of strings to strings through HyperDex"
-    $ \(value :: Map ByteString ByteString) -> propCanStore clientPool "unread_messages" value defaultSpace
-
-testCanStoreMapOfStringsToIntegers :: Pool Client -> Test
-testCanStoreMapOfStringsToIntegers clientPool =
-  testProperty
-    "Can round trip a map of strings to integers through HyperDex"
-    $ \(value :: Map ByteString Int64) -> propCanStore clientPool "upvotes" value defaultSpace
-
-testCanStoreMapOfStringsToDoubles :: Pool Client -> Test
-testCanStoreMapOfStringsToDoubles clientPool =
-  testProperty
-    "Can round trip a map of strings to floating point doubles through HyperDex"
-    $ \(value :: Map ByteString Double) -> propCanStore clientPool "friendranks" value defaultSpace
-
-testCanStoreMapOfIntegersToStrings :: Pool Client -> Test
-testCanStoreMapOfIntegersToStrings clientPool =
-  testProperty
-    "Can round trip a map of integers to strings through HyperDex"
-    $ \(value :: Map Int64 ByteString) -> propCanStore clientPool "posts" value defaultSpace
-
-testCanStoreMapOfIntegersToIntegers :: Pool Client -> Test
-testCanStoreMapOfIntegersToIntegers clientPool =
-  testProperty
-    "Can round trip a map of integers to integers through HyperDex"
-    $ \(value :: Map Int64 Int64) -> propCanStore clientPool "friendremapping" value defaultSpace
-
-testCanStoreMapOfIntegersToDoubles :: Pool Client -> Test
-testCanStoreMapOfIntegersToDoubles clientPool =
-  testProperty
-    "Can round trip a map of integers to floating point doubles through HyperDex"
-    $ \(value :: Map Int64 Double) -> propCanStore clientPool "intfloatmap" value defaultSpace
-
-testCanStoreMapOfDoublesToStrings :: Pool Client -> Test
-testCanStoreMapOfDoublesToStrings clientPool =
-  testProperty
-    "Can round trip a map of floating point doubles to strings through HyperDex"
-    $ \(value :: Map Double ByteString) -> propCanStore clientPool "still_looking" value defaultSpace
-
-testCanStoreMapOfDoublesToIntegers :: Pool Client -> Test
-testCanStoreMapOfDoublesToIntegers clientPool =
-  testProperty
-    "Can round trip a map of floating point doubles to integers through HyperDex"
-    $ \(value :: Map Double Int64) -> propCanStore clientPool "for_a_reason" value defaultSpace
-
-testCanStoreMapOfDoublesToDoubles :: Pool Client -> Test
-testCanStoreMapOfDoublesToDoubles clientPool =
-  testProperty
-    "Can round trip a map of floating point doubles to floating point doubles through HyperDex"
-    $ \(value :: Map Double Double) -> propCanStore clientPool "for_float_keyed_map" value defaultSpace
 
 pickAttributeName :: HyperSerialize a => a -> ByteString
 pickAttributeName value =
@@ -272,24 +157,6 @@ poolTests = buildTest $ do
   let tests = mutuallyExclusive $
               testGroup "pooled-api-tests"
                 [ testCanStoreLargeObject clientPool
-                , testCanStoreIntegers clientPool
-                , testCanStoreStrings clientPool
-                , testCanStoreDoubles clientPool
-                , testCanStoreListOfStrings clientPool
-                , testCanStoreListOfDoubles clientPool
-                , testCanStoreListOfIntegers clientPool
-                , testCanStoreSetOfStrings clientPool
-                , testCanStoreSetOfDoubles clientPool
-                , testCanStoreSetOfIntegers clientPool
-                , testCanStoreMapOfStringsToStrings clientPool
-                , testCanStoreMapOfStringsToIntegers clientPool
-                , testCanStoreMapOfStringsToDoubles clientPool
-                , testCanStoreMapOfIntegersToStrings clientPool
-                , testCanStoreMapOfIntegersToIntegers clientPool
-                , testCanStoreMapOfIntegersToDoubles clientPool
-                , testCanStoreMapOfDoublesToStrings clientPool
-                , testCanStoreMapOfDoublesToIntegers clientPool
-                , testCanStoreMapOfDoublesToDoubles clientPool
                 , testCanRoundtrip clientPool
                 ]
   return tests
