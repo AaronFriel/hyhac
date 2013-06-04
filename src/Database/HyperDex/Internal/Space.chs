@@ -7,7 +7,7 @@ module Database.HyperDex.Internal.Space
 {#import Database.HyperDex.Internal.ReturnCode #}
 import Database.HyperDex.Internal.Util
 
-#import "hyperclient.h"
+#include "hyperclient.h"
 
 addSpace :: Client -> ByteString -> IO ReturnCode
 addSpace c desc  = withClientImmediate c $ \hc -> do
