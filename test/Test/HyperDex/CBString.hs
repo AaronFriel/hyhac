@@ -10,11 +10,6 @@ import Test.QuickCheck.Monadic
 import Test.HyperDex.Util
 
 import Database.HyperDex.Internal.Util
-import Data.ByteString (ByteString)
-
-import Data.Int
-import Foreign.C
-import Foreign.Ptr
 
 import Data.Monoid
 
@@ -56,13 +51,13 @@ mediumSizeTests :: Test -> Test
 mediumSizeTests = plusTestOptions (mempty { topt_maximum_generated_tests = Just 1000
                                          , topt_maximum_test_size = Just 1025 } )
 
-largeSizeTests :: Test -> Test
-largeSizeTests = plusTestOptions (mempty { topt_maximum_generated_tests = Just 65
-                                         , topt_maximum_test_size = Just 65537 } )
+-- largeSizeTests :: Test -> Test
+-- largeSizeTests = plusTestOptions (mempty { topt_maximum_generated_tests = Just 65
+--                                          , topt_maximum_test_size = Just 65537 } )
 
-massiveSizeTests :: Test -> Test
-massiveSizeTests = plusTestOptions (mempty { topt_maximum_generated_tests = Just 5
-                                           , topt_maximum_test_size = Just 1048577 } )
+-- massiveSizeTests :: Test -> Test
+-- massiveSizeTests = plusTestOptions (mempty { topt_maximum_generated_tests = Just 5
+--                                            , topt_maximum_test_size = Just 1048577 } )
 
 makeTestVariety :: String -> [Test] -> Test
 makeTestVariety label tests = 
