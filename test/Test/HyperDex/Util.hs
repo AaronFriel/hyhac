@@ -1,11 +1,15 @@
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor, MultiParamTypeClasses, TypeFamilies, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor, MultiParamTypeClasses, TypeFamilies, UndecidableInstances, ExistentialQuantification #-}
 
 module Test.HyperDex.Util where
+
+import Database.HyperDex
 
 import Test.QuickCheck hiding (NonEmpty, getNonEmpty)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isAsciiLower)
+
+import Data.Int
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -71,3 +75,28 @@ instance (Ord a, Arbitrary [a]) => Arbitrary (Set a) where
 instance (Ord k, Arbitrary [(k, v)]) => Arbitrary (Map k v) where
   arbitrary = fmap Map.fromList arbitrary
   shrink = map Map.fromList . shrink . Map.toList 
+
+-- | A type for a pair where the second is greater than the first.
+
+newtype HyperRelated a = HyperRelated { getRelated :: (a, a, Hyperpredicate) }
+
+instance (Arbitrary a, Ord a) => Arbitrary (HyperRelated a) where
+  arbitrary = do
+    (hyperpredicate, test) <- elements [ (HyperpredicateEquals,       (==))
+                                       , (HyperpredicateLessEqual,    (<=))
+                                       , (HyperpredicateGreaterEqual, (>=))
+                                       ]
+    (a, b) <- arbitrary `suchThat` (\(a, b) -> a `test` b)
+    return $ HyperRelated (a, b, hyperpredicate)
+
+data HyperSerializable = forall a. (Show a, HyperSerialize a) => MkHyperSerializable a
+
+pack :: (Eq a, Show a, HyperSerialize a) => a -> HyperSerializable
+pack = MkHyperSerializable
+
+instance Arbitrary HyperSerializable where
+  arbitrary = oneof [ fmap pack (arbitrary :: Gen Int64)
+                    , fmap pack (arbitrary :: Gen ByteString) ]
+
+instance Show HyperSerializable where
+  show (MkHyperSerializable a) = show a
