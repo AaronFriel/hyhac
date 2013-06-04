@@ -81,3 +81,27 @@ instance Arbitrary DefaultSpaceAttributes where
                 , mkAttributeUtf8 "for_a_reason"        (for_a_reason'        :: Map Double     Int64     )
                 , mkAttributeUtf8 "for_float_keyed_map" (for_float_keyed_map' :: Map Double     Double    )
                 ]
+
+pickAttributeName :: HyperSerialize a => a -> ByteString
+pickAttributeName value =
+  case datatype value of 
+    HyperdatatypeString           -> "first"
+    HyperdatatypeInt64            -> "profile_views"
+    HyperdatatypeFloat            -> "score"
+    HyperdatatypeListString       -> "pending_requests"
+    HyperdatatypeListInt64        -> "todolist"
+    HyperdatatypeListFloat        -> "rankings"
+    HyperdatatypeSetString        -> "hobbies"
+    HyperdatatypeSetInt64         -> "friendids"
+    HyperdatatypeSetFloat         -> "imonafloat"
+    HyperdatatypeMapStringString  -> "unread_messages"
+    HyperdatatypeMapStringInt64   -> "upvotes"
+    HyperdatatypeMapStringFloat   -> "friendranks"
+    HyperdatatypeMapInt64String   -> "posts"
+    HyperdatatypeMapInt64Int64    -> "friendremapping"
+    HyperdatatypeMapInt64Float    -> "intfloatmap"
+    HyperdatatypeMapFloatString   -> "still_looking"
+    HyperdatatypeMapFloatInt64    -> "for_a_reason"
+    HyperdatatypeMapFloatFloat    -> "for_float_keyed_map"
+    _                             -> error "Invalid data type"
+

@@ -11,7 +11,7 @@ import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
 
 import Test.Framework
 
-import Test.HyperDex.Internal (internalTests)
+import Test.HyperDex.Shared (sharedTests)
 import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
@@ -20,10 +20,7 @@ tests =
   testGroup "hyhac-tests"
   [ testGroup "hyperdex"
     [ poolTests
-    -- Currently excluded because threading issues with buildTestBracketed
-    -- cause the connections to close before the quickCheck computation is
-    -- completed.
-    , internalTests
+    , sharedTests
     ]
   , cBStringTests
   ]

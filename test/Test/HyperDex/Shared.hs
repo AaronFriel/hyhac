@@ -1,6 +1,6 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, ExistentialQuantification #-}
 
-module Test.HyperDex.Pool ( poolTests )
+module Test.HyperDex.Shared (sharedTests)
   where
 
 import Test.HyperDex.Space
@@ -29,13 +29,10 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Data.Int
-import Data.Ratio
 import Data.Monoid
 
-import Data.Pool
-
-testCanStoreLargeObject :: Pool Client -> Test
-testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
+testCanStoreLargeObject :: Client -> Test
+testCanStoreLargeObject client = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
       attrs =
         [ mkAttributeUtf8 "first"               (""        :: ByteString                 )
@@ -58,8 +55,9 @@ testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
         , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
         , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
         ]
-  result <- join $ withResource clientPool $ \client -> putAsyncAttr client defaultSpace "large" attrs
-  assertEqual "Remove space: " (Right ()) result
+  result <- join $ putAsyncAttr client defaultSpace "large" attrs
+  assertEqual "Could store large object: " (Right ()) result
+
 
 getResult :: Text -> Either ReturnCode [Attribute] -> Either String Attribute
 getResult _         (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
@@ -69,13 +67,13 @@ getResult attribute (Right attrList)  =
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: Pool Client -> Text -> ByteString -> Attribute -> QC.PropertyM IO (Either ReturnCode ())
-putHyper clientPool space key attribute = do
-    QC.run . join $ withResource clientPool $ \client -> putAsyncAttr client space key [attribute]
+putHyper :: Client -> Text -> ByteString -> Attribute -> QC.PropertyM IO (Either ReturnCode ())
+putHyper client space key attribute = do
+    QC.run . join $ putAsyncAttr client space key [attribute]
 
-getHyper :: Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
-getHyper clientPool space key attribute = do
-    eitherAttrList <- QC.run . join $ withResource clientPool $ \client -> getAsyncAttr client space key
+getHyper :: Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
+getHyper client space key attribute = do
+    eitherAttrList <- QC.run . join $ getAsyncAttr client space key
     let retValue = getResult attribute eitherAttrList 
     case retValue of
       Left err -> QC.run $ do
@@ -85,14 +83,14 @@ getHyper clientPool space key attribute = do
       _ -> return ()
     return $ retValue
 
-propCanStore :: HyperSerialize a => Pool Client -> ByteString -> a 
+propCanStore :: HyperSerialize a => Client -> ByteString -> a 
                 -> Text -> NonEmpty ByteString -> Property
-propCanStore clientPool _ input space (NonEmpty key) =
+propCanStore client _ input space (NonEmpty key) =
   QC.monadicIO $ do
     let attributeName = decodeUtf8 $ pickAttributeName input
         attribute = mkAttributeUtf8 attributeName input
-    _ <- putHyper clientPool space key attribute
-    eitherOutput <- getHyper clientPool space key attributeName
+    _ <- putHyper client space key attribute
+    eitherOutput <- getHyper client space key attributeName
     case eitherOutput of
       Right output -> do
         case attribute == output of
@@ -114,26 +112,18 @@ propCanStore clientPool _ input space (NonEmpty key) =
           putStrLn $ "  reason: " <> show reason
         QC.assert False
 
-createAction = do
-  connect defaultConnectInfo
-
-closeAction client = do
-  close client
-
-mkPool = createPool createAction closeAction 4 (fromRational $ 1%2) 10
-
-testCanRoundtrip :: Pool Client -> Test
-testCanRoundtrip clientPool =
+testCanRoundtrip :: Client -> Test
+testCanRoundtrip client =
   testProperty
-    "roundtrip-pooled"
-    $ \(MkHyperSerializable value) -> propCanStore clientPool "arbitrary" value defaultSpace
+    "roundtrip"
+    $ \(MkHyperSerializable value) -> propCanStore client "arbitrary" value defaultSpace
 
-poolTests :: Test
-poolTests = buildTest $ do
-  clientPool <- mkPool 
-  let tests = mutuallyExclusive $
-              testGroup "pooled"
-                [ testCanStoreLargeObject clientPool
-                , testCanRoundtrip clientPool
-                ]
-  return tests
+sharedTests :: Test
+sharedTests = buildTest $ do
+  client <- connect defaultConnectInfo
+  return $ testGroup "shared"
+    $ map
+      (\f -> f client)
+      [ testCanStoreLargeObject
+      , testCanRoundtrip
+      ]
