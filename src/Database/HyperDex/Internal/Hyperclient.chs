@@ -169,11 +169,19 @@ hyperclientConditionalPut :: Hyperclient -> ByteString -> ByteString
                              -> [AttributeCheck] -> [Attribute]
                              -> AsyncResultHandle ()
 hyperclientConditionalPut client s k checks attributes = do
+  traceIO $ "In hyperclientConditionalPut about to allocate pointers"
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+  traceIO $ "  allocated returnCodePtr [" ++ show returnCodePtr ++ "]"
   space <- newCBString s
+  traceIO $ "  allocated space [" ++ show space ++ "]"
   (key,keySize) <- newCBStringLen k
+  traceIO $ "  allocated key [" ++ show key ++ "], keySize [" ++ show keySize ++ "]"
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
+  traceIO $ "  allocated attributePtr [" ++ show attributePtr ++ "], attributeSize [" ++ show attributeSize ++ "]"
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  traceIO $ "  allocated checkPtr [" ++ show checkPtr ++ "], checkSize [" ++ show checkSize ++ "]"
+  traceIO $ "In hyperclientConditionalPut"
+  traceIO $ " about to call hyperclient_cond_put"
   handle <- {# call hyperclient_cond_put #} 
               client
               space key (fromIntegral keySize)

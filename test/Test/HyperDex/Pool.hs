@@ -131,8 +131,13 @@ propCanConditionalPutNumeric
           initialAttribute = mkAttributeUtf8 attributeName initial
           failingAttribute = mkAttributeUtf8 attributeName failing
           failingAttributeCheck = mkAttributeCheckUtf8 attributeName failing predicate
-          succeedingAttribute = mkAttributeUtf8 attributeName initial
+          succeedingAttribute = mkAttributeUtf8 attributeName succeeding
           succeedingAttributeCheck = mkAttributeCheckUtf8 attributeName succeeding predicate
+      QC.run $ do
+        traceIO $ "About to view attributes"
+        traceIO $ "  initial:    " ++ show initial
+        traceIO $ "  failing:    " ++ show failing
+        traceIO $ "  succeeding: " ++ show succeeding
       _ <- QC.run . join $ withResource clientPool $
              \client -> putAsyncAttr client space key [initialAttribute]
       failingResult <- QC.run . join $ withResource clientPool $
@@ -151,6 +156,13 @@ propCanConditionalPutNumeric
             putStrLn $ "  attr:   " <> show succeedingAttribute
             putStrLn $ "  output: " <> show failingResult
           QC.assert False
+      QC.run $ do
+        traceIO $ "About to view serialized attribute"
+        traceIO $ "  succeeding: " ++ show succeeding
+        traceIO $ "  succeedingAttribute: " ++ show succeedingAttribute
+        traceIO $ "About to view serialized attributeCheck"
+        traceIO $   "succeedingAttributeCheck: " ++ show succeedingAttributeCheck
+        traceIO $ "About to call putConditionalAsyncAttr"
       asyncPutResult <- QC.run . join $ withResource clientPool $
              \client -> putConditionalAsyncAttr client space key [succeedingAttributeCheck] [succeedingAttribute]
       QC.run . traceIO $ "Post asyncPutResult"
