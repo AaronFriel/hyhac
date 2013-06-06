@@ -13,6 +13,8 @@ module Database.HyperDex.Internal.Hyperclient
 {# import Database.HyperDex.Internal.AttributeCheck #}
 import Database.HyperDex.Internal.Util
 
+import Debug.Trace
+
 #include "hyperclient.h"
 
 data HyperclientMapAttribute
@@ -178,6 +180,8 @@ hyperclientConditionalPut client s k checks attributes = do
               checkPtr (fromIntegral checkSize)
               attributePtr (fromIntegral attributeSize)
               returnCodePtr
+  traceIO $ "In hyperclientConditionalPut"
+  traceIO $ "  handle: " ++ show handle
   let continuation = do
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
         free returnCodePtr
@@ -185,6 +189,8 @@ hyperclientConditionalPut client s k checks attributes = do
         free key
         haskellFreeAttributes attributePtr attributeSize
         haskellFreeAttributeChecks checkPtr checkSize
+        traceIO $ "In hyperclientConditionalPut"
+        traceIO $ "  returnCode: " ++ show returnCode
         return $ 
           case returnCode of 
             HyperclientSuccess -> Right ()

@@ -34,6 +34,8 @@ import Data.Monoid
 
 import Data.Pool
 
+import Debug.Trace
+
 testCanStoreLargeObject :: Pool Client -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
@@ -77,6 +79,7 @@ getHyper :: Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either
 getHyper clientPool space key attribute = do
     eitherAttrList <- QC.run . join $ withResource clientPool $ \client -> getAsyncAttr client space key
     let retValue = getResult attribute eitherAttrList 
+    QC.run . traceIO $ show "in getHyper, retValue: " ++ show retValue 
     case retValue of
       Left err -> QC.run $ do
         putStrLn $ "getHyper encountered error: " <> show err
@@ -114,6 +117,73 @@ propCanStore clientPool _ input space (NonEmpty key) =
           putStrLn $ "  reason: " <> show reason
         QC.assert False
 
+propCanConditionalPutNumeric :: Pool Client -> Text
+                             -> HyperRelated -> NonEmpty ByteString -> Property
+propCanConditionalPutNumeric
+  clientPool space
+  (HyperRelated ( MkHyperSerializable initial
+                , MkHyperSerializable failing
+                , MkHyperSerializable succeeding
+                , predicate))
+  (NonEmpty key) =
+    QC.monadicIO $ do
+      let attributeName = decodeUtf8 $ pickAttributeName initial
+          initialAttribute = mkAttributeUtf8 attributeName initial
+          failingAttribute = mkAttributeUtf8 attributeName failing
+          failingAttributeCheck = mkAttributeCheckUtf8 attributeName failing predicate
+          succeedingAttribute = mkAttributeUtf8 attributeName initial
+          succeedingAttributeCheck = mkAttributeCheckUtf8 attributeName succeeding predicate
+      _ <- QC.run . join $ withResource clientPool $
+             \client -> putAsyncAttr client space key [initialAttribute]
+      failingResult <- QC.run . join $ withResource clientPool $
+                          \client -> putConditionalAsyncAttr client space key [failingAttributeCheck] [failingAttribute]
+      QC.run . traceIO $ "Post failingResult"
+      QC.run . traceIO $ "  failingResult: " ++ show failingResult
+      case failingResult of
+        Left HyperclientCmpfail -> return ()
+        _ -> do
+          QC.run $ do
+            putStrLn $ "Conditional store with failing put (not failing correctly):"
+            putStrLn $ "  space:  " <> show space
+            putStrLn $ "  key:    " <> show key
+            putStrLn $ "  attr:   " <> show initialAttribute
+            putStrLn $ "  attr:   " <> show failingAttribute
+            putStrLn $ "  attr:   " <> show succeedingAttribute
+            putStrLn $ "  output: " <> show failingResult
+          QC.assert False
+      asyncPutResult <- QC.run . join $ withResource clientPool $
+             \client -> putConditionalAsyncAttr client space key [succeedingAttributeCheck] [succeedingAttribute]
+      QC.run . traceIO $ "Post asyncPutResult"
+      QC.run . traceIO $ "  asyncPutResult: " ++ show asyncPutResult
+      QC.assert False
+      eitherOutput <- getHyper clientPool space key attributeName
+      QC.run $ 
+        putStrLn $ show eitherOutput
+      case eitherOutput of
+        Right output -> do
+          case succeedingAttribute == output of
+            True -> QC.assert True
+            False -> do 
+              QC.run $ do
+                putStrLn $ "Failed to store value:"
+                putStrLn $ "  space:  " <> show space
+                putStrLn $ "  key:    " <> show key
+                putStrLn $ "  attr:   " <> show initialAttribute
+                putStrLn $ "  attr:   " <> show failingAttribute
+                putStrLn $ "  attr:   " <> show succeedingAttribute
+                putStrLn $ "  output: " <> show output
+              QC.assert False
+        Left reason  -> do 
+          QC.run $ do
+            putStrLn $ "Failed to retrieve value:"
+            putStrLn $ "  space:  " <> show space
+            putStrLn $ "  key:    " <> show key
+            putStrLn $ "  attr:   " <> show initialAttribute
+            putStrLn $ "  attr:   " <> show failingAttribute
+            putStrLn $ "  attr:   " <> show succeedingAttribute
+            putStrLn $ "  reason: " <> show reason
+          QC.assert False
+
 createAction = do
   connect defaultConnectInfo
 
@@ -128,6 +198,12 @@ testCanRoundtrip clientPool =
     "roundtrip-pooled"
     $ \(MkHyperSerializable value) -> propCanStore clientPool "arbitrary" value defaultSpace
 
+testConditional :: Pool Client -> Test
+testConditional clientPool =
+  testProperty
+    "conditional"
+    $ propCanConditionalPutNumeric clientPool defaultSpace
+
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
@@ -135,5 +211,6 @@ poolTests = buildTest $ do
               testGroup "pooled"
                 [ testCanStoreLargeObject clientPool
                 , testCanRoundtrip clientPool
+                , testConditional clientPool
                 ]
   return tests

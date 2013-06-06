@@ -78,16 +78,40 @@ instance (Ord k, Arbitrary [(k, v)]) => Arbitrary (Map k v) where
 
 -- | A type for a pair where the second is greater than the first.
 
-newtype HyperRelated a = HyperRelated { getRelated :: (a, a, Hyperpredicate) }
+data NumericPrimitive = HyperdexInteger | HyperdexFloat
 
-instance (Arbitrary a, Ord a) => Arbitrary (HyperRelated a) where
+newtype HyperRelated = HyperRelated { getRelated :: (HyperSerializable, HyperSerializable, HyperSerializable, Hyperpredicate) }
+  deriving (Show)
+
+instance Arbitrary HyperRelated where
   arbitrary = do
-    (hyperpredicate, test) <- elements [ (HyperpredicateEquals,       (==))
-                                       , (HyperpredicateLessEqual,    (<=))
-                                       , (HyperpredicateGreaterEqual, (>=))
-                                       ]
-    (a, b) <- arbitrary `suchThat` (\(a, b) -> a `test` b)
-    return $ HyperRelated (a, b, hyperpredicate)
+    (predicate) <- elements [ HyperpredicateEquals
+                            , HyperpredicateLessEqual
+                            , HyperpredicateGreaterEqual ]
+    primitiveType <- elements [ HyperdexInteger, HyperdexFloat ]
+    (initial, failing, succeeding) <- 
+      case primitiveType of
+        HyperdexInteger -> do
+          initial <- arbitrary :: Gen Int64
+          let test = case predicate of 
+                      HyperpredicateEquals -> (==)
+                      HyperpredicateLessEqual -> (<=) 
+                      HyperpredicateGreaterEqual -> (>=)
+                      _ -> error "Invalid predicate"
+          failing <- arbitrary `suchThat` (\x -> not $ initial `test` x)
+          succeeding <- arbitrary `suchThat` (\x -> initial `test` x)
+          return (pack initial, pack failing, pack succeeding)
+        HyperdexFloat -> do
+          initial <- arbitrary :: Gen Double
+          let test = case predicate of 
+                      HyperpredicateEquals -> (==)
+                      HyperpredicateLessEqual -> (<=) 
+                      HyperpredicateGreaterEqual -> (>=)
+                      _ -> error "Invalid predicate"
+          failing <- arbitrary `suchThat` (\x -> not $ initial `test` x)
+          succeeding <- arbitrary `suchThat` (\x -> initial `test` x)
+          return (pack initial, pack failing, pack succeeding)
+    return $ HyperRelated (initial, failing, succeeding, predicate)
 
 data HyperSerializable = forall a. (Show a, HyperSerialize a) => MkHyperSerializable a
 

@@ -228,6 +228,9 @@ loopClient' debug client@(getClient -> c) = do
     (Just hc, handles)  -> do
       -- TODO: Examine returnCode for things that might matter.
       (handle, returnCode) <- hyperclientLoop hc 0
+      traceIO $ "In loopClient', returnCode: " ++ show returnCode
+      traceIO $ "                handle:     " ++ show handle
+      traceIO $ "                handles:    " ++ show (Map.keys handles)
       case returnCode of
         HyperclientSuccess -> do
           if debug

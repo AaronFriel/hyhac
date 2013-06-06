@@ -17,12 +17,14 @@
 
 module Database.HyperDex.Utf8
   ( mkAttributeUtf8
+  , mkAttributeCheckUtf8
   , getAsyncAttrUtf8
   , putAsyncAttrUtf8 )
   where
 
 import Database.HyperDex.Internal.Client
 import Database.HyperDex.Internal.Attribute
+import Database.HyperDex.Internal.AttributeCheck
 import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Hyperdex
@@ -45,6 +47,10 @@ instance HyperSerialize Text where
 -- | Create an attribute using a name serialized as a UTF8 bytestring.
 mkAttributeUtf8 :: HyperSerialize a => Text -> a -> Attribute
 mkAttributeUtf8 (encodeUtf8 -> name) value = mkAttribute name value
+
+-- | Create an attribute using a name serialized as a UTF8 bytestring.
+mkAttributeCheckUtf8 :: HyperSerialize a => Text -> a -> Hyperpredicate -> AttributeCheck
+mkAttributeCheckUtf8 (encodeUtf8 -> name) = mkAttributeCheck name
 
 -- | Retrieve a value in a space by UTF8-encoded key.
 getAsyncAttrUtf8 :: Client -> Text -> Text -> AsyncResult [Attribute]

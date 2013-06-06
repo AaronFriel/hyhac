@@ -1,12 +1,14 @@
 module Database.HyperDex.Internal.AttributeCheck
   ( AttributeCheck (..)
   , AttributeCheckPtr
+  , mkAttributeCheck
   , newHyperDexAttributeCheckArray
   , haskellFreeAttributeChecks
   )
   where
 
 import Database.HyperDex.Internal.Hyperdex
+import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Util
 
 import Control.Monad
@@ -19,6 +21,9 @@ typedef struct hyperclient_attribute_check hyperclient_attribute_check_struct;
 #endc
 
 {# pointer *hyperclient_attribute_check as AttributeCheckPtr -> AttributeCheck #}
+
+mkAttributeCheck :: HyperSerialize a => ByteString -> a -> Hyperpredicate -> AttributeCheck
+mkAttributeCheck name value predicate =  AttributeCheck name (serialize value) (datatype value) predicate
 
 newHyperDexAttributeCheckArray :: [AttributeCheck] -> IO (Ptr AttributeCheck, Int)
 newHyperDexAttributeCheckArray as = newArray as >>= \ptr -> return (ptr, length as)
