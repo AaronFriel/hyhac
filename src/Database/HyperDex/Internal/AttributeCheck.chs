@@ -14,8 +14,6 @@ import Database.HyperDex.Internal.Util
 import Control.Monad
 import Control.Applicative ((<$>), (<*>))
 
-import Debug.Trace
-
 #include "hyperclient.h"
 
 #c
@@ -50,22 +48,13 @@ instance Storable AttributeCheck where
     <*> liftM (toEnum . fromIntegral) ({#get hyperclient_attribute_check.datatype #} p)
     <*> liftM (toEnum . fromIntegral) ({#get hyperclient_attribute_check.predicate #} p)
   poke p x = do
-    traceIO $ "In AttributeCheck poke"
     attr <- newCBString (attrCheckName x)
-    traceIO $ "Allocated attribute name ["++ show attr ++"] from attrCheckName ["++ show (attrCheckName x) ++"]"
-    traceIO $ "About to allocate attribute value ["++show (attrCheckValue x)++"]"
     (value, valueSize) <- newCBStringLen (attrCheckValue x)
-    traceIO $ "Allocated attribute value ["++ show value ++"], valueSize ["++ show valueSize ++"] from attrCheckValue ["++ show (attrCheckValue x) ++"]"
     {#set hyperclient_attribute_check.attr #} p attr
-    traceIO $ " - poked attr"
     {#set hyperclient_attribute_check.value #} p value
-    traceIO $ " - poked value"
     {#set hyperclient_attribute_check.value_sz #} p $ (fromIntegral valueSize)
-    traceIO $ " - poked valueSize"
     {#set hyperclient_attribute_check.datatype #} p (fromIntegral . fromEnum $ attrCheckDatatype x)
-    traceIO $ " - poked datatype"
     {#set hyperclient_attribute_check.predicate #} p (fromIntegral . fromEnum $ attrCheckPredicate x)
-    traceIO $ " - poked predicate"
 
 haskellFreeAttributeChecks :: Ptr AttributeCheck -> Int -> IO ()
 haskellFreeAttributeChecks _ 0 = return ()

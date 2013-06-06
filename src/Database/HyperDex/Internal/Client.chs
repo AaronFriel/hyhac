@@ -33,8 +33,6 @@ import qualified Data.Text as Text (pack)
 
 import Data.Default
 
-import Debug.Trace
-
 #include "hyperclient.h"
 
 {#pointer *hyperclient as Hyperclient #}
@@ -185,9 +183,7 @@ connect info = do
 -- requests should be disregarded. 
 close :: Client -> IO ()
 close (getClient -> c) = do
-  traceIO $ "in close - about to take client MVar"
   clientData <- takeMVar c
-  traceIO $ "  - succeeded"
   case clientData of
     (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
     (Just hc, handles)  -> do
@@ -224,22 +220,14 @@ performBackoff method cap = do
 -- | Runs hyperclient_loop exactly once, setting the appropriate MVar.
 loopClient' :: Bool -> Client -> IO (Maybe Handle)
 loopClient' debug client@(getClient -> c) = do
-  traceIO $ "in loopClient' - about to take client MVar"
   clientData <- takeMVar c
-  traceIO $ "  - succeeded"
   case clientData of
     (Nothing, _)        -> return Nothing
     (Just hc, handles)  -> do
       -- TODO: Examine returnCode for things that might matter.
       (handle, returnCode) <- hyperclientLoop hc 0
-      traceIO $ "In loopClient', returnCode: " ++ show returnCode
-      traceIO $ "                handle:     " ++ show handle
-      traceIO $ "                handles:    " ++ show (Map.keys handles)
       case returnCode of
         HyperclientSuccess -> do
-          if debug
-            then traceIO $ "Recovering from failure, returncode: " ++ show returnCode
-            else return ()
           fromMaybe (return ()) $ Map.lookup handle handles
           putMVar c (Just hc, Map.delete handle handles)
           return $ Just handle
@@ -251,7 +239,6 @@ loopClient' debug client@(getClient -> c) = do
           putMVar c (Just hc, Map.empty)
           return $ Just handle
         _ -> do
-          traceIO $ "Encountered " ++ show returnCode
           putMVar c (Just hc, handles)
           loopClient' True client
 
@@ -328,29 +315,21 @@ withClientImmediate (getClient -> c) f =
 -- | Wrap a Hyperclient request.
 withClient :: Client -> (Hyperclient -> AsyncResultHandle a) -> AsyncResult a
 withClient client@(getClient -> c) f = do
-  traceIO $ "in withClient - about to take client MVar"
   value <- takeMVar c
-  traceIO $ "  - succeeded"
   case value of
     (Nothing, _)        -> error "HyperDex client error - cannot use a closed connection."
     (Just hc, handles)  -> do
-      traceIO $ "in wihClient - about to run operation"
       (h, cont) <- f hc
-      traceIO $ "  - succeeded"
       case h > 0 of
         True  -> do
-          traceIO $ "in withClient - received handle " ++ show h ++ " about to make MVar and store"
           v <- newEmptyMVar :: IO (MVar (Either ReturnCode a))
           putMVar c (Just hc, Map.insert h (cont >>= putMVar v) handles)
-          traceIO $ " - succeeded"
           return $ do
             _ <- loopClientUntil client (connectionBackoff . getConnectOptions $ client) h Nothing v 
             res <- peekMVar v
             return $ fromMaybe (error "This should not occur!") res
         False -> do
-          traceIO $ "in withClient - received negative handle, unlocking client"
           putMVar c (Just hc, handles)
-          traceIO $ " - succeeded"
           return cont
 
 -- | C wrapper for hyperclient_create. Creates a HyperClient given a host

@@ -34,8 +34,6 @@ import Data.Monoid
 
 import Data.Pool
 
-import Debug.Trace
-
 testCanStoreLargeObject :: Pool Client -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
@@ -79,7 +77,6 @@ getHyper :: Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either
 getHyper clientPool space key attribute = do
     eitherAttrList <- QC.run . join $ withResource clientPool $ \client -> getAsyncAttr client space key
     let retValue = getResult attribute eitherAttrList 
-    QC.run . traceIO $ show "in getHyper, retValue: " ++ show retValue 
     case retValue of
       Left err -> QC.run $ do
         putStrLn $ "getHyper encountered error: " <> show err
@@ -133,17 +130,10 @@ propCanConditionalPutNumeric
           failingAttributeCheck = mkAttributeCheckUtf8 attributeName failing predicate
           succeedingAttribute = mkAttributeUtf8 attributeName succeeding
           succeedingAttributeCheck = mkAttributeCheckUtf8 attributeName succeeding predicate
-      QC.run $ do
-        traceIO $ "About to view attributes"
-        traceIO $ "  initial:    " ++ show initial
-        traceIO $ "  failing:    " ++ show failing
-        traceIO $ "  succeeding: " ++ show succeeding
       _ <- QC.run . join $ withResource clientPool $
              \client -> putAsyncAttr client space key [initialAttribute]
       failingResult <- QC.run . join $ withResource clientPool $
                           \client -> putConditionalAsyncAttr client space key [failingAttributeCheck] [failingAttribute]
-      QC.run . traceIO $ "Post failingResult"
-      QC.run . traceIO $ "  failingResult: " ++ show failingResult
       case failingResult of
         Left HyperclientCmpfail -> return ()
         _ -> do
@@ -156,21 +146,9 @@ propCanConditionalPutNumeric
             putStrLn $ "  attr:   " <> show succeedingAttribute
             putStrLn $ "  output: " <> show failingResult
           QC.assert False
-      QC.run $ do
-        traceIO $ "About to view serialized attribute"
-        traceIO $ "  succeeding: " ++ show succeeding
-        traceIO $ "  succeedingAttribute: " ++ show succeedingAttribute
-        traceIO $ "About to view serialized attributeCheck"
-        traceIO $   "succeedingAttributeCheck: " ++ show succeedingAttributeCheck
-        traceIO $ "About to call putConditionalAsyncAttr"
-      asyncPutResult <- QC.run . join $ withResource clientPool $
+      _ <- QC.run . join $ withResource clientPool $
              \client -> putConditionalAsyncAttr client space key [succeedingAttributeCheck] [succeedingAttribute]
-      QC.run . traceIO $ "Post asyncPutResult"
-      QC.run . traceIO $ "  asyncPutResult: " ++ show asyncPutResult
-      -- QC.assert False
       eitherOutput <- getHyper clientPool space key attributeName
-      QC.run $ 
-        putStrLn $ show eitherOutput
       case eitherOutput of
         Right output -> do
           case succeedingAttribute == output of
