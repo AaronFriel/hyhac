@@ -167,7 +167,7 @@ propCanConditionalPutNumeric
              \client -> putConditionalAsyncAttr client space key [succeedingAttributeCheck] [succeedingAttribute]
       QC.run . traceIO $ "Post asyncPutResult"
       QC.run . traceIO $ "  asyncPutResult: " ++ show asyncPutResult
-      QC.assert False
+      -- QC.assert False
       eitherOutput <- getHyper clientPool space key attributeName
       QC.run $ 
         putStrLn $ show eitherOutput

@@ -98,8 +98,11 @@ instance Arbitrary HyperRelated where
                       HyperpredicateLessEqual -> (<=) 
                       HyperpredicateGreaterEqual -> (>=)
                       _ -> error "Invalid predicate"
-          failing <- arbitrary `suchThat` (\x -> not $ initial `test` x) :: Gen Int64
-          succeeding <- arbitrary `suchThat` (\x -> initial `test` x)  :: Gen Int64
+          failing <- arbitrary `suchThat` (\x -> not $ initial `test` x)
+          succeeding <-
+            case predicate of
+              HyperpredicateEquals -> return initial
+              _ -> arbitrary `suchThat` (\x -> initial `test` x)
           return (pack initial, pack failing, pack succeeding)
         HyperdexFloat -> do
           initial <- arbitrary :: Gen Double
@@ -108,8 +111,11 @@ instance Arbitrary HyperRelated where
                       HyperpredicateLessEqual -> (<=) 
                       HyperpredicateGreaterEqual -> (>=)
                       _ -> error "Invalid predicate"
-          failing <- arbitrary `suchThat` (\x -> not $ initial `test` x) :: Gen Double
-          succeeding <- arbitrary `suchThat` (\x -> initial `test` x) :: Gen Double
+          failing <- arbitrary `suchThat` (\x -> not $ initial `test` x)
+          succeeding <-
+            case predicate of
+              HyperpredicateEquals -> return initial
+              _ -> arbitrary `suchThat` (\x -> initial `test` x)
           return (pack initial, pack failing, pack succeeding)
     return $ HyperRelated (initial, failing, succeeding, predicate)
 
