@@ -143,3 +143,21 @@ instance Arbitrary HyperSerializable where
 
 instance Show HyperSerializable where
   show (MkHyperSerializable a) = show a
+
+data NumericAtomicOp = AtomicAdd
+                     | AtomicSub
+                     | AtomicMul
+                     | AtomicDiv
+                     | AtomicMod
+                     | AtomicAnd
+                     | AtomicOr
+                     | AtomicXor
+  deriving (Show, Eq)
+
+instance Arbitrary NumericAtomicOp where
+  arbitrary = elements [ AtomicAdd, AtomicSub
+                       , AtomicMul, AtomicDiv
+                       , AtomicMod
+                       , AtomicAnd, AtomicOr
+                       , AtomicXor
+                       ]

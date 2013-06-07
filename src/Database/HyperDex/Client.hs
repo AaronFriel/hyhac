@@ -29,6 +29,11 @@ module Database.HyperDex.Client
   , putIfNotExistAsync
   , deleteAsync
   , putConditionalAsyncAttr
+  , putAtomicAdd, putAtomicSub
+  , putAtomicMul, putAtomicDiv
+  , putAtomicMod
+  , putAtomicAnd, putAtomicOr
+  , putAtomicXor
   , ReturnCode (..)
   , Attribute (..)
   , mkAttribute
@@ -45,7 +50,7 @@ import Database.HyperDex.Internal.Client (
       , ConnectInfo, defaultConnectInfo
       , ConnectOptions, defaultConnectOptions
       )
-import Database.HyperDex.Internal.Hyperclient (hyperGet, hyperPut, hyperDelete, hyperPut, hyperPutConditionally, hyperPutIfNotExist)
+import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
@@ -57,6 +62,8 @@ import Data.ByteString (ByteString)
 
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
+
+import Debug.Trace
 
 -- | Create a space from a definition.
 addSpace :: Client -> Text -> IO ReturnCode
@@ -88,3 +95,35 @@ putConditionalAsyncAttr :: Client -> Text -> ByteString -> [AttributeCheck] -> [
 putConditionalAsyncAttr client (encodeUtf8 -> space) key checks attrs = 
   hyperPutConditionally client space key checks attrs
 
+putAtomicAdd :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicAdd client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicAdd client space key attrs
+
+putAtomicSub :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicSub client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicSub client space key attrs
+
+putAtomicMul :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicMul client (encodeUtf8 -> space) key attrs = do
+  traceIO $ "In putAtomicMul"
+  hyperAtomicMul client space key attrs
+
+putAtomicDiv :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicDiv client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicDiv client space key attrs
+
+putAtomicMod :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicMod client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicMod client space key attrs
+
+putAtomicAnd :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicAnd client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicAnd client space key attrs
+
+putAtomicOr :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicOr client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicOr client space key attrs
+
+putAtomicXor :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicXor client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicXor client space key attrs
