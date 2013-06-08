@@ -104,8 +104,7 @@ putAtomicSub client (encodeUtf8 -> space) key attrs =
   hyperAtomicSub client space key attrs
 
 putAtomicMul :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
-putAtomicMul client (encodeUtf8 -> space) key attrs = do
-  traceIO $ "In putAtomicMul"
+putAtomicMul client (encodeUtf8 -> space) key attrs =
   hyperAtomicMul client space key attrs
 
 putAtomicDiv :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()

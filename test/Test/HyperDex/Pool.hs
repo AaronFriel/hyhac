@@ -183,8 +183,11 @@ propCanAtomicOpIntegral :: Pool Client
                         -> NumericAtomicOp
                         -> NonEmpty ByteString
                         -> Property
-propCanAtomicOpIntegral clientPool space initial operand operator (NonEmpty key) =
+propCanAtomicOpIntegral clientPool space _ _ _ (NonEmpty key) =
   QC.monadicIO $ do
+    let initial = 9223372036854775807
+        operand = 9223372036854775807
+        operator = AtomicAdd
     let attributeName = decodeUtf8 $ pickAttributeName initial
         attribute   = mkAttributeUtf8 attributeName initial
         opAttribute = mkAttributeUtf8 attributeName operand
@@ -212,7 +215,23 @@ propCanAtomicOpIntegral clientPool space initial operand operator (NonEmpty key)
             AtomicXor -> xor
     atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key [opAttribute]
     case atomicOpResult of
-      Left HyperclientOverflow -> return ()
+      Left HyperclientOverflow -> do
+        -- Acceptable overflows (Hyperdex 1.04.rc)
+        case (operator, signum initial == signum (initial `localOp` operand)) of
+          (AtomicAdd, False) -> QC.assert True
+          (AtomicMul, False) -> QC.assert True
+          _ -> do
+            QC.run $ do
+              putStrLn $ "Failed in running atomic op:"
+              putStrLn $ "  space:    " <> show space
+              putStrLn $ "  key:      " <> show key
+              putStrLn $ "  attr:     " <> show attribute
+              putStrLn $ "  initial:  " <> show initial
+              putStrLn $ "  operator: " <> show operator
+              putStrLn $ "  operand:  " <> show operand
+              putStrLn $ "  expected: " <> show (initial `localOp` operand)
+              putStrLn $ "  result:   " <> show atomicOpResult
+            QC.assert False
       Left err -> do
         QC.run $ do
           putStrLn $ "Failed in running atomic op:"
@@ -230,18 +249,7 @@ propCanAtomicOpIntegral clientPool space initial operand operator (NonEmpty key)
         case (eitherOutput >>= deserialize . attrValue) :: Either String Int64 of
           Right output -> do
             case output == (initial `localOp` operand)  of
-              True -> do
-                QC.run $ do
-                  putStrLn $ "Succeeded in storing value:"
-                  putStrLn $ "  space:    " <> show space
-                  putStrLn $ "  key:      " <> show key
-                  putStrLn $ "  attr:     " <> show attribute
-                  putStrLn $ "  initial:  " <> show initial
-                  putStrLn $ "  operator: " <> show operator
-                  putStrLn $ "  operand:  " <> show operand
-                  putStrLn $ "  output:   " <> show output
-                  putStrLn $ "  expected: " <> show (initial `localOp` operand)
-                QC.assert True
+              True -> QC.assert True
               False -> do 
                 QC.run $ do
                   putStrLn $ "Failed to store value:"
