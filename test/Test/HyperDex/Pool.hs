@@ -300,11 +300,12 @@ testAtomicIntegral clientPool =
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
-  let tests = mutuallyExclusive $
-              testGroup "pooled"
-                [ testCanStoreLargeObject clientPool
-                , testCanRoundtrip clientPool
-                , testConditional clientPool
-                , testAtomicIntegral clientPool
+  let tests = mutuallyExclusive
+              $ testGroup "pooled"
+              $ fmap (\f -> f clientPool)
+                [ testCanStoreLargeObject
+                , testCanRoundtrip
+                , testConditional
+                , testAtomicIntegral
                 ]
   return tests
