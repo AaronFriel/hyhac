@@ -297,7 +297,6 @@ testAtomicIntegral clientPool =
     "atomic-integral"
     $ propCanAtomicOpIntegral clientPool defaultSpace
 
-
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
