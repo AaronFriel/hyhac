@@ -34,6 +34,7 @@ module Database.HyperDex.Client
   , putAtomicMod
   , putAtomicAnd, putAtomicOr
   , putAtomicXor
+  , putAtomicPrepend, putAtomicAppend
   , ReturnCode (..)
   , Attribute (..)
   , mkAttribute
@@ -62,8 +63,6 @@ import Data.ByteString (ByteString)
 
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
-
-import Debug.Trace
 
 -- | Create a space from a definition.
 addSpace :: Client -> Text -> IO ReturnCode
@@ -126,3 +125,11 @@ putAtomicOr client (encodeUtf8 -> space) key attrs =
 putAtomicXor :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 putAtomicXor client (encodeUtf8 -> space) key attrs = 
   hyperAtomicXor client space key attrs
+
+putAtomicPrepend :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicPrepend client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicPrepend client space key attrs
+
+putAtomicAppend :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicAppend client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicAppend client space key attrs

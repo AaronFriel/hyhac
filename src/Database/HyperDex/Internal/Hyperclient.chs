@@ -9,6 +9,7 @@ module Database.HyperDex.Internal.Hyperclient
   , hyperAtomicMod
   , hyperAtomicAnd, hyperAtomicOr
   , hyperAtomicXor
+  , hyperAtomicPrepend, hyperAtomicAppend
   )
   where
 
@@ -20,9 +21,6 @@ import Database.HyperDex.Internal.Util
 
 #include "hyperclient.h"
 
-data HyperclientMapAttribute
-{#pointer *hyperclient_map_attribute -> HyperclientMapAttribute nocode #}
-
 data Op = OpAtomicAdd
         | OpAtomicSub
         | OpAtomicMul
@@ -31,6 +29,8 @@ data Op = OpAtomicAdd
         | OpAtomicAnd
         | OpAtomicOr
         | OpAtomicXor
+        | OpAtomicPrepend
+        | OpAtomicAppend
 
 hyperGet :: Client -> ByteString -> ByteString
             -> AsyncResult [Attribute]
@@ -80,6 +80,12 @@ hyperAtomicOr  = hyperAtomic OpAtomicOr
 
 hyperAtomicXor :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
 hyperAtomicXor = hyperAtomic OpAtomicXor
+
+hyperAtomicPrepend :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicPrepend = hyperAtomic OpAtomicPrepend
+
+hyperAtomicAppend :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicAppend = hyperAtomic OpAtomicAppend
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
@@ -255,6 +261,8 @@ hyperclientAtomicOp op client s k attributes = do
               OpAtomicAnd -> {# call hyperclient_atomic_and #}
               OpAtomicOr  -> {# call hyperclient_atomic_or  #}
               OpAtomicXor -> {# call hyperclient_atomic_xor #}
+              OpAtomicPrepend -> {# call hyperclient_string_prepend #}
+              OpAtomicAppend  -> {# call hyperclient_string_append  #}
   handle <- ccall
               client
               space key (fromIntegral keySize)
