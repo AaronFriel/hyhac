@@ -251,12 +251,10 @@ propCanAtomicOpIntegral clientPool space (IntegralTest (initial, operand, operat
             
 propCanAtomicOpFloat :: Pool Client
                      -> Text
-                     -> Double
-                     -> Double
-                     -> NumericAtomicOp
+                     -> FloatTest
                      -> NonEmpty ByteString
                      -> Property
-propCanAtomicOpFloat clientPool space initial operand operator (NonEmpty key) =
+propCanAtomicOpFloat clientPool space (FloatTest (initial, operand, operator)) (NonEmpty key) =
   QC.monadicIO $ do
     let attributeName = decodeUtf8 $ pickAttributeName initial
         attribute   = mkAttributeUtf8 attributeName initial
@@ -276,24 +274,6 @@ propCanAtomicOpFloat clientPool space initial operand operator (NonEmpty key) =
             AtomicDiv -> (/) 
     atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key [opAttribute]
     case atomicOpResult of
-      Left HyperclientOverflow -> do
-        -- Acceptable overflows (Hyperdex 1.04.rc)
-        case (operator, signum initial == signum (initial `localOp` operand)) of
-          -- Not needed for float ops?
-          -- (AtomicAdd, False) -> QC.assert True
-          -- (AtomicMul, False) -> QC.assert True
-          _ -> do
-            QC.run $ do
-              putStrLn $ "Failed in running atomic op:"
-              putStrLn $ "  space:    " <> show space
-              putStrLn $ "  key:      " <> show key
-              putStrLn $ "  attr:     " <> show attribute
-              putStrLn $ "  initial:  " <> show initial
-              putStrLn $ "  operator: " <> show operator
-              putStrLn $ "  operand:  " <> show operand
-              putStrLn $ "  expected: " <> show (initial `localOp` operand)
-              putStrLn $ "  result:   " <> show atomicOpResult
-            QC.assert False
       Left err -> do
         QC.run $ do
           putStrLn $ "Failed in running atomic op:"
@@ -344,7 +324,7 @@ mkPool = createPool createAction closeAction 4 (fromRational $ 1%2) 10
 testCanRoundtrip :: Pool Client -> Test
 testCanRoundtrip clientPool =
   testProperty
-    "roundtrip-pooled"
+    "roundtrip"
     $ \(MkHyperSerializable value) -> propCanStore clientPool "arbitrary" value defaultSpace
 
 testConditional :: Pool Client -> Test

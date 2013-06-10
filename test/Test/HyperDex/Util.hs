@@ -162,6 +162,19 @@ data IntegralAtomicOp = Numeric NumericAtomicOp
                       | AtomicXor
   deriving (Show, Eq)
 
+newtype FloatTest = FloatTest { unFloatTest :: (Double, Double, NumericAtomicOp) }
+  deriving (Show, Eq)
+
+instance Arbitrary FloatTest where
+  arbitrary = do
+    op <- arbitrary
+    a <- arbitrary
+    b <-
+      case op of
+        AtomicDiv -> arbitrary `suchThat` (/= 0)
+        _         -> arbitrary
+    return $ FloatTest (a, b, op)
+
 instance Arbitrary IntegralAtomicOp where
   arbitrary = elements [ Numeric AtomicAdd, Numeric AtomicSub
                        , Numeric AtomicMul, Numeric AtomicDiv
@@ -170,43 +183,17 @@ instance Arbitrary IntegralAtomicOp where
                        , AtomicXor
                        ]
 
-newtype FloatTest = FloatTest { unFloatTest :: (Double, Double, NumericAtomicOp) }
-  deriving (Show, Eq)
-  
-instance Arbitrary FloatTest where
-  arbitrary = do
-    op <- arbitrary :: Gen NumericAtomicOp
-    let filter = 
-          case op of
-            AtomicDiv -> (\(_, b) -> b /= 0.0)
-            _         -> const True
-    (a, b) <- arbitrary `suchThat` filter
-    return $ FloatTest (a, b, op)
-
-asInteger :: Integral a => (a, a) -> (Integer, Integer)
-asInteger (a, b) = (fromIntegral a, fromIntegral b)
-
-maxInt64 :: Integer
-maxInt64 = fromIntegral (maxBound :: Int64)
-
-minInt64 :: Integer
-minInt64 = fromIntegral (minBound :: Int64)
-
-withinInt64Bounds :: Integer -> Bool
-withinInt64Bounds a = (a >= minInt64) && (a <= maxInt64)
-
 newtype IntegralTest = IntegralTest { unIntegralTest :: (Int64, Int64, IntegralAtomicOp) }
   deriving (Show, Eq)
 
 instance Arbitrary IntegralTest where
   arbitrary = do
-    op <- elements [ Numeric AtomicMul
-                   ]
+    op <- arbitrary
     a <- arbitrary
     b <-
       case op of
         Numeric AtomicAdd -> case compare a 0 of
-                              GT -> choose (    minBound, maxBound - a)
+                              GT -> choose (    minBound, maxBound + a)
                               LT -> choose (a - minBound, maxBound    )
                               EQ -> arbitrary
         Numeric AtomicSub -> case compare a 0 of
@@ -214,8 +201,10 @@ instance Arbitrary IntegralTest where
                               LT -> choose (minBound    , minBound + a)
                               EQ -> arbitrary
         Numeric AtomicMul -> case compare a 0 of
-                              GT -> choose (1 + minBound `div` a, maxBound `div` a)
-                              LT -> choose (1 + maxBound `div` a, minBound `div` a)
+                              -- 
+                              GT -> choose (-1 * ( maxBound `div` a),          maxBound `div` a )
+                              -- 
+                              LT -> choose (     (-maxBound) `div` a , -1 * ((-maxBound) `div` a))
                               EQ -> arbitrary
         Numeric AtomicDiv -> arbitrary `suchThat` (/= 0)
         AtomicMod         -> arbitrary `suchThat` (/= 0)
