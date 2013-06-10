@@ -148,16 +148,65 @@ data NumericAtomicOp = AtomicAdd
                      | AtomicSub
                      | AtomicMul
                      | AtomicDiv
-                     | AtomicMod
-                     | AtomicAnd
-                     | AtomicOr
-                     | AtomicXor
   deriving (Show, Eq)
 
 instance Arbitrary NumericAtomicOp where
   arbitrary = elements [ AtomicAdd, AtomicSub
                        , AtomicMul, AtomicDiv
+                       ]
+
+data IntegralAtomicOp = Numeric NumericAtomicOp
+                      | AtomicMod
+                      | AtomicAnd
+                      | AtomicOr
+                      | AtomicXor
+  deriving (Show, Eq)
+
+instance Arbitrary IntegralAtomicOp where
+  arbitrary = elements [ Numeric AtomicAdd, Numeric AtomicSub
+                       , Numeric AtomicMul, Numeric AtomicDiv
                        , AtomicMod
                        , AtomicAnd, AtomicOr
                        , AtomicXor
                        ]
+
+newtype FloatTest = FloatTest { unFloatTest :: (Double, Double, NumericAtomicOp) }
+  deriving (Show, Eq)
+  
+instance Arbitrary FloatTest where
+  arbitrary = do
+    op <- arbitrary :: Gen NumericAtomicOp
+    let filter = 
+          case op of
+            AtomicDiv -> (\(_, b) -> b /= 0.0)
+            _         -> const True
+    (a, b) <- arbitrary `suchThat` filter
+    return $ FloatTest (a, b, op)
+
+asInteger :: Integral a => (a, a) -> (Integer, Integer)
+asInteger (a, b) = (fromIntegral a, fromIntegral b)
+
+maxInt64 :: Integer
+maxInt64 = fromIntegral (maxBound :: Int64)
+
+minInt64 :: Integer
+minInt64 = fromIntegral (minBound :: Int64)
+
+withinInt64Bounds :: Integer -> Bool
+withinInt64Bounds a = (a >= minInt64) && (a <= maxInt64)
+
+newtype IntegralTest = IntegralTest { unIntegralTest :: (Int64, Int64, IntegralAtomicOp) }
+  deriving (Show, Eq)
+
+instance Arbitrary IntegralTest where
+  arbitrary = do
+    op <- arbitrary :: Gen IntegralAtomicOp
+    let filter = 
+          case op of
+            Numeric AtomicAdd -> withinInt64Bounds . (uncurry (+)) . asInteger
+            Numeric AtomicMul -> withinInt64Bounds . (uncurry (*)) . asInteger
+            Numeric AtomicDiv -> (\(_, b) -> b /= 0)
+            AtomicMod         -> (\(_, b) -> b /= 0)
+            _                 -> const True
+    (a, b) <- arbitrary `suchThat` filter
+    return $ IntegralTest (a, b, op)
