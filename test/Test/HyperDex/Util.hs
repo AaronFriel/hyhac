@@ -200,13 +200,24 @@ newtype IntegralTest = IntegralTest { unIntegralTest :: (Int64, Int64, IntegralA
 
 instance Arbitrary IntegralTest where
   arbitrary = do
-    op <- arbitrary :: Gen IntegralAtomicOp
-    let filter = 
-          case op of
-            Numeric AtomicAdd -> withinInt64Bounds . (uncurry (+)) . asInteger
-            Numeric AtomicMul -> withinInt64Bounds . (uncurry (*)) . asInteger
-            Numeric AtomicDiv -> (\(_, b) -> b /= 0)
-            AtomicMod         -> (\(_, b) -> b /= 0)
-            _                 -> const True
-    (a, b) <- arbitrary `suchThat` filter
+    op <- elements [ Numeric AtomicMul
+                   ]
+    a <- arbitrary
+    b <-
+      case op of
+        Numeric AtomicAdd -> case compare a 0 of
+                              GT -> choose (    minBound, maxBound - a)
+                              LT -> choose (a - minBound, maxBound    )
+                              EQ -> arbitrary
+        Numeric AtomicSub -> case compare a 0 of
+                              GT -> choose (minBound + a, maxBound    )
+                              LT -> choose (minBound    , minBound + a)
+                              EQ -> arbitrary
+        Numeric AtomicMul -> case compare a 0 of
+                              GT -> choose (1 + minBound `div` a, maxBound `div` a)
+                              LT -> choose (1 + maxBound `div` a, minBound `div` a)
+                              EQ -> arbitrary
+        Numeric AtomicDiv -> arbitrary `suchThat` (/= 0)
+        AtomicMod         -> arbitrary `suchThat` (/= 0)
+        _                 -> arbitrary
     return $ IntegralTest (a, b, op)
