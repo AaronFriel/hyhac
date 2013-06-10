@@ -218,8 +218,8 @@ performBackoff method cap = do
   doDelay >> return nextDelay
 
 -- | Runs hyperclient_loop exactly once, setting the appropriate MVar.
-loopClient' :: Bool -> Client -> IO (Maybe Handle)
-loopClient' debug client@(getClient -> c) = do
+loopClient :: Client -> IO (Maybe Handle)
+loopClient client@(getClient -> c) = do
   clientData <- takeMVar c
   case clientData of
     (Nothing, _)        -> return Nothing
@@ -233,17 +233,14 @@ loopClient' debug client@(getClient -> c) = do
           return $ Just handle
         HyperclientTimeout -> do
           putMVar c (Just hc, handles)
-          loopClient' False client
+          loopClient client
         HyperclientNonepending -> do
           sequence_ $ Map.elems handles
           putMVar c (Just hc, Map.empty)
           return $ Just handle
         _ -> do
           putMVar c (Just hc, handles)
-          loopClient' True client
-
-loopClient :: Client -> IO (Maybe Handle)
-loopClient = loopClient' False
+          loopClient client
 
 -- | Run hyperclient_loop at most N times or forever until a handle
 -- is returned.
