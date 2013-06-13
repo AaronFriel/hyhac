@@ -180,7 +180,7 @@ type AsyncOp = Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a, Show b, Arbitrary b)
                          => String         -- ^ The test name
                          -> AsyncOp        -- ^ The HyperDex operation to be performed
-                         -> (a -> a -> a)  -- ^ The operation used to simulate execution 
+                         -> (Op a)  -- ^ The operation used to simulate execution 
                          -> (b -> (a, a))  -- ^ The deconstructor for the arbitrary type
                          -> (Pool Client -> Text -> Test)
 generateTestPropAtomicOp testName hyperCall localOp decons =
@@ -242,30 +242,33 @@ testAtomic clientPool space =
     , testAtomicFloat
     , testAtomicString
     , testAtomicList
+    , testAtomicSet
     ]
+
+type Op a = a -> a -> a
 
 testAtomicInteger :: Pool Client -> Text -> Test
 testAtomicInteger clientPool space =
   testGroup "integer"
   $ fmap (\f -> f clientPool space)
-    [ generateTestPropAtomicOp "add" putAtomicAdd (  (+) :: Int64 -> Int64 -> Int64) safeAddInt64
-    , generateTestPropAtomicOp "sub" putAtomicSub (  (-) :: Int64 -> Int64 -> Int64) safeSubtractInt64
-    , generateTestPropAtomicOp "mul" putAtomicMul (  (*) :: Int64 -> Int64 -> Int64) safeMultiplyInt64
-    , generateTestPropAtomicOp "div" putAtomicDiv (  div :: Int64 -> Int64 -> Int64) safeDivideInt64
-    , generateTestPropAtomicOp "mod" putAtomicMod (  mod :: Int64 -> Int64 -> Int64) safeDivideInt64
-    , generateTestPropAtomicOp "and" putAtomicAnd ((.&.) :: Int64 -> Int64 -> Int64) id
-    , generateTestPropAtomicOp "or"  putAtomicOr  ((.|.) :: Int64 -> Int64 -> Int64) id
-    , generateTestPropAtomicOp "xor" putAtomicXor (  xor :: Int64 -> Int64 -> Int64) id
+    [ generateTestPropAtomicOp "add" putAtomicAdd (  (+) :: Op Int64) safeAddInt64
+    , generateTestPropAtomicOp "sub" putAtomicSub (  (-) :: Op Int64) safeSubtractInt64
+    , generateTestPropAtomicOp "mul" putAtomicMul (  (*) :: Op Int64) safeMultiplyInt64
+    , generateTestPropAtomicOp "div" putAtomicDiv (  div :: Op Int64) safeDivideInt64
+    , generateTestPropAtomicOp "mod" putAtomicMod (  mod :: Op Int64) safeDivideInt64
+    , generateTestPropAtomicOp "and" putAtomicAnd ((.&.) :: Op Int64) id
+    , generateTestPropAtomicOp "or"  putAtomicOr  ((.|.) :: Op Int64) id
+    , generateTestPropAtomicOp "xor" putAtomicXor (  xor :: Op Int64) id
     ]
 
 testAtomicFloat :: Pool Client -> Text -> Test
 testAtomicFloat clientPool space =
   testGroup "float"
   $ fmap (\f -> f clientPool space)
-    [ generateTestPropAtomicOp "add" putAtomicAdd ((+) :: Double -> Double -> Double) id
-    , generateTestPropAtomicOp "sub" putAtomicSub ((-) :: Double -> Double -> Double) id
-    , generateTestPropAtomicOp "mul" putAtomicMul ((*) :: Double -> Double -> Double) id
-    , generateTestPropAtomicOp "div" putAtomicDiv ((/) :: Double -> Double -> Double) safeDivideDouble
+    [ generateTestPropAtomicOp "add" putAtomicAdd ((+) :: Op Double) id
+    , generateTestPropAtomicOp "sub" putAtomicSub ((-) :: Op Double) id
+    , generateTestPropAtomicOp "mul" putAtomicMul ((*) :: Op Double) id
+    , generateTestPropAtomicOp "div" putAtomicDiv ((/) :: Op Double) safeDivideDouble
     ]
 
 testAtomicString :: Pool Client -> Text -> Test
@@ -284,10 +287,26 @@ testAtomicList clientPool space =
     [ generateTestPropAtomicOp "lpush" putAtomicListLPush prepend (\(a, b) -> (getNonEmpty a, getNonEmpty b))
     , generateTestPropAtomicOp "rpush" putAtomicListRPush  append (\(a, b) -> (getNonEmpty a, getNonEmpty b))
     ]
-  where append, prepend :: [ByteString] -> [ByteString] -> [ByteString]
+  where append, prepend :: Op [ByteString]
         append  = (++)
         prepend = (flip (++))
- 
+
+setDifference :: (Ord a) => Op (Set a)
+setDifference a b = a `Set.intersection` (a `Set.difference` b)  
+
+testAtomicSet :: Pool Client -> Text -> Test
+testAtomicSet clientPool space =
+  testGroup "set"
+  [ testGroup "int"
+    $ fmap (\f -> f clientPool space)
+        [ generateTestPropAtomicOp "add"       putAtomicSetAdd        (Set.union        :: Op (Set Int64)) id
+        , generateTestPropAtomicOp "remove"    putAtomicSetRemove     (setDifference    :: Op (Set Int64)) id
+        , generateTestPropAtomicOp "intersect" putAtomicSetIntersect  (Set.intersection :: Op (Set Int64)) id
+        , generateTestPropAtomicOp "union"     putAtomicSetUnion      (Set.union        :: Op (Set Int64)) id
+        ]
+  ]
+  
+
 createAction = do
   connect defaultConnectInfo
 

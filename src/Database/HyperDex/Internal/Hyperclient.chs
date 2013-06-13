@@ -11,6 +11,8 @@ module Database.HyperDex.Internal.Hyperclient
   , hyperAtomicXor
   , hyperAtomicPrepend, hyperAtomicAppend
   , hyperAtomicListLPush, hyperAtomicListRPush
+  , hyperAtomicSetAdd, hyperAtomicSetRemove
+  , hyperAtomicSetUnion, hyperAtomicSetIntersect
   )
   where
 
@@ -34,6 +36,10 @@ data Op = OpAtomicAdd
         | OpAtomicAppend
         | OpAtomicListLPush
         | OpAtomicListRPush
+        | OpAtomicSetAdd
+        | OpAtomicSetRemove
+        | OpAtomicSetIntersect
+        | OpAtomicSetUnion
 
 hyperGet :: Client -> ByteString -> ByteString
             -> AsyncResult [Attribute]
@@ -95,6 +101,18 @@ hyperAtomicListLPush = hyperAtomic OpAtomicListLPush
 
 hyperAtomicListRPush :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
 hyperAtomicListRPush = hyperAtomic OpAtomicListRPush
+
+hyperAtomicSetAdd :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicSetAdd = hyperAtomic OpAtomicSetAdd
+
+hyperAtomicSetRemove :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicSetRemove = hyperAtomic OpAtomicSetRemove
+
+hyperAtomicSetIntersect :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicSetIntersect = hyperAtomic OpAtomicSetIntersect
+
+hyperAtomicSetUnion :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicSetUnion = hyperAtomic OpAtomicSetUnion
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
@@ -274,6 +292,10 @@ hyperclientAtomicOp op client s k attributes = do
               OpAtomicAppend  -> {# call hyperclient_string_append  #}
               OpAtomicListLPush -> {# call hyperclient_list_lpush #}
               OpAtomicListRPush -> {# call hyperclient_list_rpush #}
+              OpAtomicSetAdd       -> {# call hyperclient_set_add       #}
+              OpAtomicSetRemove    -> {# call hyperclient_set_remove    #}
+              OpAtomicSetIntersect -> {# call hyperclient_set_intersect #}
+              OpAtomicSetUnion     -> {# call hyperclient_set_union     #}
   handle <- ccall
               client
               space key (fromIntegral keySize)
