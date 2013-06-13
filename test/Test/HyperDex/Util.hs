@@ -210,3 +210,57 @@ instance Arbitrary IntegralTest where
         AtomicMod         -> arbitrary `suchThat` (/= 0)
         _                 -> arbitrary
     return $ IntegralTest (a, b, op)
+
+newtype SafeAddInt64 = SafeAddInt64 { safeAddInt64 :: (Int64, Int64) }
+  deriving (Show)
+  
+instance Arbitrary SafeAddInt64 where
+  arbitrary = do
+    a <- arbitrary
+    b <- case compare a 0 of
+            GT -> choose (    minBound, maxBound + a)
+            LT -> choose (a - minBound, maxBound    )
+            EQ -> arbitrary
+    return $ SafeAddInt64 (a, b)
+
+newtype SafeSubtractInt64 = SafeSubtractInt64 { safeSubtractInt64 :: (Int64, Int64) }
+  deriving (Show)
+  
+instance Arbitrary SafeSubtractInt64 where
+  arbitrary = do
+    a <- arbitrary
+    b <- case compare a 0 of
+            GT -> choose (minBound + a, maxBound    )
+            LT -> choose (minBound    , minBound + a)
+            EQ -> arbitrary
+    return $ SafeSubtractInt64 (a, b)
+
+newtype SafeMultiplyInt64 = SafeMultiplyInt64 { safeMultiplyInt64 :: (Int64, Int64) }
+  deriving (Show)
+
+instance Arbitrary SafeMultiplyInt64 where
+  arbitrary = do
+    a <- arbitrary
+    b <- case compare a 0 of
+            GT -> choose (-1 * ( maxBound `div` a),          maxBound `div` a )
+            LT -> choose (     (-maxBound) `div` a , -1 * ((-maxBound) `div` a))
+            EQ -> arbitrary
+    return $ SafeMultiplyInt64 (a, b)
+
+newtype SafeDivideInt64 = SafeDivideInt64 { safeDivideInt64 :: (Int64, Int64) }
+  deriving (Show)
+
+instance Arbitrary SafeDivideInt64 where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary `suchThat` (/= 0)
+    return $ SafeDivideInt64 (a, b)
+
+newtype SafeDivideDouble = SafeDivideDouble { safeDivideDouble :: (Double, Double) }
+  deriving (Show)
+
+instance Arbitrary SafeDivideDouble where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary `suchThat` (/= 0.0)
+    return $ SafeDivideDouble (a, b)

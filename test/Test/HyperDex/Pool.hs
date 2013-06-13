@@ -18,7 +18,7 @@ import Test.HyperDex.Util
 
 import Data.Text (Text)
 import Data.Text.Encoding
-import Data.ByteString.Char8 (ByteString)
+import Data.ByteString.Char8 (ByteString, append)
 
 import Database.HyperDex
 import Database.HyperDex.Utf8
@@ -176,143 +176,106 @@ propCanConditionalPutNumeric
             putStrLn $ "  reason: " <> show reason
           QC.assert False
 
-propCanAtomicOpIntegral :: Pool Client
-                        -> Text
-                        -> IntegralTest
-                        -> NonEmpty ByteString
-                        -> Property
-propCanAtomicOpIntegral clientPool space (IntegralTest (initial, operand, operator)) (NonEmpty key) =
-  QC.monadicIO $ do
-    let attributeName = decodeUtf8 $ pickAttributeName initial
-        attribute   = mkAttributeUtf8 attributeName initial
-        opAttribute = mkAttributeUtf8 attributeName operand
-    _ <- QC.run . join $ withResource clientPool $ \client -> putAsyncAttr client space key [attribute]
-    let hyperCall =
-          case operator of
-            Numeric AtomicAdd -> putAtomicAdd 
-            Numeric AtomicSub -> putAtomicSub 
-            Numeric AtomicMul -> putAtomicMul 
-            Numeric AtomicDiv -> putAtomicDiv 
-            AtomicMod -> putAtomicMod 
-            AtomicAnd -> putAtomicAnd 
-            AtomicOr  -> putAtomicOr  
-            AtomicXor -> putAtomicXor
-        localOp :: Int64 -> Int64 -> Int64 
-        localOp =
-          case operator of
-            Numeric AtomicAdd -> (+) 
-            Numeric AtomicSub -> (-) 
-            Numeric AtomicMul -> (*) 
-            Numeric AtomicDiv -> div 
-            AtomicMod -> mod 
-            AtomicAnd -> (.&.) 
-            AtomicOr  -> (.|.)  
-            AtomicXor -> xor
-    atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key [opAttribute]
-    case atomicOpResult of
-      Left err -> do
-        QC.run $ do
-          putStrLn $ "Failed in running atomic op:"
-          putStrLn $ "  space:    " <> show space
-          putStrLn $ "  key:      " <> show key
-          putStrLn $ "  attr:     " <> show attribute
-          putStrLn $ "  initial:  " <> show initial
-          putStrLn $ "  operator: " <> show operator
-          putStrLn $ "  operand:  " <> show operand
-          putStrLn $ "  expected: " <> show (initial `localOp` operand)
-          putStrLn $ "  error:    " <> show err
-        QC.assert False
-      Right () -> do
-        eitherOutput <- getHyper clientPool space key attributeName
-        case (eitherOutput >>= deserialize . attrValue) :: Either String Int64 of
-          Right output -> do
-            case output == (initial `localOp` operand)  of
-              True -> QC.assert True
-              False -> do 
-                QC.run $ do
-                  putStrLn $ "Failed to store value:"
-                  putStrLn $ "  space:    " <> show space
-                  putStrLn $ "  key:      " <> show key
-                  putStrLn $ "  attr:     " <> show attribute
-                  putStrLn $ "  initial:  " <> show initial
-                  putStrLn $ "  operator: " <> show operator
-                  putStrLn $ "  operand:  " <> show operand
-                  putStrLn $ "  output:   " <> show output
-                  putStrLn $ "  expected: " <> show (initial `localOp` operand)
-                QC.assert False
-          Left reason  -> do 
-            QC.run $ do
-              putStrLn $ "Failed to retrieve value:"
-              putStrLn $ "  space:  " <> show space
-              putStrLn $ "  key:    " <> show key
-              putStrLn $ "  attr:   " <> show attribute
-              putStrLn $ "  reason: " <> show reason
-            QC.assert False
-            
-propCanAtomicOpFloat :: Pool Client
-                     -> Text
-                     -> FloatTest
-                     -> NonEmpty ByteString
-                     -> Property
-propCanAtomicOpFloat clientPool space (FloatTest (initial, operand, operator)) (NonEmpty key) =
-  QC.monadicIO $ do
-    let attributeName = decodeUtf8 $ pickAttributeName initial
-        attribute   = mkAttributeUtf8 attributeName initial
-        opAttribute = mkAttributeUtf8 attributeName operand
-    _ <- QC.run . join $ withResource clientPool $ \client -> putAsyncAttr client space key [attribute]
-    let hyperCall =
-          case operator of
-            AtomicAdd -> putAtomicAdd 
-            AtomicSub -> putAtomicSub 
-            AtomicMul -> putAtomicMul 
-            AtomicDiv -> putAtomicDiv 
-        localOp =
-          case operator of
-            AtomicAdd -> (+) 
-            AtomicSub -> (-) 
-            AtomicMul -> (*) 
-            AtomicDiv -> (/) 
-    atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key [opAttribute]
-    case atomicOpResult of
-      Left err -> do
-        QC.run $ do
-          putStrLn $ "Failed in running atomic op:"
-          putStrLn $ "  space:    " <> show space
-          putStrLn $ "  key:      " <> show key
-          putStrLn $ "  attr:     " <> show attribute
-          putStrLn $ "  initial:  " <> show initial
-          putStrLn $ "  operator: " <> show operator
-          putStrLn $ "  operand:  " <> show operand
-          putStrLn $ "  expected: " <> show (initial `localOp` operand)
-          putStrLn $ "  error:    " <> show err
-        QC.assert False
-      Right () -> do
-        eitherOutput <- getHyper clientPool space key attributeName
-        case (eitherOutput >>= deserialize . attrValue) :: Either String Double of
-          Right output -> do
-            case output == (initial `localOp` operand)  of
-              True -> QC.assert True
-              False -> do 
-                QC.run $ do
-                  putStrLn $ "Failed to store value:"
-                  putStrLn $ "  space:    " <> show space
-                  putStrLn $ "  key:      " <> show key
-                  putStrLn $ "  attr:     " <> show attribute
-                  putStrLn $ "  initial:  " <> show initial
-                  putStrLn $ "  operator: " <> show operator
-                  putStrLn $ "  operand:  " <> show operand
-                  putStrLn $ "  output:   " <> show output
-                  putStrLn $ "  expected: " <> show (initial `localOp` operand)
-                QC.assert False
-          Left reason  -> do 
-            QC.run $ do
-              putStrLn $ "Failed to retrieve value:"
-              putStrLn $ "  space:  " <> show space
-              putStrLn $ "  key:    " <> show key
-              putStrLn $ "  attr:   " <> show attribute
-              putStrLn $ "  reason: " <> show reason
-            QC.assert False
-            
+type AsyncOp = Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+
+generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a, Show b, Arbitrary b)
+                         => String         -- ^ The test name
+                         -> AsyncOp        -- ^ The HyperDex operation to be performed
+                         -> (a -> a -> a)  -- ^ The operation used to simulate execution 
+                         -> (b -> (a, a))  -- ^ The deconstructor for the arbitrary type
+                         -> (Pool Client -> Text -> Test)
+generateTestPropAtomicOp testName hyperCall localOp decons =
+  \clientPool space -> testProperty testName $
+    \(NonEmpty key) arbitraryInput ->
+      QC.monadicIO $ do
+      let (initial, operand) = decons arbitraryInput
+          attributeName      = decodeUtf8 $ pickAttributeName initial
+          attribute          = mkAttributeUtf8 attributeName initial
+          opAttribute        = mkAttributeUtf8 attributeName operand
+      _ <- QC.run . join $ withResource clientPool $ \client -> putAsyncAttr client space key [attribute]
+      atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key [opAttribute]
+      case atomicOpResult of
+        Left err -> do
+          QC.run $ do
+            putStrLn $ "Failed in running atomic op:"
+            putStrLn $ "  test name: " <> show testName
+            putStrLn $ "  space:     " <> show space
+            putStrLn $ "  key:       " <> show key
+            putStrLn $ "  attr:      " <> show attribute
+            putStrLn $ "  initial:   " <> show initial
+            putStrLn $ "  operand:   " <> show operand
+            putStrLn $ "  expected:  " <> show (initial `localOp` operand)
+            putStrLn $ "  error:     " <> show err
+          QC.assert False
+        Right () -> do
+          eitherOutput <- getHyper clientPool space key attributeName
+          case eitherOutput >>= deserialize . attrValue of
+            Right output -> do
+              case output == (initial `localOp` operand)  of
+                True -> QC.assert True
+                False -> do 
+                  QC.run $ do
+                    putStrLn $ "Failed to store value:"
+                    putStrLn $ "  test name: " <> show testName
+                    putStrLn $ "  space:     " <> show space
+                    putStrLn $ "  key:       " <> show key
+                    putStrLn $ "  attr:      " <> show attribute
+                    putStrLn $ "  initial:   " <> show initial
+                    putStrLn $ "  operand:   " <> show operand
+                    putStrLn $ "  output:    " <> show output
+                    putStrLn $ "  expected:  " <> show (initial `localOp` operand)
+                  QC.assert False
+            Left reason  -> do 
+              QC.run $ do
+                putStrLn $ "Failed to retrieve value:"
+                putStrLn $ "  test name: " <> show testName
+                putStrLn $ "  space:  " <> show space
+                putStrLn $ "  key:    " <> show key
+                putStrLn $ "  attr:   " <> show attribute
+                putStrLn $ "  reason: " <> show reason
+              QC.assert False
+
+testAtomic :: Pool Client -> Text -> Test
+testAtomic clientPool space =
+  testGroup "atomic"
+  $ fmap (\f -> f clientPool space)
+    [ testAtomicInteger
+    , testAtomicFloat
+    , testAtomicString
+    ]
+
+testAtomicInteger :: Pool Client -> Text -> Test
+testAtomicInteger clientPool space =
+  testGroup "integer"
+  $ fmap (\f -> f clientPool space)
+    [ generateTestPropAtomicOp "add" putAtomicAdd (  (+) :: Int64 -> Int64 -> Int64) safeAddInt64
+    , generateTestPropAtomicOp "sub" putAtomicSub (  (-) :: Int64 -> Int64 -> Int64) safeSubtractInt64
+    , generateTestPropAtomicOp "mul" putAtomicMul (  (*) :: Int64 -> Int64 -> Int64) safeMultiplyInt64
+    , generateTestPropAtomicOp "div" putAtomicDiv (  div :: Int64 -> Int64 -> Int64) safeDivideInt64
+    , generateTestPropAtomicOp "mod" putAtomicMod (  mod :: Int64 -> Int64 -> Int64) safeDivideInt64
+    , generateTestPropAtomicOp "and" putAtomicAnd ((.&.) :: Int64 -> Int64 -> Int64) id
+    , generateTestPropAtomicOp "or"  putAtomicOr  ((.|.) :: Int64 -> Int64 -> Int64) id
+    , generateTestPropAtomicOp "xor" putAtomicXor (  xor :: Int64 -> Int64 -> Int64) id
+    ]
+
+testAtomicFloat :: Pool Client -> Text -> Test
+testAtomicFloat clientPool space =
+  testGroup "float"
+  $ fmap (\f -> f clientPool space)
+    [ generateTestPropAtomicOp "add" putAtomicAdd ((+) :: Double -> Double -> Double) id
+    , generateTestPropAtomicOp "sub" putAtomicSub ((-) :: Double -> Double -> Double) id
+    , generateTestPropAtomicOp "mul" putAtomicMul ((*) :: Double -> Double -> Double) id
+    , generateTestPropAtomicOp "div" putAtomicDiv ((/) :: Double -> Double -> Double) safeDivideDouble
+    ]
+
+testAtomicString :: Pool Client -> Text -> Test
+testAtomicString clientPool space =
+  testGroup "string"
+  $ fmap (\f -> f clientPool space)
+    [ generateTestPropAtomicOp "prepend" putAtomicPrepend (flip append) id
+    , generateTestPropAtomicOp "append"  putAtomicAppend  (append)      id
+    ]
+ 
 createAction = do
   connect defaultConnectInfo
 
@@ -333,18 +296,6 @@ testConditional clientPool =
     "conditional"
     $ propCanConditionalPutNumeric clientPool defaultSpace
 
-testAtomicIntegral :: Pool Client -> Test
-testAtomicIntegral clientPool =
-  testProperty
-    "atomic-integral"
-    $ propCanAtomicOpIntegral clientPool defaultSpace
-
-testAtomicFloat :: Pool Client -> Test
-testAtomicFloat clientPool =
-  testProperty
-    "atomic-float"
-    $ propCanAtomicOpFloat clientPool defaultSpace
-
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
@@ -354,7 +305,9 @@ poolTests = buildTest $ do
                 [ testCanStoreLargeObject
                 , testCanRoundtrip
                 , testConditional
-                , testAtomicIntegral
-                , testAtomicFloat
+                ]
+                ++
+                fmap (\f -> f clientPool defaultSpace)
+                [ testAtomic
                 ]
   return tests
