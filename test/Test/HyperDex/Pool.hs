@@ -177,11 +177,13 @@ propCanConditionalPutNumeric
 
 type AsyncOp = Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 
-generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a, Show b, Arbitrary b)
+generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a,
+                             Show b, Eq b, HyperSerialize b, 
+                             Show x, Arbitrary x)
                          => String         -- ^ The test name
                          -> AsyncOp        -- ^ The HyperDex operation to be performed
-                         -> (Op a)  -- ^ The operation used to simulate execution 
-                         -> (b -> (a, a))  -- ^ The deconstructor for the arbitrary type
+                         -> (a -> b -> a)  -- ^ The operation used to simulate execution 
+                         -> (x -> (a, b))  -- ^ The deconstructor for the arbitrary type
                          -> (Pool Client -> Text -> Test)
 generateTestPropAtomicOp testName hyperCall localOp decons =
   \clientPool space -> testProperty testName $
@@ -245,7 +247,8 @@ testAtomic clientPool space =
     , testAtomicSet
     ]
 
-type Op a = a -> a -> a
+type Op2 a b = a -> b -> a
+type Op a    = Op2 a a
 
 testAtomicInteger :: Pool Client -> Text -> Test
 testAtomicInteger clientPool space =
@@ -283,29 +286,51 @@ testAtomicString clientPool space =
 testAtomicList :: Pool Client -> Text -> Test
 testAtomicList clientPool space =
   testGroup "list"
-  $ fmap (\f -> f clientPool space)
-    [ generateTestPropAtomicOp "lpush" putAtomicListLPush prepend (\(a, b) -> (getNonEmpty a, getNonEmpty b))
-    , generateTestPropAtomicOp "rpush" putAtomicListRPush  append (\(a, b) -> (getNonEmpty a, getNonEmpty b))
-    ]
-  where append, prepend :: Op [ByteString]
-        append  = (++)
-        prepend = (flip (++))
-
-setDifference :: (Ord a) => Op (Set a)
-setDifference a b = a `Set.intersection` (a `Set.difference` b)  
+  [ testGroup "int"
+    $ fmap (\f -> f clientPool space)
+        [ generateTestPropAtomicOp "lpush" putAtomicListLPush (prepend :: Op2 [Int64] Int64) id
+        , generateTestPropAtomicOp "rpush" putAtomicListRPush (append  :: Op2 [Int64] Int64) id
+        ]
+  , testGroup "float"
+    $ fmap (\f -> f clientPool space)
+        [ generateTestPropAtomicOp "lpush" putAtomicListLPush (prepend :: Op2 [Double] Double) id
+        , generateTestPropAtomicOp "rpush" putAtomicListRPush (append  :: Op2 [Double] Double) id
+        ]
+  , testGroup "float"
+    $ fmap (\f -> f clientPool space)
+        [ generateTestPropAtomicOp "lpush" putAtomicListLPush (prepend :: Op2 [ByteString] ByteString) id
+        , generateTestPropAtomicOp "rpush" putAtomicListRPush (append  :: Op2 [ByteString] ByteString) id
+        ]
+  ]
+  where append, prepend :: Op2 [a] a
+        append  a b = a ++ [b]
+        prepend a b = [b] ++ a
 
 testAtomicSet :: Pool Client -> Text -> Test
 testAtomicSet clientPool space =
   testGroup "set"
   [ testGroup "int"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "add"       putAtomicSetAdd        (Set.union        :: Op (Set Int64)) id
-        , generateTestPropAtomicOp "remove"    putAtomicSetRemove     (setDifference    :: Op (Set Int64)) id
+        [ generateTestPropAtomicOp "add"       putAtomicSetAdd        (flip Set.insert  :: Op2 (Set Int64) Int64) id
+        , generateTestPropAtomicOp "remove"    putAtomicSetRemove     (flip Set.delete  :: Op2 (Set Int64) Int64) id
         , generateTestPropAtomicOp "intersect" putAtomicSetIntersect  (Set.intersection :: Op (Set Int64)) id
         , generateTestPropAtomicOp "union"     putAtomicSetUnion      (Set.union        :: Op (Set Int64)) id
         ]
+  , testGroup "float"
+    $ fmap (\f -> f clientPool space)
+        [ generateTestPropAtomicOp "add"       putAtomicSetAdd        (flip Set.insert  :: Op2 (Set Double) Double) id
+        , generateTestPropAtomicOp "remove"    putAtomicSetRemove     (flip Set.delete  :: Op2 (Set Double) Double) id
+        , generateTestPropAtomicOp "intersect" putAtomicSetIntersect  (Set.intersection :: Op (Set Double)) id
+        , generateTestPropAtomicOp "union"     putAtomicSetUnion      (Set.union        :: Op (Set Double)) id
+        ]
+  , testGroup "string"
+    $ fmap (\f -> f clientPool space)
+        [ generateTestPropAtomicOp "add"       putAtomicSetAdd        (flip Set.insert  :: Op2 (Set ByteString) ByteString) id
+        , generateTestPropAtomicOp "remove"    putAtomicSetRemove     (flip Set.delete  :: Op2 (Set ByteString) ByteString) id
+        , generateTestPropAtomicOp "intersect" putAtomicSetIntersect  (Set.intersection :: Op (Set ByteString)) id
+        , generateTestPropAtomicOp "union"     putAtomicSetUnion      (Set.union        :: Op (Set ByteString)) id
+        ]
   ]
-  
 
 createAction = do
   connect defaultConnectInfo
