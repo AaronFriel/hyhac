@@ -11,7 +11,7 @@ import Test.HUnit hiding (Test)
 import Control.Monad
 
 import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck hiding (NonEmpty)
+import Test.QuickCheck
 import qualified Test.QuickCheck.Monadic as QC
 
 import Test.HyperDex.Util
@@ -84,8 +84,8 @@ getHyper client space key attribute = do
     return $ retValue
 
 propCanStore :: HyperSerialize a => Client -> ByteString -> a 
-                -> Text -> NonEmpty ByteString -> Property
-propCanStore client _ input space (NonEmpty key) =
+                -> Text -> NonEmptyBS ByteString -> Property
+propCanStore client _ input space (NonEmptyBS key) =
   QC.monadicIO $ do
     let attributeName = decodeUtf8 $ pickAttributeName input
         attribute = mkAttributeUtf8 attributeName input

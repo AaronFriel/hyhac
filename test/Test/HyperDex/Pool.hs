@@ -11,7 +11,7 @@ import Test.HUnit hiding (Test)
 import Control.Monad
 
 import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck hiding (NonEmpty, (.&.))
+import Test.QuickCheck hiding ((.&.))
 import qualified Test.QuickCheck.Monadic as QC
 
 import Test.HyperDex.Util
@@ -29,7 +29,6 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Data.Int
-import Data.Ratio
 import Data.Monoid
 
 import Data.Pool
@@ -88,8 +87,8 @@ getHyper clientPool space key attribute = do
     return $ retValue
 
 propCanStore :: HyperSerialize a => Pool Client -> ByteString -> a 
-                -> Text -> NonEmpty ByteString -> Property
-propCanStore clientPool _ input space (NonEmpty key) =
+                -> Text -> NonEmptyBS ByteString -> Property
+propCanStore clientPool _ input space (NonEmptyBS key) =
   QC.monadicIO $ do
     let attributeName = decodeUtf8 $ pickAttributeName input
         attribute = mkAttributeUtf8 attributeName input
@@ -117,14 +116,14 @@ propCanStore clientPool _ input space (NonEmpty key) =
         QC.assert False
 
 propCanConditionalPutNumeric :: Pool Client -> Text
-                             -> HyperRelated -> NonEmpty ByteString -> Property
+                             -> HyperRelated -> NonEmptyBS ByteString -> Property
 propCanConditionalPutNumeric
   clientPool space
   (HyperRelated ( MkHyperSerializable initial
                 , MkHyperSerializable failing
                 , MkHyperSerializable succeeding
                 , predicate))
-  (NonEmpty key) =
+  (NonEmptyBS key) =
     QC.monadicIO $ do
       let attributeName = decodeUtf8 $ pickAttributeName initial
           initialAttribute = mkAttributeUtf8 attributeName initial
@@ -186,7 +185,7 @@ generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a, Show b, Arbitrary b
                          -> (Pool Client -> Text -> Test)
 generateTestPropAtomicOp testName hyperCall localOp decons =
   \clientPool space -> testProperty testName $
-    \(NonEmpty key) arbitraryInput ->
+    \(NonEmptyBS key) arbitraryInput ->
       QC.monadicIO $ do
       let (initial, operand) = decons arbitraryInput
           attributeName      = decodeUtf8 $ pickAttributeName initial
@@ -242,6 +241,7 @@ testAtomic clientPool space =
     [ testAtomicInteger
     , testAtomicFloat
     , testAtomicString
+    , testAtomicList
     ]
 
 testAtomicInteger :: Pool Client -> Text -> Test
@@ -272,9 +272,21 @@ testAtomicString :: Pool Client -> Text -> Test
 testAtomicString clientPool space =
   testGroup "string"
   $ fmap (\f -> f clientPool space)
-    [ generateTestPropAtomicOp "prepend" putAtomicPrepend (flip append) id
-    , generateTestPropAtomicOp "append"  putAtomicAppend  (append)      id
+    [ generateTestPropAtomicOp "prepend" putAtomicPrepend prepend id
+    , generateTestPropAtomicOp "append"  putAtomicAppend  append  id
     ]
+  where prepend = flip append
+
+testAtomicList :: Pool Client -> Text -> Test
+testAtomicList clientPool space =
+  testGroup "list"
+  $ fmap (\f -> f clientPool space)
+    [ generateTestPropAtomicOp "lpush" putAtomicListLPush prepend (\(a, b) -> (getNonEmpty a, getNonEmpty b))
+    , generateTestPropAtomicOp "rpush" putAtomicListRPush  append (\(a, b) -> (getNonEmpty a, getNonEmpty b))
+    ]
+  where append, prepend :: [ByteString] -> [ByteString] -> [ByteString]
+        append  = (++)
+        prepend = (flip (++))
  
 createAction = do
   connect defaultConnectInfo
@@ -282,7 +294,7 @@ createAction = do
 closeAction client = do
   close client
 
-mkPool = createPool createAction closeAction 4 (fromRational $ 1%2) 10
+mkPool = createPool createAction closeAction 4 0.5 10
 
 testCanRoundtrip :: Pool Client -> Test
 testCanRoundtrip clientPool =

@@ -10,6 +10,7 @@ module Database.HyperDex.Internal.Hyperclient
   , hyperAtomicAnd, hyperAtomicOr
   , hyperAtomicXor
   , hyperAtomicPrepend, hyperAtomicAppend
+  , hyperAtomicListLPush, hyperAtomicListRPush
   )
   where
 
@@ -31,6 +32,8 @@ data Op = OpAtomicAdd
         | OpAtomicXor
         | OpAtomicPrepend
         | OpAtomicAppend
+        | OpAtomicListLPush
+        | OpAtomicListRPush
 
 hyperGet :: Client -> ByteString -> ByteString
             -> AsyncResult [Attribute]
@@ -86,6 +89,12 @@ hyperAtomicPrepend = hyperAtomic OpAtomicPrepend
 
 hyperAtomicAppend :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
 hyperAtomicAppend = hyperAtomic OpAtomicAppend
+
+hyperAtomicListLPush :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicListLPush = hyperAtomic OpAtomicListLPush
+
+hyperAtomicListRPush :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicListRPush = hyperAtomic OpAtomicListRPush
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
@@ -263,6 +272,8 @@ hyperclientAtomicOp op client s k attributes = do
               OpAtomicXor -> {# call hyperclient_atomic_xor #}
               OpAtomicPrepend -> {# call hyperclient_string_prepend #}
               OpAtomicAppend  -> {# call hyperclient_string_append  #}
+              OpAtomicListLPush -> {# call hyperclient_list_lpush #}
+              OpAtomicListRPush -> {# call hyperclient_list_rpush #}
   handle <- ccall
               client
               space key (fromIntegral keySize)

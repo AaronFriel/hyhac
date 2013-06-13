@@ -4,7 +4,7 @@ module Test.HyperDex.Util where
 
 import Database.HyperDex
 
-import Test.QuickCheck hiding (NonEmpty, getNonEmpty)
+import Test.QuickCheck
 import Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isAsciiLower)
@@ -50,14 +50,14 @@ instance Arbitrary (LowerAscii ByteString) where
   arbitrary = fmap (LowerAscii . BS.pack . fmap getLowerAscii) arbitrary  
   shrink (LowerAscii xs) = map LowerAscii $ filter (BS.all isAsciiLower) $ shrink xs
 
--- | Definitions for non NonEmptyable bytestrings
+-- | Definitions for non NonEmptyBSable bytestrings
 
-newtype NonEmpty a = NonEmpty { getNonEmpty :: a }
+newtype NonEmptyBS a = NonEmptyBS { getNonEmptyBS :: a }
   deriving (Show, Eq, Functor)
 
-instance Arbitrary (NonEmpty ByteString) where
-  arbitrary = fmap NonEmpty $ arbitrary `suchThat` (not . BS.null)
-  shrink (NonEmpty xs) = map NonEmpty $ filter (not . BS.null) $ shrink xs
+instance Arbitrary (NonEmptyBS ByteString) where
+  arbitrary = fmap NonEmptyBS $ arbitrary `suchThat` (not . BS.null)
+  shrink (NonEmptyBS xs) = map NonEmptyBS $ filter (not . BS.null) $ shrink xs
 
 newtype Identifier a = Identifier { getIdentifier :: a }
   deriving (Show, Eq, Functor)

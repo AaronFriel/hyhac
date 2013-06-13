@@ -35,6 +35,7 @@ module Database.HyperDex.Client
   , putAtomicAnd, putAtomicOr
   , putAtomicXor
   , putAtomicPrepend, putAtomicAppend
+  , putAtomicListLPush, putAtomicListRPush
   , ReturnCode (..)
   , Attribute (..)
   , mkAttribute
@@ -133,3 +134,11 @@ putAtomicPrepend client (encodeUtf8 -> space) key attrs =
 putAtomicAppend :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 putAtomicAppend client (encodeUtf8 -> space) key attrs = 
   hyperAtomicAppend client space key attrs
+
+putAtomicListLPush :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicListLPush client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicListLPush client space key attrs
+
+putAtomicListRPush :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+putAtomicListRPush client (encodeUtf8 -> space) key attrs = 
+  hyperAtomicListRPush client space key attrs
