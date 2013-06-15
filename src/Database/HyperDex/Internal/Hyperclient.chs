@@ -22,6 +22,7 @@ module Database.HyperDex.Internal.Hyperclient
   , hyperAtomicMapXor
   , hyperAtomicMapStringPrepend 
   , hyperAtomicMapStringAppend
+  -- , hyperMapInsertConditional
   )
   where
 
@@ -166,6 +167,10 @@ hyperAtomicMapOr     = hyperAtomicMap OpAtomicMapOr
 hyperAtomicMapXor    = hyperAtomicMap OpAtomicMapXor   
 hyperAtomicMapStringPrepend = hyperAtomicMap OpAtomicMapStringPrepend
 hyperAtomicMapStringAppend  = hyperAtomicMap OpAtomicMapStringAppend
+
+-- hyperMapInsertConditional :: Client -> ByteString -> ByteString -> [AttributeCheck] -> [MapAttribute] -> AsyncResult ()
+-- hyperMapInsertConditional c s k checks attrs = withClient c $ \hc -> hyperclientConditionalMapInsert hc s k checks attrs
+
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
 --                 size_t key_sz, const struct hyperclient_attribute* attrs,
@@ -365,8 +370,6 @@ hyperclientAtomicOp op client s k attributes = do
   return (handle, continuation)
 {-# INLINE hyperclientAtomicOp #-}
 
-
-
 -- int64_t
 -- hyperclient_map_add(struct hyperclient* client, const char* space,
 --                     const char* key, size_t key_sz,
@@ -410,3 +413,45 @@ hyperclientAtomicMapOp op client s k mapAttributes = do
             _                  -> Left returnCode
   return (handle, continuation)
 {-# INLINE hyperclientAtomicMapOp #-}
+
+-- int64_t
+-- hyperclient_map_add(struct hyperclient* client, const char* space,
+--                     const char* key, size_t key_sz,
+--                     const struct hyperclient_map_attribute* attrs, size_t attrs_sz,
+--                     enum hyperclient_returncode* status);
+---- A compilation error prevents this from being implemented:
+-- /home/cloudium/git/hyhac/dist/build/libHShyhac-0.2.0.0_p.a(Hyperclient.p_o): In function `ra9O_info':
+-- /tmp/ghc20379_0/ghc20379_1.p_o:(.text+0x1d6): undefined reference to `hyperclient_cond_map_add'
+-- /home/cloudium/git/hyhac/dist/build/libHShyhac-0.2.0.0_p.a(Hyperclient.p_o): In function `sdlx_info':
+-- /tmp/ghc20379_0/ghc20379_1.p_o:(.text+0x3d08d): undefined reference to `hyperclient_cond_map_add'
+-- /home/cloudium/git/hyhac/dist/build/libHShyhac-0.2.0.0_p.a(Hyperclient.p_o): In function `sdm2_info':
+-- /tmp/ghc20379_0/ghc20379_1.p_o:(.text+0x3dc85): undefined reference to `hyperclient_cond_map_add'
+
+--hyperclientConditionalMapInsert :: Hyperclient -> ByteString -> ByteString
+--                                -> [AttributeCheck]
+--                                -> [MapAttribute]
+--                                -> AsyncResultHandle ()
+--hyperclientConditionalMapInsert client s k checks mapAttributes = do
+--  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+--  space <- newCBString s
+--  (key,keySize) <- newCBStringLen k
+--  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+--  (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
+--  handle <- {# call hyperclient_cond_map_add #}
+--              client space
+--              key (fromIntegral keySize)
+--              checkPtr (fromIntegral checkSize)
+--              mapAttributePtr (fromIntegral mapAttributeSize)
+--              returnCodePtr
+--  let continuation = do
+--        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+--        free returnCodePtr
+--        free space
+--        free key
+--        --haskellFreeMapAttributes mapAttributePtr mapAttributeSize
+--        return $ 
+--          case returnCode of 
+--            HyperclientSuccess -> Right ()
+--            _                  -> Left returnCode
+--  return (handle, continuation)
+--{-# INLINE hyperclientConditionalMapInsert #-}

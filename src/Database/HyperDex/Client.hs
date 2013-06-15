@@ -47,6 +47,7 @@ module Database.HyperDex.Client
   , putAtomicMapXor
   , putAtomicMapStringPrepend 
   , putAtomicMapStringAppend
+  -- , conditionalMapInsert
   , ReturnCode (..)
   , Attribute (..), mkAttribute
   , AttributeCheck (..), mkAttributeCheck
@@ -196,3 +197,7 @@ putAtomicMapOr     client = hyperAtomicMapOr     client . encodeUtf8
 putAtomicMapXor    client = hyperAtomicMapXor    client . encodeUtf8
 putAtomicMapStringPrepend client = hyperAtomicMapStringPrepend client . encodeUtf8 
 putAtomicMapStringAppend  client = hyperAtomicMapStringAppend  client . encodeUtf8 
+
+---- A compilation error prevents this from being implemented.
+-- conditionalMapInsert :: Client -> Text -> ByteString -> [AttributeCheck] -> [MapAttribute] -> AsyncResult ()
+-- conditionalMapInsert client = hyperMapInsertConditional client . encodeUtf8
