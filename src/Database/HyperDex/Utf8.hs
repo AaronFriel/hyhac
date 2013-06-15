@@ -18,6 +18,8 @@
 module Database.HyperDex.Utf8
   ( mkAttributeUtf8
   , mkAttributeCheckUtf8
+  , mkMapAttributeUtf8
+  , mkMapAttributesFromMapUtf8
   , getAsyncAttrUtf8
   , putAsyncAttrUtf8 )
   where
@@ -25,6 +27,7 @@ module Database.HyperDex.Utf8
 import Database.HyperDex.Internal.Client
 import Database.HyperDex.Internal.Attribute
 import Database.HyperDex.Internal.AttributeCheck
+import Database.HyperDex.Internal.MapAttribute
 import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Hyperdex
@@ -33,6 +36,8 @@ import Data.Serialize
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding
+
+import Data.Map (Map)
 
 instance HyperSerialize [Char] where
   getH = remaining >>= getByteString >>= return . Text.unpack . decodeUtf8
@@ -51,6 +56,14 @@ mkAttributeUtf8 (encodeUtf8 -> name) value = mkAttribute name value
 -- | Create an attribute using a name serialized as a UTF8 bytestring.
 mkAttributeCheckUtf8 :: HyperSerialize a => Text -> a -> Hyperpredicate -> AttributeCheck
 mkAttributeCheckUtf8 (encodeUtf8 -> name) = mkAttributeCheck name
+
+-- | Create an attribute using a name serialized as a UTF8 bytestring.
+mkMapAttributeUtf8 :: (HyperSerialize k, HyperSerialize v) => Text -> k -> v -> MapAttribute
+mkMapAttributeUtf8 (encodeUtf8 -> name) = mkMapAttribute name
+
+-- | Create an attribute using a name serialized as a UTF8 bytestring.
+mkMapAttributesFromMapUtf8 :: (HyperSerialize k, HyperSerialize v) => Text -> Map k v -> [MapAttribute]
+mkMapAttributesFromMapUtf8 = mkMapAttributesFromMap . encodeUtf8
 
 -- | Retrieve a value in a space by UTF8-encoded key.
 getAsyncAttrUtf8 :: Client -> Text -> Text -> AsyncResult [Attribute]

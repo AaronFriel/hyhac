@@ -264,3 +264,55 @@ instance Arbitrary SafeDivideDouble where
     a <- arbitrary
     b <- arbitrary `suchThat` (/= 0.0)
     return $ SafeDivideDouble (a, b)
+
+newtype OverlappingMaps k v = OverlappingMaps { overlappingMaps :: (Map k v, Map k v) }
+  deriving (Show)
+
+combinations :: [a] -> [[a]]
+combinations []     = [[]]
+combinations (x:xs) = let cs = combinations xs in cs ++ (map (x:) cs)
+
+instance (Ord k, Show k, Show v, Arbitrary k, Arbitrary v) => Arbitrary (OverlappingMaps k v) where
+  arbitrary = do
+    a <- arbitrary
+    bkeys   <- elements . take 1000 . combinations . Map.keys $ a
+    bvalues <- vectorOf (length bkeys) arbitrary
+    let b = Map.fromList $ zip bkeys bvalues
+    return $ OverlappingMaps (a, b) 
+
+newtype NonOverlappingMaps k v = NonOverlappingMaps { nonOverlappingMaps :: (Map k v, Map k v) }
+  deriving (Show)
+
+instance (Ord k, Arbitrary k, Arbitrary v) => Arbitrary (NonOverlappingMaps k v) where
+  arbitrary = do
+    a <- arbitrary
+    b <- arbitrary `suchThat` (all (\k -> not $ k `Map.member` a) . Map.keys)
+    return $ NonOverlappingMaps (a, b)
+
+minInt64, maxInt64 :: Integer
+minInt64 = fromIntegral (minBound :: Int64)
+maxInt64 = fromIntegral (maxBound :: Int64)
+
+inBoundsInt64 :: Integer -> Bool
+inBoundsInt64 x = x >= minInt64 && x <= maxInt64
+
+checkMaps :: Ord k => (a -> a -> Bool) -> (Map k a, Map k a) -> (Map k a, Map k a)
+checkMaps op (mapa, mapb) = (mapa, Map.filterWithKey go mapb)
+  where go k _ = case (k `Map.lookup` mapa, k `Map.lookup` mapb) of
+                  (Just a, Just b) -> op a b
+                  _                -> True
+
+checkAddition :: Ord k => (Map k Int64, Map k Int64) -> (Map k Int64, Map k Int64)
+checkAddition = checkMaps $ \a b -> inBoundsInt64 (fromIntegral a + fromIntegral b)
+
+checkSubtraction :: Ord k => (Map k Int64, Map k Int64) -> (Map k Int64, Map k Int64)
+checkSubtraction = checkMaps $ \a b -> inBoundsInt64 (fromIntegral a - fromIntegral b)
+
+checkMultiplication :: Ord k => (Map k Int64, Map k Int64) -> (Map k Int64, Map k Int64)
+checkMultiplication = checkMaps $ \a b -> inBoundsInt64 (fromIntegral a * fromIntegral b)
+
+checkIntDivision :: Ord k => (Map k Int64, Map k Int64) -> (Map k Int64, Map k Int64)
+checkIntDivision = checkMaps $ \_ b -> b /= 0
+
+checkDoubleDivision :: Ord k => (Map k Double, Map k Double) -> (Map k Double, Map k Double)
+checkDoubleDivision = checkMaps $ \_ b -> b /= 0.0

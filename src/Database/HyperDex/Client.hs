@@ -38,9 +38,19 @@ module Database.HyperDex.Client
   , putAtomicListLPush, putAtomicListRPush
   , putAtomicSetAdd, putAtomicSetRemove
   , putAtomicSetIntersect, putAtomicSetUnion
+  -- Atomic map operations
+  , putAtomicMapInsert, putAtomicMapDelete
+  , putAtomicMapAdd, putAtomicMapSub
+  , putAtomicMapMul, putAtomicMapDiv
+  , putAtomicMapMod
+  , putAtomicMapAnd, putAtomicMapOr
+  , putAtomicMapXor
+  , putAtomicMapStringPrepend 
+  , putAtomicMapStringAppend
   , ReturnCode (..)
-  , Attribute (..)
-  , mkAttribute
+  , Attribute (..), mkAttribute
+  , AttributeCheck (..), mkAttributeCheck
+  , MapAttribute (..), mkMapAttribute, mkMapAttributesFromMap
   , AsyncResult, Result
   , Hyperdatatype (..)
   , HyperSerialize
@@ -59,7 +69,8 @@ import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))
 import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)
-import Database.HyperDex.Internal.AttributeCheck (AttributeCheck (..))
+import Database.HyperDex.Internal.AttributeCheck (AttributeCheck (..), mkAttributeCheck)
+import Database.HyperDex.Internal.MapAttribute (MapAttribute (..), mkMapAttribute, mkMapAttributesFromMap)
 import qualified Database.HyperDex.Internal.Space as Space (addSpace, removeSpace)
 
 import Data.ByteString (ByteString)
@@ -160,3 +171,28 @@ putAtomicSetIntersect client (encodeUtf8 -> space) key attrs =
 putAtomicSetUnion :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 putAtomicSetUnion client (encodeUtf8 -> space) key attrs = 
   hyperAtomicSetUnion client space key attrs
+
+putAtomicMapInsert,
+  putAtomicMapDelete,
+  putAtomicMapAdd,
+  putAtomicMapSub,
+  putAtomicMapMul,
+  putAtomicMapDiv,
+  putAtomicMapMod,
+  putAtomicMapAnd,
+  putAtomicMapOr,
+  putAtomicMapXor,
+  putAtomicMapStringPrepend, 
+  putAtomicMapStringAppend :: Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult ()
+putAtomicMapInsert client = hyperAtomicMapInsert client . encodeUtf8
+putAtomicMapDelete client = hyperAtomicMapDelete client . encodeUtf8
+putAtomicMapAdd    client = hyperAtomicMapAdd    client . encodeUtf8
+putAtomicMapSub    client = hyperAtomicMapSub    client . encodeUtf8
+putAtomicMapMul    client = hyperAtomicMapMul    client . encodeUtf8
+putAtomicMapDiv    client = hyperAtomicMapDiv    client . encodeUtf8
+putAtomicMapMod    client = hyperAtomicMapMod    client . encodeUtf8
+putAtomicMapAnd    client = hyperAtomicMapAnd    client . encodeUtf8
+putAtomicMapOr     client = hyperAtomicMapOr     client . encodeUtf8
+putAtomicMapXor    client = hyperAtomicMapXor    client . encodeUtf8
+putAtomicMapStringPrepend client = hyperAtomicMapStringPrepend client . encodeUtf8 
+putAtomicMapStringAppend  client = hyperAtomicMapStringAppend  client . encodeUtf8 

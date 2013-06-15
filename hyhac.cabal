@@ -33,6 +33,7 @@ library
     Database.HyperDex.Internal.Space
     Database.HyperDex.Internal.Attribute
     Database.HyperDex.Internal.AttributeCheck
+    Database.HyperDex.Internal.MapAttribute
     Database.HyperDex.Internal.Util
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
@@ -60,7 +61,7 @@ library
     , HUnit
     , QuickCheck
 
-  ghc-options:       -Wall
+  ghc-options:       -Wall -O2
 
   include-dirs:      include
   includes:          hyperdex.h
