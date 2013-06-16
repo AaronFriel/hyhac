@@ -8,7 +8,7 @@ module Database.HyperDex.Internal.Client
   , defaultConnectOptions
   , BackoffMethod (..)
   , Handle
-  , Result, AsyncResult, AsyncResultHandle
+  , Result, AsyncResult, AsyncResultHandle, SearchStream (..)
   , connect, close
   , loopClient, loopClientUntil
   , withClient, withClientImmediate
@@ -95,7 +95,21 @@ data BackoffMethod
   | BackoffExponential Int Double
   deriving (Eq, Read, Show)
 
-type HyperclientWrapper = MVar (Maybe Hyperclient, Map Handle (IO ()))
+-- | A callback used to perform work when the Hyperclient loop indicates an
+-- operation has been completed.
+--
+-- A 'Nothing' value indicates that no further work is necessary, and a 'Just' value
+-- will store a new Handle and HandleCallback.
+newtype HandleCallback = HandleCallback (ReturnCode -> IO (Maybe (Handle, HandleCallback)))
+
+-- | The core data type managing access to a 'Hyperclient' object and all
+-- currently running asynchronous operations.
+--
+-- The 'MVar' is used as a lock to control access to the 'Hyperclient' and
+-- a map of open handles and continuations, or callbacks, that must be executed
+-- to complete operations. A 'HandleCallback' may yield Nothing or a new 'Handle'
+-- and 'HandleCallback' to be stored in the map.
+type HyperclientWrapper = MVar (Maybe Hyperclient, Map Handle HandleCallback)
 
 data ClientData =
   ClientData
@@ -126,6 +140,13 @@ getConnectOptions = connectOptions . getConnectInfo
 -- lower values are used first, and negative values represent an
 -- error.
 type Handle = {# type int64_t #}
+
+-- | Type of handle returned from a result.
+--
+-- Search handles are persistent until the 'ReturnCode' of the loop
+-- operation is 'HyperclientSearchdone', simple handles are removed
+-- immediately. 
+data HandleType = SimpleHandle | SearchHandle
 
 -- | A return value from HyperDex.
 type Result a = IO (Either ReturnCode a)
@@ -160,6 +181,8 @@ type AsyncResultHandle a = IO (Handle, Result a)
 -- a future version.
 type AsyncResult a = IO (Result a)
 
+newtype SearchStream a = SearchStream { getSearchStream :: ([a], IO (SearchStream a)) }
+
 -- | Connect to a HyperDex cluster.
 connect :: ConnectInfo -> IO Client
 connect info = do
@@ -171,7 +194,6 @@ connect info = do
       { hyperclientWrapper = clientData 
       , connectionInfo = info
       }
-
 
 -- | Close a connection and terminate any outstanding asynchronous
 -- requests.
@@ -188,18 +210,20 @@ close (getClient -> c) = do
     (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
     (Just hc, handles)  -> do
       hyperclientDestroy hc
-      sequence_ $ Map.elems handles 
+      mapM_ (\(HandleCallback c) -> c HyperclientTimeout) $ Map.elems handles 
       putMVar c (Nothing, Map.empty)
 
 doExponentialBackoff :: Int -> Double -> (Int, BackoffMethod)
 doExponentialBackoff b x = 
   let result = ceiling (fromIntegral b ** x) in
     (result, BackoffExponential result x)
+{-# INLINE doExponentialBackoff #-}
 
 cappedBackoff :: Int -> Maybe Int -> (Int, Bool)
 cappedBackoff n Nothing               = (n, False)
 cappedBackoff n (Just c) | n  < c     = (n, False)
                          | otherwise  = (c, True)
+{-# INLINE cappedBackoff #-}
 
 performBackoff :: BackoffMethod -> Maybe Int -> IO (BackoffMethod)
 performBackoff method cap = do
@@ -216,6 +240,7 @@ performBackoff method cap = do
                 True  -> BackoffConstant backoff
                 False -> newBackoff
   doDelay >> return nextDelay
+{-# INLINE performBackoff #-}
 
 -- | Runs hyperclient_loop exactly once, setting the appropriate MVar.
 loopClient :: Client -> IO (Maybe Handle)
@@ -228,26 +253,33 @@ loopClient client@(getClient -> c) = do
       (handle, returnCode) <- hyperclientLoop hc 0
       case returnCode of
         HyperclientSuccess -> do
-          fromMaybe (return ()) $ Map.lookup handle handles
-          putMVar c (Just hc, Map.delete handle handles)
+          let newMap = Map.delete handle handles
+          case Map.lookup handle handles of
+            Just (HandleCallback entry) -> do
+              cont <- entry returnCode
+              case cont of
+                Nothing -> putMVar c (Just hc, newMap)
+                Just (h, e) -> putMVar c (Just hc, Map.insert h e newMap)
+            Nothing -> putMVar c (Just hc, newMap)
           return $ Just handle
         HyperclientTimeout -> do
           putMVar c (Just hc, handles)
           loopClient client
         HyperclientNonepending -> do
-          sequence_ $ Map.elems handles
+          mapM_ (\(HandleCallback c) -> c HyperclientNonepending) $ Map.elems handles
           putMVar c (Just hc, Map.empty)
           return $ Just handle
         _ -> do
           putMVar c (Just hc, handles)
           loopClient client
+{-# INLINE loopClient #-}
 
 -- | Run hyperclient_loop at most N times or forever until a handle
 -- is returned.
-loopClientUntil :: Client -> BackoffMethod -> Handle -> Maybe Int -> MVar (Either ReturnCode a) -> IO (Bool)
-loopClientUntil _      _    _ (Just 0) _ = return False
+loopClientUntil :: Client -> Handle -> MVar a -> BackoffMethod -> Maybe Int -> IO (Bool)
+loopClientUntil _      _ _ _    (Just 0) = return False
 
-loopClientUntil client back h (Just n) v = do
+loopClientUntil client h v back (Just n) = do
   empty <- isEmptyMVar v
   case empty of
     True -> do
@@ -261,10 +293,10 @@ loopClientUntil client back h (Just n) v = do
             False -> return True
             True  -> do
               back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
-              loopClientUntil client back' h (Just $ n - 1) v
+              loopClientUntil client h v back' (Just $ n - 1)
     False -> return True
 
-loopClientUntil client back h (Nothing) v = do
+loopClientUntil client h v back Nothing = do
   empty <- isEmptyMVar v
   case empty of
     True -> do
@@ -278,28 +310,9 @@ loopClientUntil client back h (Nothing) v = do
             False -> return True
             True  -> do 
               back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
-              loopClientUntil client back' h (Nothing) v
+              loopClientUntil client h v back' Nothing
     False -> return True
-
--- | Peek at the value of an 'MVar' and return its contents if full.
--- 
--- /Note:/ This isn't truly a reliable way of performing this operation
--- as between the 'tryTakeMVar' and the 'putMVar', another thread could
--- perform the 'putMVar'. However, it is implicitly guaranteed that the
--- internal API will never have multiple-writer contention on the 
--- 'HyperclientWrapper'. Every operation performs a 'TakeMVar' before a
--- 'PutMVar', and the surface area is small enough to guarantee that.
---
--- Per 'Control.Concurrent.MVar', this function is only atomic if there
--- are no other producers for this 'MVar'.
-peekMVar :: MVar a -> IO (Maybe a)
-peekMVar m = do
-  res <- tryTakeMVar m
-  case res of
-    Just r  -> do
-      putMVar m r
-      return $ Just r
-    Nothing -> return $ Nothing
+{-# INLINE loopClientUntil #-}
 
 -- | Wrap a HyperClient request and wait until completion or failure.
 withClientImmediate :: Client -> (Hyperclient -> IO a) -> IO a
@@ -308,6 +321,7 @@ withClientImmediate (getClient -> c) f =
     case value of
       (Nothing, _) -> error "HyperDex client error - cannot use a closed connection."
       (Just hc, _) -> f hc
+{-# INLINE withClientImmediate #-}
 
 -- | Wrap a Hyperclient request.
 withClient :: Client -> (Hyperclient -> AsyncResultHandle a) -> AsyncResult a
@@ -320,14 +334,39 @@ withClient client@(getClient -> c) f = do
       case h > 0 of
         True  -> do
           v <- newEmptyMVar :: IO (MVar (Either ReturnCode a))
-          putMVar c (Just hc, Map.insert h (cont >>= putMVar v) handles)
+          let wrappedCallback = HandleCallback $ \code -> do
+                returnValue <- cont
+                putMVar v returnValue
+                return Nothing
+          putMVar c (Just hc, Map.insert h wrappedCallback handles)
           return $ do
-            _ <- loopClientUntil client (connectionBackoff . getConnectOptions $ client) h Nothing v 
-            res <- peekMVar v
-            return $ fromMaybe (error "This should not occur!") res
+            success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing 
+            case success of
+              True  -> takeMVar v
+              False -> return $ Left HyperclientPollfailed
         False -> do
           putMVar c (Just hc, handles)
           return cont
+{-# INLINE withClient #-}
+
+-- -- | Wrap a Hyperclient request.
+-- withClientStream :: Client -> (Hyperclient -> AsyncResultHandle (SearchStream a)) -> AsyncResult (SearchStream a)
+-- withClientStream client@(getClient -> c) f = do
+--   value <- takeMVar c
+--   case value of
+--     (Nothing, _)        -> error "HyperDex client error - cannot use a closed connection."
+--     (Just hc, handles)  -> do
+--       (h, cont) <- f hc
+--       case h > 0 of
+--         True  -> do
+--           v <- newEmptyMVar -- :: IO (MVar (Either ReturnCode ([a], ))
+--           putMVar c (Just hc, Map.insert h (cont >>= putMVar v) handles)
+--           return $ do
+--             _ <- loopClientUntil client (connectionBackoff . getConnectOptions $ client) h Nothing v 
+--             takeMVar v
+--         False -> do
+--           putMVar c (Just hc, handles)
+--           return cont
 
 -- | C wrapper for hyperclient_create. Creates a HyperClient given a host
 -- and a port.

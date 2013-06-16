@@ -68,75 +68,75 @@ data MapOp = OpAtomicMapInsert
 hyperGet :: Client -> ByteString -> ByteString
             -> AsyncResult [Attribute]
 hyperGet c s k = withClient c (\hc -> hyperclientGet hc s k)
+{-# INLINE hyperGet #-}
 
 hyperPut :: Client -> ByteString -> ByteString -> [Attribute]
             -> AsyncResult ()
 hyperPut c s k attrs = withClient c (\hc -> hyperclientPut hc s k attrs)
+{-# INLINE hyperPut #-}
 
 hyperPutIfNotExist :: Client -> ByteString -> ByteString -> [Attribute]
                       -> AsyncResult ()
 hyperPutIfNotExist c s k attrs = withClient c (\hc -> hyperclientPutIfNotExist hc s k attrs)
+{-# INLINE hyperPutIfNotExist #-}
 
 hyperDelete :: Client -> ByteString -> ByteString
                -> AsyncResult ()
 hyperDelete c s k = withClient c (\hc -> hyperclientDelete hc s k)
+{-# INLINE hyperDelete #-}
 
 hyperPutConditionally :: Client -> ByteString -> ByteString
                          -> [AttributeCheck] -> [Attribute]
                          -> AsyncResult ()
 hyperPutConditionally c s k checks attrs = withClient c (\hc -> hyperclientConditionalPut hc s k checks attrs)
+{-# INLINE hyperPutConditionally #-}
 
 hyperAtomic :: Op -> Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
 hyperAtomic op = \c s k attrs -> withClient c (\hc -> hyperclientAtomicOp op hc s k attrs)
 {-# INLINE hyperAtomic #-}
 
-hyperAtomicAdd :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicAdd = hyperAtomic OpAtomicAdd
+hyperAtomicAdd, hyperAtomicSub,
+  hyperAtomicMul, hyperAtomicDiv,
+  hyperAtomicMod,
+  hyperAtomicAnd, hyperAtomicOr,
+  hyperAtomicXor,
+  hyperAtomicPrepend, hyperAtomicAppend,
+  hyperAtomicListLPush, hyperAtomicListRPush,
+  hyperAtomicSetAdd, hyperAtomicSetRemove,
+  hyperAtomicSetUnion, hyperAtomicSetIntersect :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
 
-hyperAtomicSub :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicSub = hyperAtomic OpAtomicSub
-
-hyperAtomicMul :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicMul = hyperAtomic OpAtomicMul
-
-hyperAtomicDiv :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicDiv = hyperAtomic OpAtomicDiv
-
-hyperAtomicMod :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicMod = hyperAtomic OpAtomicMod
-
-hyperAtomicAnd :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicAnd = hyperAtomic OpAtomicAnd
-
-hyperAtomicOr  :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicOr  = hyperAtomic OpAtomicOr
-
-hyperAtomicXor :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicXor = hyperAtomic OpAtomicXor
-
-hyperAtomicPrepend :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicPrepend = hyperAtomic OpAtomicPrepend
-
-hyperAtomicAppend :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicAppend = hyperAtomic OpAtomicAppend
-
-hyperAtomicListLPush :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicListLPush = hyperAtomic OpAtomicListLPush
-
-hyperAtomicListRPush :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicListRPush = hyperAtomic OpAtomicListRPush
-
-hyperAtomicSetAdd :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicSetAdd = hyperAtomic OpAtomicSetAdd
-
-hyperAtomicSetRemove :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicSetRemove = hyperAtomic OpAtomicSetRemove
-
-hyperAtomicSetIntersect :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
+hyperAtomicAdd          = hyperAtomic OpAtomicAdd 
+{-# INLINE hyperAtomicAdd #-}
+hyperAtomicSub          = hyperAtomic OpAtomicSub 
+{-# INLINE hyperAtomicSub #-}
+hyperAtomicMul          = hyperAtomic OpAtomicMul 
+{-# INLINE hyperAtomicMul #-}
+hyperAtomicDiv          = hyperAtomic OpAtomicDiv 
+{-# INLINE hyperAtomicDiv #-}
+hyperAtomicMod          = hyperAtomic OpAtomicMod 
+{-# INLINE hyperAtomicMod #-}
+hyperAtomicAnd          = hyperAtomic OpAtomicAnd 
+{-# INLINE hyperAtomicAnd #-}
+hyperAtomicOr           = hyperAtomic OpAtomicOr 
+{-# INLINE hyperAtomicOr  #-}
+hyperAtomicXor          = hyperAtomic OpAtomicXor 
+{-# INLINE hyperAtomicXor #-}
+hyperAtomicPrepend      = hyperAtomic OpAtomicPrepend 
+{-# INLINE hyperAtomicPrepend   #-}
+hyperAtomicAppend       = hyperAtomic OpAtomicAppend 
+{-# INLINE hyperAtomicAppend    #-}
+hyperAtomicListLPush    = hyperAtomic OpAtomicListLPush 
+{-# INLINE hyperAtomicListLPush #-}
+hyperAtomicListRPush    = hyperAtomic OpAtomicListRPush 
+{-# INLINE hyperAtomicListRPush #-}
+hyperAtomicSetAdd       = hyperAtomic OpAtomicSetAdd 
+{-# INLINE hyperAtomicSetAdd         #-}
+hyperAtomicSetRemove    = hyperAtomic OpAtomicSetRemove 
+{-# INLINE hyperAtomicSetRemove      #-}
 hyperAtomicSetIntersect = hyperAtomic OpAtomicSetIntersect
-
-hyperAtomicSetUnion :: Client -> ByteString -> ByteString -> [Attribute] -> AsyncResult ()
-hyperAtomicSetUnion = hyperAtomic OpAtomicSetUnion
+{-# INLINE hyperAtomicSetIntersect   #-}
+hyperAtomicSetUnion     = hyperAtomic OpAtomicSetUnion 
+{-# INLINE hyperAtomicSetUnion       #-}
 
 hyperAtomicMap :: MapOp -> Client -> ByteString -> ByteString -> [MapAttribute] -> AsyncResult ()
 hyperAtomicMap op = \c s k attrs -> withClient c (\hc -> hyperclientAtomicMapOp op hc s k attrs)
@@ -153,20 +153,31 @@ hyperAtomicMapInsert,
   hyperAtomicMapOr,
   hyperAtomicMapXor,
   hyperAtomicMapStringPrepend, 
-  hyperAtomicMapStringAppend :: Client -> ByteString -> ByteString -> [MapAttribute] -> AsyncResult ()
- 
+  hyperAtomicMapStringAppend :: Client -> ByteString -> ByteString -> [MapAttribute] -> AsyncResult () 
 hyperAtomicMapInsert = hyperAtomicMap OpAtomicMapInsert
+{-# INLINE hyperAtomicMapInsert #-}
 hyperAtomicMapDelete = hyperAtomicMap OpAtomicMapDelete
-hyperAtomicMapAdd    = hyperAtomicMap OpAtomicMapAdd   
-hyperAtomicMapSub    = hyperAtomicMap OpAtomicMapSub   
-hyperAtomicMapMul    = hyperAtomicMap OpAtomicMapMul   
-hyperAtomicMapDiv    = hyperAtomicMap OpAtomicMapDiv   
-hyperAtomicMapMod    = hyperAtomicMap OpAtomicMapMod   
-hyperAtomicMapAnd    = hyperAtomicMap OpAtomicMapAnd    
-hyperAtomicMapOr     = hyperAtomicMap OpAtomicMapOr    
-hyperAtomicMapXor    = hyperAtomicMap OpAtomicMapXor   
+{-# INLINE hyperAtomicMapDelete #-}
+hyperAtomicMapAdd    = hyperAtomicMap OpAtomicMapAdd 
+{-# INLINE hyperAtomicMapAdd #-}
+hyperAtomicMapSub    = hyperAtomicMap OpAtomicMapSub 
+{-# INLINE hyperAtomicMapSub #-}
+hyperAtomicMapMul    = hyperAtomicMap OpAtomicMapMul 
+{-# INLINE hyperAtomicMapMul #-}
+hyperAtomicMapDiv    = hyperAtomicMap OpAtomicMapDiv 
+{-# INLINE hyperAtomicMapDiv #-}
+hyperAtomicMapMod    = hyperAtomicMap OpAtomicMapMod 
+{-# INLINE hyperAtomicMapMod #-}
+hyperAtomicMapAnd    = hyperAtomicMap OpAtomicMapAnd 
+{-# INLINE hyperAtomicMapAnd #-}
+hyperAtomicMapOr     = hyperAtomicMap OpAtomicMapOr 
+{-# INLINE hyperAtomicMapOr  #-}
+hyperAtomicMapXor    = hyperAtomicMap OpAtomicMapXor 
+{-# INLINE hyperAtomicMapXor #-}
 hyperAtomicMapStringPrepend = hyperAtomicMap OpAtomicMapStringPrepend
-hyperAtomicMapStringAppend  = hyperAtomicMap OpAtomicMapStringAppend
+{-# INLINE hyperAtomicMapStringPrepend #-}
+hyperAtomicMapStringAppend  = hyperAtomicMap OpAtomicMapStringAppend 
+{-# INLINE hyperAtomicMapStringAppend #-}
 
 -- hyperMapInsertConditional :: Client -> ByteString -> ByteString -> [AttributeCheck] -> [MapAttribute] -> AsyncResult ()
 -- hyperMapInsertConditional c s k checks attrs = withClient c $ \hc -> hyperclientConditionalMapInsert hc s k checks attrs
@@ -208,6 +219,7 @@ hyperclientGet client s k = do
             HyperclientSuccess -> Right attributes
             _                  -> Left returnCode
   return (handle, continuation)
+{-# INLINE hyperclientGet #-}
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
@@ -236,6 +248,7 @@ hyperclientPut client s k attributes = do
             HyperclientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
+{-# INLINE hyperclientPut #-}
 
 -- int64_t
 -- hyperclient_put_if_not_exist(struct hyperclient* client, const char* space, const char* key,
@@ -264,6 +277,7 @@ hyperclientPutIfNotExist client s k attributes = do
             HyperclientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
+{-# INLINE hyperclientPutIfNotExist #-}
 
 -- int64_t
 -- hyperclient_del(struct hyperclient* client, const char* space, const char* key,
@@ -288,6 +302,7 @@ hyperclientDelete client s k = do
             HyperclientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
+{-# INLINE hyperclientDelete #-}
 
 -- int64_t
 -- hyperclient_cond_put(struct hyperclient* client, const char* space,
@@ -322,6 +337,7 @@ hyperclientConditionalPut client s k checks attributes = do
             HyperclientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
+{-# INLINE hyperclientConditionalPut #-}
 
 -- int64_t
 -- hyperclient_atomic_xor(struct hyperclient* client, const char* space,
@@ -331,7 +347,7 @@ hyperclientConditionalPut client s k checks attributes = do
 hyperclientAtomicOp :: Op -> Hyperclient -> ByteString -> ByteString
                     -> [Attribute]
                     -> AsyncResultHandle ()
-hyperclientAtomicOp op client s k attributes = do
+hyperclientAtomicOp op = \client s k attributes -> do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
@@ -378,7 +394,7 @@ hyperclientAtomicOp op client s k attributes = do
 hyperclientAtomicMapOp :: MapOp -> Hyperclient -> ByteString -> ByteString
                     -> [MapAttribute]
                     -> AsyncResultHandle ()
-hyperclientAtomicMapOp op client s k mapAttributes = do
+hyperclientAtomicMapOp op = \client s k mapAttributes -> do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
@@ -455,3 +471,11 @@ hyperclientAtomicMapOp op client s k mapAttributes = do
 --            _                  -> Left returnCode
 --  return (handle, continuation)
 --{-# INLINE hyperclientConditionalMapInsert #-}
+
+-- int64_t
+-- hyperclient_search(struct hyperclient* client, const char* space,
+--                    const struct hyperclient_attribute_check* checks, size_t checks_sz,
+--                    enum hyperclient_returncode* status,
+--                    struct hyperclient_attribute** attrs, size_t* attrs_sz);
+hyperclientSearch :: Hyperclient -> ByteString -> [AttributeCheck] -> AsyncResultHandle (SearchStream [Attribute])
+hyperclientSearch = error "Not yet implemented"
