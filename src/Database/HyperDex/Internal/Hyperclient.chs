@@ -23,6 +23,9 @@ module Database.HyperDex.Internal.Hyperclient
   , hyperAtomicMapStringPrepend 
   , hyperAtomicMapStringAppend
   -- , hyperMapInsertConditional
+  -- Search operations
+  , search
+  , SearchStream (..)
   )
   where
 
@@ -477,5 +480,37 @@ hyperclientAtomicMapOp op = \client s k mapAttributes -> do
 --                    const struct hyperclient_attribute_check* checks, size_t checks_sz,
 --                    enum hyperclient_returncode* status,
 --                    struct hyperclient_attribute** attrs, size_t* attrs_sz);
-hyperclientSearch :: Hyperclient -> ByteString -> [AttributeCheck] -> AsyncResultHandle (SearchStream [Attribute])
-hyperclientSearch = error "Not yet implemented"
+search :: Client
+          -> ByteString
+          -> [AttributeCheck] 
+          -> AsyncResult (SearchStream [Attribute])
+search client s checks = withClientStream client $ \hyperclient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+  space <- newCBString s
+  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  resultSetPtrPtr <- malloc
+  resultSetSizePtr <- malloc 
+  handle <- {# call hyperclient_search #}
+              hyperclient space
+              checkPtr (fromIntegral checkSize :: {# type size_t #})
+              returnCodePtr
+              resultSetPtrPtr resultSetSizePtr
+  let continuation (Just HyperclientSuccess) = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        case returnCode of
+          HyperclientSuccess -> do
+            resultSize <- peek resultSetSizePtr
+            resultSetPtr <- peek resultSetPtrPtr
+            resultSet <- peekArray (fromIntegral resultSize) resultSetPtr
+            return $ Right resultSet
+          _ -> return $ Left returnCode
+      continuation e = do
+        free returnCodePtr
+        free space
+        haskellFreeAttributeChecks checkPtr checkSize
+        free resultSetPtrPtr
+        free resultSetSizePtr
+        return $ Left $ case e of 
+                          Nothing -> HyperclientGarbage
+                          Just rc -> rc
+  return (handle, continuation)

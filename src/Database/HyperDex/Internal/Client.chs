@@ -12,13 +12,12 @@ module Database.HyperDex.Internal.Client
   , connect, close
   , loopClient, loopClientUntil
   , withClient, withClientImmediate
+  , withClientStream
   )
   where
 
 {# import Database.HyperDex.Internal.ReturnCode #}
 import Database.HyperDex.Internal.Util
-
-import Data.Maybe
 
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -100,7 +99,7 @@ data BackoffMethod
 --
 -- A 'Nothing' value indicates that no further work is necessary, and a 'Just' value
 -- will store a new Handle and HandleCallback.
-newtype HandleCallback = HandleCallback (ReturnCode -> IO (Maybe (Handle, HandleCallback)))
+newtype HandleCallback = HandleCallback (Maybe ReturnCode -> IO (Maybe (Handle, HandleCallback)))
 
 -- | The core data type managing access to a 'Hyperclient' object and all
 -- currently running asynchronous operations.
@@ -141,13 +140,6 @@ getConnectOptions = connectOptions . getConnectInfo
 -- error.
 type Handle = {# type int64_t #}
 
--- | Type of handle returned from a result.
---
--- Search handles are persistent until the 'ReturnCode' of the loop
--- operation is 'HyperclientSearchdone', simple handles are removed
--- immediately. 
-data HandleType = SimpleHandle | SearchHandle
-
 -- | A return value from HyperDex.
 type Result a = IO (Either ReturnCode a)
 
@@ -169,6 +161,12 @@ type Result a = IO (Either ReturnCode a)
 -- HyperClient has been destroyed.
 type AsyncResultHandle a = IO (Handle, Result a)
 
+-- | A return value used internally by HyperClient operations.
+--
+-- This is the same as 'AsyncResultHandle' except it gives the callback
+-- the result of the loop operation that yields the returned 'Handle'.
+type StreamResultHandle a = IO (Handle, Maybe ReturnCode -> Result a)
+
 -- | A return value from HyperDex in an asynchronous wrapper.
 --
 -- The full type is an IO (IO (Either ReturnCode a)). Evaluating
@@ -181,7 +179,7 @@ type AsyncResultHandle a = IO (Handle, Result a)
 -- a future version.
 type AsyncResult a = IO (Result a)
 
-newtype SearchStream a = SearchStream { getSearchStream :: ([a], IO (SearchStream a)) }
+newtype SearchStream a = SearchStream (a, Result (SearchStream a))
 
 -- | Connect to a HyperDex cluster.
 connect :: ConnectInfo -> IO Client
@@ -210,7 +208,7 @@ close (getClient -> c) = do
     (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
     (Just hc, handles)  -> do
       hyperclientDestroy hc
-      mapM_ (\(HandleCallback c) -> c HyperclientTimeout) $ Map.elems handles 
+      mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles 
       putMVar c (Nothing, Map.empty)
 
 doExponentialBackoff :: Int -> Double -> (Int, BackoffMethod)
@@ -256,7 +254,7 @@ loopClient client@(getClient -> c) = do
           let newMap = Map.delete handle handles
           case Map.lookup handle handles of
             Just (HandleCallback entry) -> do
-              cont <- entry returnCode
+              cont <- entry $ Just returnCode
               case cont of
                 Nothing -> putMVar c (Just hc, newMap)
                 Just (h, e) -> putMVar c (Just hc, Map.insert h e newMap)
@@ -266,7 +264,7 @@ loopClient client@(getClient -> c) = do
           putMVar c (Just hc, handles)
           loopClient client
         HyperclientNonepending -> do
-          mapM_ (\(HandleCallback c) -> c HyperclientNonepending) $ Map.elems handles
+          mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles
           putMVar c (Just hc, Map.empty)
           return $ Just handle
         _ -> do
@@ -334,7 +332,7 @@ withClient client@(getClient -> c) f = do
       case h > 0 of
         True  -> do
           v <- newEmptyMVar :: IO (MVar (Either ReturnCode a))
-          let wrappedCallback = HandleCallback $ \code -> do
+          let wrappedCallback = HandleCallback $ const $ do
                 returnValue <- cont
                 putMVar v returnValue
                 return Nothing
@@ -349,24 +347,52 @@ withClient client@(getClient -> c) f = do
           return cont
 {-# INLINE withClient #-}
 
--- -- | Wrap a Hyperclient request.
--- withClientStream :: Client -> (Hyperclient -> AsyncResultHandle (SearchStream a)) -> AsyncResult (SearchStream a)
--- withClientStream client@(getClient -> c) f = do
---   value <- takeMVar c
---   case value of
---     (Nothing, _)        -> error "HyperDex client error - cannot use a closed connection."
---     (Just hc, handles)  -> do
---       (h, cont) <- f hc
---       case h > 0 of
---         True  -> do
---           v <- newEmptyMVar -- :: IO (MVar (Either ReturnCode ([a], ))
---           putMVar c (Just hc, Map.insert h (cont >>= putMVar v) handles)
---           return $ do
---             _ <- loopClientUntil client (connectionBackoff . getConnectOptions $ client) h Nothing v 
---             takeMVar v
---         False -> do
---           putMVar c (Just hc, handles)
---           return cont
+-- | Wrap a Hyperclient request that returns a search stream.
+withClientStream :: Client -> (Hyperclient -> StreamResultHandle a) -> AsyncResult (SearchStream a)
+withClientStream client@(getClient -> c) f = do
+  value <- takeMVar c
+  case value of
+    (Nothing, _)        -> error "HyperDex client error - cannot use a closed connection."
+    (Just hc, handles)  -> do
+      (h, cont) <- f hc
+      case h > 0 of
+        True  -> do
+          v <- newEmptyMVar :: IO (MVar (Either ReturnCode (SearchStream a)))
+          let wrappedCallback = HandleCallback $ \code -> do
+                returnValue <- cont code
+                (result, callback) <- wrapSearchStream returnValue client h cont
+                putMVar v $ result
+                return $ Just (h, callback)
+          putMVar c (Just hc, Map.insert h wrappedCallback handles)
+          return $ do
+            success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing 
+            case success of
+              True  -> takeMVar v
+              False -> return $ Left HyperclientPollfailed
+        False -> do
+          putMVar c (Just hc, handles)
+          returnValue <- cont Nothing
+          (result, _) <- wrapSearchStream returnValue client h cont
+          return . return $ result
+{-# INLINE withClientStream #-}
+
+wrapSearchStream :: Either ReturnCode a -> Client -> Handle -> (Maybe ReturnCode -> Result a) -> IO (Either ReturnCode (SearchStream a), HandleCallback)
+wrapSearchStream (Left e)  _      _ _    = return $ (Left e, HandleCallback $ const $ return Nothing)
+wrapSearchStream (Right a) client h cont = do
+  v <- newEmptyMVar
+  let wrappedCallback = HandleCallback $ \code -> do
+        returnValue <- cont code
+        (result, callback) <- wrapSearchStream returnValue client h cont
+        putMVar v $ result
+        return $ Just (h, callback)
+  let cont' = do
+        success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing
+        case success of
+          True  -> takeMVar v
+                  -- TODO: Return actual ReturnCode
+          False -> return $ Left HyperclientPollfailed
+  return $ (return $ SearchStream (a, cont'), wrappedCallback)
+{-# INLINE wrapSearchStream #-}
 
 -- | C wrapper for hyperclient_create. Creates a HyperClient given a host
 -- and a port.

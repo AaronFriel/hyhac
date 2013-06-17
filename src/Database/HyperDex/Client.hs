@@ -48,11 +48,14 @@ module Database.HyperDex.Client
   , putAtomicMapStringPrepend 
   , putAtomicMapStringAppend
   -- , conditionalMapInsert
+  -- Search operations
+  , search
   , ReturnCode (..)
   , Attribute (..), mkAttribute
   , AttributeCheck (..), mkAttributeCheck
   , MapAttribute (..), mkMapAttribute, mkMapAttributesFromMap
   , AsyncResult, Result
+  , SearchStream (..)
   , Hyperdatatype (..)
   , HyperSerialize
   , serialize, deserialize, datatype
