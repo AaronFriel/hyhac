@@ -15,6 +15,8 @@ import Test.HyperDex.Shared (sharedTests)
 import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
+import Data.Text.Encoding (encodeUtf8)
+
 tests :: Test
 tests =
   testGroup "hyhac-tests"
@@ -48,4 +50,16 @@ main = do
   wait <- newEmptyMVar
   _ <- forkFinally (defaultMain [tests]) (const $ putMVar wait ())
   takeMVar wait
+  client <- connect defaultConnectInfo
+  threadDelay 250000
+  searchResultStart <- search client (encodeUtf8 defaultSpace) []
+  searchResult <- searchResultStart
+  go searchResult
   postscript
+  where
+    go (Left e) = do
+      putStrLn $ "Ended with " ++ (show e)
+    go (Right (SearchStream (a, next))) = do
+      putStrLn $ "Found item:\n  " ++ (show a)
+      nextItem <- next
+      go nextItem

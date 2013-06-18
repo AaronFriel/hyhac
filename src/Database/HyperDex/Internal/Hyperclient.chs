@@ -36,6 +36,8 @@ module Database.HyperDex.Internal.Hyperclient
 {# import Database.HyperDex.Internal.MapAttribute #}
 import Database.HyperDex.Internal.Util
 
+import Debug.Trace
+
 #include "hyperclient.h"
 
 data Op = OpAtomicAdd
@@ -495,22 +497,35 @@ search client s checks = withClientStream client $ \hyperclient -> do
               checkPtr (fromIntegral checkSize :: {# type size_t #})
               returnCodePtr
               resultSetPtrPtr resultSetSizePtr
-  let continuation (Just HyperclientSuccess) = do
-        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-        case returnCode of
-          HyperclientSuccess -> do
-            resultSize <- peek resultSetSizePtr
-            resultSetPtr <- peek resultSetPtrPtr
-            resultSet <- peekArray (fromIntegral resultSize) resultSetPtr
-            return $ Right resultSet
-          _ -> return $ Left returnCode
-      continuation e = do
-        free returnCodePtr
-        free space
-        haskellFreeAttributeChecks checkPtr checkSize
-        free resultSetPtrPtr
-        free resultSetSizePtr
-        return $ Left $ case e of 
-                          Nothing -> HyperclientGarbage
-                          Just rc -> rc
-  return (handle, continuation)
+  case handle >= 0 of
+    True -> do
+      let continuation (Just HyperclientSuccess) = do
+            returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+            case returnCode of
+              HyperclientSuccess -> do
+                resultSize <- peek resultSetSizePtr
+                resultSetPtr <- peek resultSetPtrPtr
+                resultSet <- peekArray (fromIntegral resultSize) resultSetPtr
+                return $ Right resultSet
+              _ -> return $ Left returnCode
+          continuation e = do
+            free returnCodePtr
+            free space
+            haskellFreeAttributeChecks checkPtr checkSize
+            free resultSetPtrPtr
+            free resultSetSizePtr
+            return $ Left $ case e of 
+                              Nothing -> HyperclientDupeattr
+                              Just rc -> rc
+      return (handle, continuation)
+    False -> do
+      let continuation = const $ do
+            returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+            traceIO $ "in handle<0 condition, returnCode: " ++ show returnCode
+            free returnCodePtr
+            free space
+            haskellFreeAttributeChecks checkPtr checkSize
+            free resultSetPtrPtr
+            free resultSetSizePtr
+            return $ Left returnCode
+      return (handle, continuation)
