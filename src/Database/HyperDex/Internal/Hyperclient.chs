@@ -36,9 +36,21 @@ module Database.HyperDex.Internal.Hyperclient
 {# import Database.HyperDex.Internal.MapAttribute #}
 import Database.HyperDex.Internal.Util
 
+#ifdef __UNIX__
+import System.Posix.Signals (reservedSignals, blockSignals, unblockSignals)
+#endif
+
 import Debug.Trace
 
 #include "hyperclient.h"
+
+#ifdef __UNIX__
+blockGHC :: IO ()
+blockGHC = blockSignals reservedSignals
+
+unblockGHC :: IO ()
+unblockGHC = unblockSignals reservedSignals 
+#endif
 
 data Op = OpAtomicAdd
         | OpAtomicSub
@@ -491,12 +503,14 @@ search client s checks = withClientStream client $ \hyperclient -> do
   space <- newCBString s
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   resultSetPtrPtr <- malloc
-  resultSetSizePtr <- malloc 
+  resultSetSizePtr <- malloc
+  blockGHC
   handle <- {# call hyperclient_search #}
               hyperclient space
               checkPtr (fromIntegral checkSize :: {# type size_t #})
               returnCodePtr
               resultSetPtrPtr resultSetSizePtr
+  unblockGHC
   case handle >= 0 of
     True -> do
       let continuation (Just HyperclientSuccess) = do

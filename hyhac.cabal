@@ -42,7 +42,7 @@ library
   -- Modules included in this library but not exported.
   -- other-modules:       
   -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions:    
+  -- other-extensions: 
   
   build-depends:
       base                       == 4.6.*
@@ -60,6 +60,10 @@ library
     , test-framework-quickcheck2 >= 0.3
     , HUnit
     , QuickCheck
+
+  if !os(windows)
+    cpp-options:   -D__UNIX__
+    build-depends: unix
 
   ghc-options:       -Wall -O2
 
