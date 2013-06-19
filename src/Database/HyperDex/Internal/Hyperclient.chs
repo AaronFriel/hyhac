@@ -49,7 +49,14 @@ blockGHC :: IO ()
 blockGHC = blockSignals reservedSignals
 
 unblockGHC :: IO ()
-unblockGHC = unblockSignals reservedSignals 
+unblockGHC = unblockSignals reservedSignals
+
+wrapHyperCall :: IO a -> IO a
+wrapHyperCall f = do
+  blockGHC
+  r <- f
+  unblockGHC
+  return r
 #endif
 
 data Op = OpAtomicAdd
@@ -211,7 +218,8 @@ hyperclientGet client s k = do
   attributeSizePtr <- malloc
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
-  handle <- {# call hyperclient_get #}
+  handle <- wrapHyperCall $
+            {# call hyperclient_get #}
               client
               space key (fromIntegral keySize)
               returnCodePtr attributePtrPtr attributeSizePtr
@@ -250,7 +258,8 @@ hyperclientPut client s k attributes = do
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
-  handle <- {# call hyperclient_put #} 
+  handle <- wrapHyperCall $
+            {# call hyperclient_put #} 
               client
               space key (fromIntegral keySize)
               attributePtr (fromIntegral attributeSize) returnCodePtr
@@ -279,7 +288,8 @@ hyperclientPutIfNotExist client s k attributes = do
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
-  handle <- {# call hyperclient_put_if_not_exist #} 
+  handle <- wrapHyperCall $
+            {# call hyperclient_put_if_not_exist #}
               client
               space key (fromIntegral keySize)
               attributePtr (fromIntegral attributeSize) returnCodePtr
@@ -305,7 +315,8 @@ hyperclientDelete client s k = do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
   space <- newCBString s
   (key,keySize) <- newCBStringLen k
-  handle <- {# call hyperclient_del #} 
+  handle <- wrapHyperCall $
+            {# call hyperclient_del #}
               client
               space key (fromIntegral keySize)
               returnCodePtr
@@ -336,7 +347,8 @@ hyperclientConditionalPut client s k checks attributes = do
   (key,keySize) <- newCBStringLen k
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
-  handle <- {# call hyperclient_cond_put #} 
+  handle <- wrapHyperCall $
+            {# call hyperclient_cond_put #}
               client
               space key (fromIntegral keySize)
               checkPtr (fromIntegral checkSize)
@@ -386,7 +398,8 @@ hyperclientAtomicOp op = \client s k attributes -> do
               OpAtomicSetRemove    -> {# call hyperclient_set_remove    #}
               OpAtomicSetIntersect -> {# call hyperclient_set_intersect #}
               OpAtomicSetUnion     -> {# call hyperclient_set_union     #}
-  handle <- ccall
+  handle <- wrapHyperCall $
+            ccall
               client
               space key (fromIntegral keySize)
               attributePtr (fromIntegral attributeSize) returnCodePtr
@@ -429,7 +442,8 @@ hyperclientAtomicMapOp op = \client s k mapAttributes -> do
               OpAtomicMapXor    -> {# call hyperclient_map_atomic_xor #}
               OpAtomicMapStringPrepend -> {# call hyperclient_map_string_prepend #}
               OpAtomicMapStringAppend  -> {# call hyperclient_map_string_append  #}
-  handle <- ccall
+  handle <- wrapHyperCall $
+            ccall
               client space
               key (fromIntegral keySize)
               mapAttributePtr (fromIntegral mapAttributeSize)
@@ -505,7 +519,8 @@ search client s checks = withClientStream client $ \hyperclient -> do
   resultSetPtrPtr <- malloc
   resultSetSizePtr <- malloc
   blockGHC
-  handle <- {# call hyperclient_search #}
+  handle <- wrapHyperCall $
+            {# call hyperclient_search #}
               hyperclient space
               checkPtr (fromIntegral checkSize :: {# type size_t #})
               returnCodePtr

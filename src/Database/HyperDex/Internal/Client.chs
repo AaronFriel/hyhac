@@ -347,7 +347,13 @@ withClient client@(getClient -> c) f = do
               False -> return $ Left HyperclientPollfailed
         False -> do
           putMVar c (Just hc, handles)
-          return cont
+          returnValue <- cont
+          -- A HyperclientInterrupted return code indicates that there was a signal
+          -- received by the client that prevented the call from completing, thus
+          -- the request should be transparently retried.
+          case returnValue of
+            Left HyperclientInterrupted -> withClient client f
+            _ -> return . return $ returnValue
 {-# INLINE withClient #-}
 
 -- | Wrap a Hyperclient request that returns a search stream.
@@ -376,8 +382,11 @@ withClientStream client@(getClient -> c) f = do
           putMVar c (Just hc, handles)
           traceIO $ show "In withClientStream, handle: " ++ (show h)
           returnValue <- cont Nothing
-          (result, _) <- wrapSearchStream returnValue client h cont
-          return . return $ result
+          case returnValue of
+            Left HyperclientInterrupted -> withClientStream client f
+            _ -> do
+              (result, _) <- wrapSearchStream returnValue client h cont
+              return . return $ result
 {-# INLINE withClientStream #-}
 
 wrapSearchStream :: Either ReturnCode a -> Client -> Handle -> (Maybe ReturnCode -> Result a) -> IO (Either ReturnCode (SearchStream a), HandleCallback)
