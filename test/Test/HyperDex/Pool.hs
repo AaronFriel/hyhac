@@ -511,6 +511,21 @@ testConditional clientPool =
     "conditional"
     $ propCanConditionalPutNumeric clientPool defaultSpace
 
+testSearch :: Pool Client -> Text -> Test
+testSearch clientPool space = testCase "atomic/search" $ do
+  withResource clientPool $ \client -> do
+    searchResultStart <- search client (encodeUtf8 space) []
+    searchResult <- searchResultStart
+    go searchResult
+    return ()
+  where
+    go (Left e) = do
+      putStrLn $ "Ended with " ++ (show e)
+    go (Right (SearchStream (a, next))) = do
+      putStrLn $ "Found item:\n  " ++ (show a)
+      nextItem <- next
+      go nextItem
+
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
@@ -524,5 +539,6 @@ poolTests = buildTest $ do
                 ++
                 fmap (\f -> f clientPool defaultSpace)
                 [ testAtomic
+                , testSearch
                 ]
   return tests
