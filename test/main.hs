@@ -16,6 +16,7 @@ import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
 import Data.Text.Encoding (encodeUtf8)
+import qualified Data.ByteString.Char8 as ByteString
 
 tests :: Test
 tests =
@@ -59,6 +60,6 @@ main = do
     go (Left e) = do
       putStrLn $ "Ended with " ++ (show e)
     go (Right (SearchStream (a, next))) = do
-      putStrLn $ "Found item:\n  " ++ (show a)
+      putStrLn $ "Found item:\n  " ++ (show $ filter (not . ByteString.null . attrValue) a)
       nextItem <- next
       go nextItem
