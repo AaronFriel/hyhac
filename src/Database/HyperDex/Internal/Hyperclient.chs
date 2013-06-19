@@ -40,8 +40,6 @@ import Database.HyperDex.Internal.Util
 import System.Posix.Signals (reservedSignals, blockSignals, unblockSignals)
 #endif
 
-import Debug.Trace
-
 #include "hyperclient.h"
 
 #ifdef __UNIX__
@@ -550,7 +548,6 @@ search client s checks = withClientStream client $ \hyperclient -> do
     False -> do
       let continuation = const $ do
             returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-            traceIO $ "in handle<0 condition, returnCode: " ++ show returnCode
             free returnCodePtr
             free space
             haskellFreeAttributeChecks checkPtr checkSize

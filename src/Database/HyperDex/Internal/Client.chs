@@ -32,8 +32,6 @@ import qualified Data.Text as Text (pack)
 
 import Data.Default
 
-import Debug.Trace
-
 #include "hyperclient.h"
 
 {#pointer *hyperclient as Hyperclient #}
@@ -266,7 +264,6 @@ loopClient client@(getClient -> c) = do
           putMVar c (Just hc, handles)
           loopClient client
         HyperclientNonepending -> do
-          traceIO $ show "In loopClient at HyperclientNonepending, handle: " ++ show handle ++ ", returnCode: " ++ show returnCode 
           mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles
           putMVar c (Just hc, Map.empty)
           return $ Just handle
@@ -380,7 +377,6 @@ withClientStream client@(getClient -> c) f = do
               False -> return $ Left HyperclientPollfailed
         False -> do
           putMVar c (Just hc, handles)
-          traceIO $ show "In withClientStream, handle: " ++ (show h)
           returnValue <- cont Nothing
           case returnValue of
             Left HyperclientInterrupted -> withClientStream client f
