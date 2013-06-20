@@ -16,6 +16,11 @@ module Database.HyperDex.Internal.Client
   )
   where
 
+import Foreign
+import Foreign.C
+
+import Data.ByteString (ByteString)
+
 {# import Database.HyperDex.Internal.ReturnCode #}
 import Database.HyperDex.Internal.Util
 
@@ -24,8 +29,6 @@ import qualified Data.Map as Map
 
 import Control.Concurrent (yield, threadDelay)
 import Control.Concurrent.MVar
-
-import Data.Word (Word16)
 
 import Data.Text.Encoding (encodeUtf8)
 import qualified Data.Text as Text (pack) 

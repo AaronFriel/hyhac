@@ -17,6 +17,10 @@ extra-source-files:  README.md
 
 cabal-version:       >=1.10
 
+Flag Tests
+  Description: Enable test support and expose additional modules for test harness.
+  Default:     False
+
 library
   default-language:  Haskell2010
 
@@ -27,6 +31,8 @@ library
     Database.HyperDex
     Database.HyperDex.Client
     Database.HyperDex.Utf8
+
+  other-modules:    
     Database.HyperDex.Internal
     Database.HyperDex.Internal.ReturnCode
     Database.HyperDex.Internal.Client
@@ -34,13 +40,16 @@ library
     Database.HyperDex.Internal.Attribute
     Database.HyperDex.Internal.AttributeCheck
     Database.HyperDex.Internal.MapAttribute
-    Database.HyperDex.Internal.Util
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
     Database.HyperDex.Internal.Hyperclient
 
-  -- Modules included in this library but not exported.
-  -- other-modules:       
+  if flag(tests)
+    exposed-modules: Database.HyperDex.Internal.Util
+    ghc-options: -Werror -Wall -fno-warn-orphans
+  else
+    other-modules:   Database.HyperDex.Internal.Util
+
   -- LANGUAGE extensions used by modules in this package.
   -- other-extensions: 
   
@@ -65,7 +74,7 @@ library
     cpp-options:   -D__UNIX__
     build-depends: unix
 
-  ghc-options:       -Wall -O2
+  ghc-options:       -O2 -W
 
   include-dirs:      include
   includes:          hyperdex.h

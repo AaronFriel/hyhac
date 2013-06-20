@@ -55,7 +55,7 @@ testCanStoreLargeObject client = testCase "Can store a large object" $ do
         , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
         , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
         ]
-  result <- join $ putAsyncAttr client defaultSpace "large" attrs
+  result <- join $ put client defaultSpace "large" attrs
   assertEqual "Could store large object: " (Right ()) result
 
 
@@ -69,11 +69,11 @@ getResult attribute (Right attrList)  =
 
 putHyper :: Client -> Text -> ByteString -> Attribute -> QC.PropertyM IO (Either ReturnCode ())
 putHyper client space key attribute = do
-    QC.run . join $ putAsyncAttr client space key [attribute]
+    QC.run . join $ put client space key [attribute]
 
 getHyper :: Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
 getHyper client space key attribute = do
-    eitherAttrList <- QC.run . join $ getAsyncAttr client space key
+    eitherAttrList <- QC.run . join $ get client space key
     let retValue = getResult attribute eitherAttrList 
     case retValue of
       Left err -> QC.run $ do

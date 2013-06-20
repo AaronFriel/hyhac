@@ -9,6 +9,8 @@ import Test.QuickCheck.Monadic
 
 import Test.HyperDex.Util
 
+import Data.ByteString (ByteString)
+
 import Database.HyperDex.Internal.Util
 
 import Data.Monoid

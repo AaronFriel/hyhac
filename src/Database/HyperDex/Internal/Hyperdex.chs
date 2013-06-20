@@ -51,6 +51,6 @@ int create_container2(int C, int K, int V)
 }
 #endc
 
-{#enum hyperdatatype as Hyperdatatype {underscoreToCase} deriving (Eq, Show) #}
+{#enum hyperdatatype as Hyperdatatype {underscoreToCase} deriving (Show, Eq, Ord) #}
 
-{#enum hyperpredicate as Hyperpredicate {underscoreToCase} deriving (Eq, Show) #}
+{#enum hyperpredicate as Hyperpredicate {underscoreToCase} deriving (Show, Eq, Ord) #}

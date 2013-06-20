@@ -20,15 +20,12 @@ module Database.HyperDex.Utf8
   , mkAttributeCheckUtf8
   , mkMapAttributeUtf8
   , mkMapAttributesFromMapUtf8
-  , getAsyncAttrUtf8
-  , putAsyncAttrUtf8 )
+  )
   where
 
-import Database.HyperDex.Internal.Client
 import Database.HyperDex.Internal.Attribute
 import Database.HyperDex.Internal.AttributeCheck
 import Database.HyperDex.Internal.MapAttribute
-import Database.HyperDex.Internal.Hyperclient
 import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Hyperdex
 import Data.Serialize
@@ -64,13 +61,3 @@ mkMapAttributeUtf8 (encodeUtf8 -> name) = mkMapAttribute name
 -- | Create an attribute using a name serialized as a UTF8 bytestring.
 mkMapAttributesFromMapUtf8 :: (HyperSerialize k, HyperSerialize v) => Text -> Map k v -> [MapAttribute]
 mkMapAttributesFromMapUtf8 = mkMapAttributesFromMap . encodeUtf8
-
--- | Retrieve a value in a space by UTF8-encoded key.
-getAsyncAttrUtf8 :: Client -> Text -> Text -> AsyncResult [Attribute]
-getAsyncAttrUtf8 client (encodeUtf8 -> space) (encodeUtf8 -> key) =
-  hyperGet client space key
-
--- | Put a value in a space by UTF8-encoded key.
-putAsyncAttrUtf8 :: Client -> Text -> Text -> [Attribute] -> AsyncResult ()
-putAsyncAttrUtf8 client (encodeUtf8 -> space) (encodeUtf8 -> key) attrs =
-  hyperPut client space key attrs

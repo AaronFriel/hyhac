@@ -1,28 +1,34 @@
+{-# LANGUAGE CPP #-}
+
 module Database.HyperDex.Internal.Util
- ( AllocBy (..)
+ ( wrapHyperCall
  , peekCBString, peekCBStringLen
  , newCBString, newCBStringLen
  , withCBString, withCBStringLen
- , ByteString
- , module Foreign.C
- , module Foreign.Marshal
- , module Foreign.Ptr
- , module Foreign.Storable
- , module Data.Int
+ , withTextUtf8
+ , newTextUtf8
  )
  where
 
-import Data.ByteString.Char8
 import Foreign.C
-import Foreign.Marshal
-import Foreign.Ptr
-import Foreign.Storable
-import Data.Int
+import Data.ByteString.Char8
+import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8)
 
--- | Indicates whether an object or array has been allocated 
--- by Haskell or by the HyperDex library.
-data AllocBy = AllocHaskell | AllocHyperDex
-  deriving (Show, Eq)
+#ifdef __UNIX__
+import System.Posix.Signals (reservedSignals, blockSignals, unblockSignals)
+#endif
+
+wrapHyperCall :: IO a -> IO a
+#ifdef __UNIX__
+wrapHyperCall f = do
+  blockSignals reservedSignals
+  r <- f
+  unblockSignals reservedSignals
+  return r
+#else
+wrapHyperCall = id
+#endif
 
 -- | Marshal a NUL terminated C string into a ByteString.
 --
@@ -73,3 +79,22 @@ withCBString = withCAString . unpack
 --
 withCBStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
 withCBStringLen = withCAStringLen . unpack
+
+-- | Marshal a Text field as a UTF8 C string in temporary storage.
+-- 
+-- * the memory is freed when the subcomputation terminates (either
+--   normally or via an exception), so the pointer to the temporary
+--   storage /must not/ be used after this.
+--
+withTextUtf8 :: Text -> (CString -> IO a) -> IO a
+withTextUtf8 = withCBString . encodeUtf8
+
+-- | Marshal a Text field as a UTF8 C string.
+-- 
+-- * the Text input /must not/ contain any NUL characters
+--
+-- * as with 'newCAString', new storage is allocated for the C String
+--   and must be explicitly freed
+--
+newTextUtf8 :: Text -> IO CString
+newTextUtf8 = newCBString . encodeUtf8

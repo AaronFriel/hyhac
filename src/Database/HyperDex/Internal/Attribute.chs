@@ -9,6 +9,11 @@ module Database.HyperDex.Internal.Attribute
   )
   where
 
+import Foreign
+import Foreign.C
+
+import Data.ByteString (ByteString)
+
 import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Util
@@ -38,7 +43,7 @@ data Attribute = Attribute
   , attrValue    :: ByteString
   , attrDatatype :: Hyperdatatype
   }
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 instance Storable Attribute where
   sizeOf _ = {#sizeof hyperclient_attribute_struct #}
   alignment _ = {#alignof hyperclient_attribute_struct #}
