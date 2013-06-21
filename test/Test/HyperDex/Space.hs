@@ -105,3 +105,5 @@ pickAttributeName value =
     HyperdatatypeMapFloatFloat    -> "for_float_keyed_map"
     _                             -> error "Invalid data type"
 
+keyAttributeName :: ByteString
+keyAttributeName = "username"
