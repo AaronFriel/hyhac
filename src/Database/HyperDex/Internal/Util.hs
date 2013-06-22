@@ -12,7 +12,9 @@ module Database.HyperDex.Internal.Util
 
 import Foreign.C
 import Foreign.Marshal.Utils
-import Foreign.Marshal.Alloc
+--import Foreign.Marshal.Alloc
+import Foreign.Marshal.Array
+import Foreign.Storable
 import Data.ByteString.Char8
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -50,18 +52,23 @@ peekCBStringLen = fmap pack . peekCAStringLen
 --   and must be explicitly freed
 --
 newCBString :: ByteString -> IO CString
-newCBString = newCAString . unpack
-
+newCBString bs = useAsCString bs
+                 (\cs -> do
+                     let l = Data.ByteString.Char8.length bs
+                     buf <- mallocArray0 l
+                     copyBytes buf cs l
+                     pokeElemOff buf l 0
+                     return buf)
 -- | Marshal a ByteString into a C string with explicit length.
--- 
+--
 -- * as with 'newCStringLen', new storage is allocated for the C String
 --   and must be explicitly freed
 --
 newCBStringLen :: ByteString -> IO CStringLen
 newCBStringLen bs = useAsCStringLen bs
                     (\(cs,l) -> do
-                      buf <- mallocBytes l
-                      copyBytes cs buf l
+                      buf <- mallocArray l
+                      copyBytes buf cs l
                       return (buf,l))
 
 -- | Marshal a ByteString into a NUL terminated C string using temporary
@@ -74,9 +81,9 @@ newCBStringLen bs = useAsCStringLen bs
 --   storage /must not/ be used after this.
 --
 withCBString :: ByteString -> (CString -> IO a) -> IO a
-withCBString = withCAString . unpack
+withCBString = useAsCString
 
--- | Marshal a ByteString into a C string in temporary storage, 
+-- | Marshal a ByteString into a C string in temporary storage,
 -- with explicit length.
 --
 -- * the memory is freed when the subcomputation terminates (either
@@ -84,10 +91,10 @@ withCBString = withCAString . unpack
 --   storage /must not/ be used after this.
 --
 withCBStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
-withCBStringLen = withCAStringLen . unpack
+withCBStringLen = useAsCStringLen
 
 -- | Marshal a Text field as a UTF8 C string in temporary storage.
--- 
+--
 -- * the memory is freed when the subcomputation terminates (either
 --   normally or via an exception), so the pointer to the temporary
 --   storage /must not/ be used after this.
@@ -96,7 +103,7 @@ withTextUtf8 :: Text -> (CString -> IO a) -> IO a
 withTextUtf8 = withCBString . encodeUtf8
 
 -- | Marshal a Text field as a UTF8 C string.
--- 
+--
 -- * the Text input /must not/ contain any NUL characters
 --
 -- * as with 'newCAString', new storage is allocated for the C String
