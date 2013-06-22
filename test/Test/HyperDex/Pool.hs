@@ -35,6 +35,8 @@ import Data.Pool
 
 import Data.Bits
 
+import Control.Concurrent (threadDelay)
+
 testCanStoreLargeObject :: Pool Client -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
@@ -551,6 +553,36 @@ testSearch clientPool space =
     "atomic/search"
     $ propSearch clientPool space
 
+propDeleteGroup :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
+propDeleteGroup clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
+  QC.run $ join $ withResource clientPool $ \client -> deleteGroup client space []
+  let attributeName = pickAttributeName entry
+      attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
+      attributeCheck = mkAttributeCheckUtf8 (decodeUtf8 attributeName) entry HyperpredicateEquals
+  QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
+  QC.run $ join $ withResource clientPool $ \client -> deleteGroup client space [attributeCheck]
+  QC.run $ threadDelay 10000
+  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
+  let resultSet = concat
+                $ map (filter ((== attributeName) . attrName))
+                $ filter (any (\attr -> attrName attr == keyAttributeName
+                                        && attrValue attr == key))
+                $ searchResults
+  case resultSet == [] of
+    True -> QC.assert True
+    False -> do
+      QC.run $ do
+        putStrLn $ "Failed in propDeleteGroup"
+        putStrLn $ "  attribute:\n" ++ show attribute
+        putStrLn $ "  resultSet:\n" ++ show resultSet
+        putStrLn $ "  searchResults:\n" ++ show searchResults
+      QC.assert False
+
+testDeleteGroup :: Pool Client -> Text -> Test
+testDeleteGroup clientPool space =
+  testProperty
+    "atomic/deleteGroup"
+    $ propDeleteGroup clientPool space
 
 poolTests :: Test
 poolTests = buildTest $ do
@@ -564,7 +596,8 @@ poolTests = buildTest $ do
                 ]
                 ++
                 fmap (\f -> f clientPool defaultSpace)
-                [ testAtomic
-                , testSearch
+                [ testSearch
+                , testDeleteGroup
+                , testAtomic
                 ]
   return tests

@@ -32,6 +32,7 @@ module Database.HyperDex.Internal.Hyperclient
   , atomicMapStringAppend
   -- Search operations
   , search
+  , deleteGroup
   )
   where
 
@@ -449,3 +450,32 @@ search client s checks = withClientStream client $ \hyperclient -> do
             free resultSetSizePtr
             return $ Left returnCode
       return (handle, continuation)
+
+-- int64_t
+-- hyperclient_group_del(struct hyperclient* client, const char* space,
+--                       const struct hyperclient_attribute_check* checks, size_t checks_sz,
+--                       enum hyperclient_returncode* status);
+--
+deleteGroup :: Client 
+            -> Text
+            -> [AttributeCheck]
+            -> AsyncResult ()
+deleteGroup client s checks = withClient client $ \hyperclient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+  space <- newTextUtf8 s
+  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  handle <- wrapHyperCall $
+            {# call hyperclient_group_del #}
+              hyperclient space
+              checkPtr (fromIntegral checkSize)
+              returnCodePtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        free returnCodePtr
+        free space
+        haskellFreeAttributeChecks checkPtr checkSize
+        return $ 
+          case returnCode of 
+            HyperclientSuccess -> Right ()
+            _                  -> Left returnCode
+  return (handle, continuation)
