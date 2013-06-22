@@ -511,29 +511,25 @@ testConditional clientPool =
     "conditional"
     $ propCanConditionalPutNumeric clientPool defaultSpace
 
-propSearch :: Pool Client -> Text -> (NonEmptyBS ByteString, HyperSerializable) -> Property
-propSearch clientPool space entries = QC.monadicIO $ do
-  let putEntryAsync (NonEmptyBS key, MkHyperSerializable entry) = do
-        let attributeName = decodeUtf8 $ pickAttributeName entry
-            attribute = mkAttributeUtf8 attributeName entry
-            keyAttribute = mkAttribute keyAttributeName key
-        future <- withResource clientPool $ \client -> put client space key [attribute]
-        return (future, [keyAttribute, attribute])
-  puts <- QC.run $ mapM putEntryAsync [entries]
-  let futures = map fst puts
-  QC.run $ sequence_ futures
-  results <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
-  let resultSet = Set.fromList $ map (filter ((/= "") . attrValue)) results
-      attrSet = Set.fromList $ map snd puts
-  case attrSet `Set.isSubsetOf` resultSet of
+propSearch :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
+propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
+  let attributeName = pickAttributeName entry
+      attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
+  QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
+  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
+  let resultSet = concat
+                $ map (filter ((== attributeName) . attrName))
+                $ filter (any (\attr -> attrName attr == keyAttributeName
+                                        && attrValue attr == key))
+                $ searchResults
+  case resultSet == [attribute] of
     True -> QC.assert True
     False -> do
       QC.run $ do
         putStrLn $ "Failed in propSearch"
-        putStrLn $ "  attributes\n:" ++ show attrSet
-        putStrLn $ "  results\n:" ++ show resultSet
---        putStrLn $ "  results ∩ attributes:\n" ++ show (resultSet `Set.intersection` attrSet)
---        putStrLn $ "  attributes not in results:\n" ++ show (attrSet `Set.difference` (resultSet `Set.intersection` attrSet))
+        putStrLn $ "  attribute\n:" ++ show attribute
+        putStrLn $ "  resultSet\n:" ++ show resultSet
+        putStrLn $ "  searchResults\n:" ++ show searchResults
       QC.assert False
 
 collectSearch :: Client -> Text -> [AttributeCheck] -> IO [[Attribute]]
