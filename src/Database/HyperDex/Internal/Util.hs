@@ -11,6 +11,8 @@ module Database.HyperDex.Internal.Util
  where
 
 import Foreign.C
+import Foreign.Marshal.Utils
+import Foreign.Marshal.Alloc
 import Data.ByteString.Char8
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
@@ -56,7 +58,11 @@ newCBString = newCAString . unpack
 --   and must be explicitly freed
 --
 newCBStringLen :: ByteString -> IO CStringLen
-newCBStringLen = newCAStringLen . unpack
+newCBStringLen bs = useAsCStringLen bs
+                    (\(cs,l) -> do
+                      buf <- mallocBytes l
+                      copyBytes cs buf l
+                      return (buf,l))
 
 -- | Marshal a ByteString into a NUL terminated C string using temporary
 -- storage.
