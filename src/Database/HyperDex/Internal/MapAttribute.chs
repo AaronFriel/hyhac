@@ -33,12 +33,15 @@ typedef struct hyperclient_map_attribute hyperclient_map_attribute_struct;
 
 mkMapAttribute :: (HyperSerialize k, HyperSerialize v) => ByteString -> k -> v -> MapAttribute
 mkMapAttribute name key value =  MapAttribute name (serialize key) (datatype key) (serialize value) (datatype value)
+{-# INLINE mkMapAttribute #-}
 
 mkMapAttributesFromMap :: (HyperSerialize k, HyperSerialize v) => ByteString -> (Map k v) -> [MapAttribute]
 mkMapAttributesFromMap name = map (uncurry $ mkMapAttribute name) . Map.toList
+{-# INLINE mkMapAttributesFromMap #-}
 
 newHyperDexMapAttributeArray :: [MapAttribute] -> IO (Ptr MapAttribute, Int)
 newHyperDexMapAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
+{-# INLINE newHyperDexMapAttributeArray #-}
 
 data MapAttribute = MapAttribute
   { mapAttrName      :: ByteString
@@ -83,3 +86,5 @@ haskellFreeMapAttributes p n = do
   free =<< {# get hyperclient_attribute.attr #} p
   free =<< {# get hyperclient_attribute.value #} p
   haskellFreeMapAttributes p (n-1)
+{-# INLINE haskellFreeMapAttributes #-}
+

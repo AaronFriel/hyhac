@@ -414,7 +414,8 @@ wrapSearchStream (Right a) client h cont = do
 -- > struct hyperclient*
 -- > hyperclient_create(const char* coordinator, uint16_t port);
 hyperclientCreate :: ByteString -> Word16 -> IO Hyperclient
-hyperclientCreate h port = withCBString h $ \host -> {# call hyperclient_create #} host (fromIntegral port)
+hyperclientCreate h port = withCBString h $ \host ->
+  wrapHyperCall $ {# call hyperclient_create #} host (fromIntegral port)
 
 -- | C wrapper for hyperclient_destroy. Destroys a HyperClient.
 --
@@ -426,7 +427,7 @@ hyperclientCreate h port = withCBString h $ \host -> {# call hyperclient_create 
 -- > void
 -- > hyperclient_destroy(struct hyperclient* client);
 hyperclientDestroy :: Hyperclient -> IO ()
-hyperclientDestroy client = do
+hyperclientDestroy client = wrapHyperCall $ 
   {# call hyperclient_destroy #} client
 
 -- | C wrapper for hyperclient_loop. Waits up to some number of
@@ -444,6 +445,7 @@ hyperclientDestroy client = do
 hyperclientLoop :: Hyperclient -> Int -> IO (Handle, ReturnCode)
 hyperclientLoop client timeout =
   alloca $ \returnCodePtr -> do
-    handle <- {# call hyperclient_loop #} client (fromIntegral timeout) returnCodePtr
+    handle <- wrapHyperCall $ {# call hyperclient_loop #} client (fromIntegral timeout) returnCodePtr
     returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
     return (handle, returnCode)
+{-# INLINE hyperclientLoop #-}

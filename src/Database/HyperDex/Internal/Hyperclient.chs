@@ -171,7 +171,7 @@ get client s k = withClient client $ \hyperclient -> do
             HyperclientSuccess -> do
               attributePtr <- peek attributePtrPtr
               attributeSize <- fmap fromIntegral $ peek attributeSizePtr
-              attrs <- fromHyperDexAttributeArray attributePtr attributeSize
+              attrs <- peekArray attributeSize attributePtr
               hyperdexFreeAttributes attributePtr attributeSize
               return attrs
             _ -> return []

@@ -1,6 +1,5 @@
 module Database.HyperDex.Internal.Attribute 
-  ( fromHyperDexAttributeArray
-  , newHyperDexAttributeArray
+  ( newHyperDexAttributeArray
   , Attribute (..)
   , AttributePtr
   , mkAttribute
@@ -31,12 +30,11 @@ typedef struct hyperclient_attribute hyperclient_attribute_struct;
 
 mkAttribute :: HyperSerialize a => ByteString -> a -> Attribute
 mkAttribute name value =  Attribute name (serialize value) (datatype value)
-
-fromHyperDexAttributeArray :: Ptr Attribute -> Int -> IO [Attribute]
-fromHyperDexAttributeArray p s = peekArray s p
+{-# INLINE mkAttribute #-}
 
 newHyperDexAttributeArray :: [Attribute] -> IO (Ptr Attribute, Int)
 newHyperDexAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
+{-# INLINE newHyperDexAttributeArray #-}
 
 data Attribute = Attribute
   { attrName     :: ByteString
@@ -69,7 +67,9 @@ haskellFreeAttributes p n = do
   free =<< {# get hyperclient_attribute.attr #} p
   free =<< {# get hyperclient_attribute.value #} p
   haskellFreeAttributes p (n-1)
+{-# INLINE haskellFreeAttributes #-}
 
 hyperdexFreeAttributes :: Ptr Attribute -> Int -> IO ()
-hyperdexFreeAttributes attributes attributeSize =
+hyperdexFreeAttributes attributes attributeSize = wrapHyperCall $
   {# call hyperclient_destroy_attrs #} attributes (fromIntegral attributeSize)
+{-# INLINE hyperdexFreeAttributes #-}

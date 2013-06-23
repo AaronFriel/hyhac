@@ -33,16 +33,19 @@ wrapHyperCall f = do
 #else
 wrapHyperCall = id
 #endif
+{-# INLINE wrapHyperCall #-}
 
 -- | Marshal a NUL terminated C string into a ByteString.
 --
 peekCBString :: CString -> IO ByteString
 peekCBString = fmap pack . peekCAString
+{-# INLINE peekCBString #-}
 
 -- | Marshal a C string with explicit length into a ByteString.
 --
 peekCBStringLen :: CStringLen -> IO ByteString
 peekCBStringLen = fmap pack . peekCAStringLen
+{-# peekCBStringLen #-}
 
 -- | Marshal a ByteString into a NUL terminated C string.
 --
@@ -59,6 +62,8 @@ newCBString bs = useAsCString bs
                      copyBytes buf cs l
                      pokeElemOff buf l 0
                      return buf)
+{-# INLINE newCBString #-}
+
 -- | Marshal a ByteString into a C string with explicit length.
 --
 -- * as with 'newCStringLen', new storage is allocated for the C String
@@ -70,6 +75,7 @@ newCBStringLen bs = useAsCStringLen bs
                       buf <- mallocArray l
                       copyBytes buf cs l
                       return (buf,l))
+{-# INLINE newCBStringLen #-}
 
 -- | Marshal a ByteString into a NUL terminated C string using temporary
 -- storage.
@@ -82,6 +88,7 @@ newCBStringLen bs = useAsCStringLen bs
 --
 withCBString :: ByteString -> (CString -> IO a) -> IO a
 withCBString = useAsCString
+{-# INLINE withCBString #-}
 
 -- | Marshal a ByteString into a C string in temporary storage,
 -- with explicit length.
@@ -92,6 +99,7 @@ withCBString = useAsCString
 --
 withCBStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
 withCBStringLen = useAsCStringLen
+{-# INLINE withCBStringLen #-}
 
 -- | Marshal a Text field as a UTF8 C string in temporary storage.
 --
@@ -101,6 +109,7 @@ withCBStringLen = useAsCStringLen
 --
 withTextUtf8 :: Text -> (CString -> IO a) -> IO a
 withTextUtf8 = withCBString . encodeUtf8
+{-# INLINE withTextUtf8 #-}
 
 -- | Marshal a Text field as a UTF8 C string.
 --
@@ -111,3 +120,4 @@ withTextUtf8 = withCBString . encodeUtf8
 --
 newTextUtf8 :: Text -> IO CString
 newTextUtf8 = newCBString . encodeUtf8
+{-# INLINE newTextUtf8 #-}

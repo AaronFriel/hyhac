@@ -517,6 +517,8 @@ propSearch :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable 
 propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
+      -- keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
+      -- attrCheck = mkAttributeCheckUtf8 (decodeUtf8 attributeName) key HyperpredicateEquals 
   QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
   searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
   let resultSet = concat
@@ -524,14 +526,15 @@ propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.mo
                 $ filter (any (\attr -> attrName attr == keyAttributeName
                                         && attrValue attr == key))
                 $ searchResults
+  --QC.run $ join $ withResource clientPool $ \client -> delete client space key
   case resultSet == [attribute] of
     True -> QC.assert True
     False -> do
       QC.run $ do
         putStrLn $ "Failed in propSearch"
-        putStrLn $ "  attribute\n:" ++ show attribute
-        putStrLn $ "  resultSet\n:" ++ show resultSet
-        putStrLn $ "  searchResults\n:" ++ show searchResults
+        putStrLn $ "  attribute:\n" ++ show attribute
+        putStrLn $ "  resultSet:\n" ++ show resultSet
+        putStrLn $ "  searchResults:\n" ++ show searchResults
       QC.assert False
 
 collectSearch :: Client -> Text -> [AttributeCheck] -> IO [[Attribute]]
@@ -546,12 +549,15 @@ collectSearch client space checks = do
       nextItem <- next
       rest <- collect nextItem
       return $! a : rest
+    {-# INLINE collect #-}
+{-# INLINE collectSearch #-}
 
 testSearch :: Pool Client -> Text -> Test
-testSearch clientPool space =
-  testProperty
-    "atomic/search"
-    $ propSearch clientPool space
+testSearch clientPool space = buildTest $ do
+  let test = testProperty "search"
+             $ propSearch clientPool space
+  -- _ <- withResource clientPool $ \client -> deleteGroup client space []
+  return test
 
 propDeleteGroup :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
 propDeleteGroup clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
@@ -581,7 +587,7 @@ propDeleteGroup clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = 
 testDeleteGroup :: Pool Client -> Text -> Test
 testDeleteGroup clientPool space =
   testProperty
-    "atomic/deleteGroup"
+    "deleteGroup"
     $ propDeleteGroup clientPool space
 
 poolTests :: Test

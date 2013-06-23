@@ -29,9 +29,11 @@ typedef struct hyperclient_attribute_check hyperclient_attribute_check_struct;
 
 mkAttributeCheck :: HyperSerialize a => ByteString -> a -> Hyperpredicate -> AttributeCheck
 mkAttributeCheck name value predicate =  AttributeCheck name (serialize value) (datatype value) predicate
+{-# INLINE mkAttributeCheck #-}
 
 newHyperDexAttributeCheckArray :: [AttributeCheck] -> IO (Ptr AttributeCheck, Int)
 newHyperDexAttributeCheckArray as = newArray as >>= \ptr -> return (ptr, length as)
+{-# INLINE newHyperDexAttributeCheckArray #-}
 
 data AttributeCheck = AttributeCheck
   { attrCheckName      :: ByteString
@@ -67,3 +69,4 @@ haskellFreeAttributeChecks p n = do
   free =<< {# get hyperclient_attribute.attr #} p
   free =<< {# get hyperclient_attribute.value #} p
   haskellFreeAttributeChecks p (n-1)
+{-# INLINE haskellFreeAttributeChecks #-}
