@@ -45,7 +45,7 @@ peekCBString = fmap pack . peekCAString
 --
 peekCBStringLen :: CStringLen -> IO ByteString
 peekCBStringLen = fmap pack . peekCAStringLen
-{-# peekCBStringLen #-}
+{-# INLINE peekCBStringLen #-}
 
 -- | Marshal a ByteString into a NUL terminated C string.
 --
