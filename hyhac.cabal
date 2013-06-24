@@ -1,5 +1,5 @@
 name:                hyhac
-version:             0.6.0.0
+version:             0.9.0.0
 synopsis:            A HyperDex client library
 description:         
   A client for accessing the HyperDex distributed database

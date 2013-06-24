@@ -37,6 +37,8 @@ import Data.Bits
 
 import Control.Concurrent (threadDelay)
 
+import Control.Applicative
+
 testCanStoreLargeObject :: Pool Client -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
@@ -517,10 +519,10 @@ propSearch :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable 
 propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
-      -- keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
+      keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
       -- attrCheck = mkAttributeCheckUtf8 (decodeUtf8 attributeName) key HyperpredicateEquals 
   QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
-  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
+  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space [keyCheck]
   let resultSet = concat
                 $ map (filter ((== attributeName) . attrName))
                 $ filter (any (\attr -> attrName attr == keyAttributeName
@@ -590,6 +592,30 @@ testDeleteGroup clientPool space =
     "deleteGroup"
     $ propDeleteGroup clientPool space
 
+propCount :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
+propCount clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
+  let attributeName = pickAttributeName entry
+      attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
+      keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
+  preCount <- QC.run $ join $ withResource clientPool $ \client -> count client space [keyCheck]
+  QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
+  postCount <- QC.run $ join $ withResource clientPool $ \client -> count client space [keyCheck]
+  case liftA2 (-) postCount preCount of
+    Right 1 -> QC.assert True
+    _ -> do
+      QC.run $ do
+        putStrLn $ "Failed in propCount"
+        putStrLn $ "  preCount:  " ++ show preCount
+        putStrLn $ "  postCount: " ++ show postCount
+        putStrLn $ "  attribute:\n" ++ show attribute
+      QC.assert False
+
+testCount :: Pool Client -> Text -> Test
+testCount clientPool space =
+  testProperty
+    "count"
+    $ propCount clientPool space
+
 poolTests :: Test
 poolTests = buildTest $ do
   clientPool <- mkPool 
@@ -604,6 +630,7 @@ poolTests = buildTest $ do
                 fmap (\f -> f clientPool defaultSpace)
                 [ testSearch
                 , testDeleteGroup
+                , testCount
                 , testAtomic
                 ]
   return tests

@@ -32,7 +32,9 @@ module Database.HyperDex.Internal.Hyperclient
   , atomicMapStringAppend
   -- Search operations
   , search
+  , describeSearch
   , deleteGroup
+  , count
   )
   where
 
@@ -50,6 +52,8 @@ import Data.Text (Text)
 {# import Database.HyperDex.Internal.AttributeCheck #}
 {# import Database.HyperDex.Internal.MapAttribute #}
 import Database.HyperDex.Internal.Util
+
+import Debug.Trace
 
 data Op = OpPut
         | OpPutIfNotExist
@@ -479,3 +483,70 @@ deleteGroup client s checks = withClient client $ \hyperclient -> do
             HyperclientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
+
+-- int64_t
+-- hyperclient_search_describe(struct hyperclient* client, const char* space,
+--                             const struct hyperclient_attribute_check* checks, size_t checks_sz,
+--                             enum hyperclient_returncode* status, const char** description);
+describeSearch :: Client
+               -> Text
+               -> [AttributeCheck]
+               -> AsyncResult Text
+describeSearch client s checks = withClient client $ \hyperclient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+  space <- newTextUtf8 s
+  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  descPtr <- malloc
+  handle <- wrapHyperCall $
+            {# call hyperclient_search_describe #}
+              hyperclient space
+              checkPtr (fromIntegral checkSize)
+              returnCodePtr descPtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        free returnCodePtr
+        free space
+        haskellFreeAttributeChecks checkPtr checkSize
+        desc <- peekTextUtf8 descPtr 
+        return $ 
+          case returnCode of 
+            HyperclientSuccess -> Right desc
+            _                  -> Left returnCode
+  return (handle, continuation)
+
+-- int64_t
+-- hyperclient_count(struct hyperclient* client, const char* space,
+--                   const struct hyperclient_attribute_check* checks, size_t checks_sz,
+--                   enum hyperclient_returncode* status, uint64_t* result);
+count :: Client
+      -> Text
+      -> [AttributeCheck]
+      -> AsyncResult Integer
+count client s checks = withClient client $ \hyperclient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+  space <- newTextUtf8 s
+  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  countPtr <- new 1010101010
+  handle <- wrapHyperCall $
+            {# call hyperclient_count #}
+              hyperclient space
+              checkPtr (fromIntegral checkSize)
+              returnCodePtr countPtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        free returnCodePtr
+        free space
+        haskellFreeAttributeChecks checkPtr checkSize
+        n <- fmap fromIntegral $ peek countPtr 
+        return $
+          -- TODO: Why does this succeed even when it fails?
+          -- returnCode of HyperclientGarbage (what we put in returnCodePtr)
+          -- usually means success, but occasionally failure.
+          -- Is this a bug in hyhac or HyperDex?
+          case returnCode of 
+            HyperclientSuccess -> Right n
+            HyperclientGarbage -> trace ("Actual returnCode: " ++ show returnCode)
+                                  $ Right n
+            _                  -> Left returnCode
+  return (handle, continuation)
+

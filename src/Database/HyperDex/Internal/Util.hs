@@ -7,17 +7,15 @@ module Database.HyperDex.Internal.Util
  , withCBString, withCBStringLen
  , withTextUtf8
  , newTextUtf8
+ , peekTextUtf8
  )
  where
 
+import Foreign
 import Foreign.C
-import Foreign.Marshal.Utils
---import Foreign.Marshal.Alloc
-import Foreign.Marshal.Array
-import Foreign.Storable
 import Data.ByteString.Char8
 import Data.Text (Text)
-import Data.Text.Encoding (encodeUtf8)
+import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 
 #ifdef __UNIX__
 import System.Posix.Signals (reservedSignals, blockSignals, unblockSignals)
@@ -121,3 +119,9 @@ withTextUtf8 = withCBString . encodeUtf8
 newTextUtf8 :: Text -> IO CString
 newTextUtf8 = newCBString . encodeUtf8
 {-# INLINE newTextUtf8 #-}
+
+peekTextUtf8 :: Ptr CString -> IO Text
+peekTextUtf8 ptr = do
+  bstring <- peek ptr >>= packCString
+  return $ decodeUtf8 bstring 
+{-# INLINE peekTextUtf8 #-} 
