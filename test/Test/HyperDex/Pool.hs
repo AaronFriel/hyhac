@@ -517,16 +517,14 @@ propSearch :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable 
 propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
-      -- keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
-      -- attrCheck = mkAttributeCheckUtf8 (decodeUtf8 attributeName) key HyperpredicateEquals 
+      keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
   QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
-  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
+  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space [keyCheck]
   let resultSet = concat
                 $ map (filter ((== attributeName) . attrName))
                 $ filter (any (\attr -> attrName attr == keyAttributeName
                                         && attrValue attr == key))
                 $ searchResults
-  --QC.run $ join $ withResource clientPool $ \client -> delete client space key
   case resultSet == [attribute] of
     True -> QC.assert True
     False -> do
