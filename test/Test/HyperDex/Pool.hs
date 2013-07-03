@@ -520,7 +520,6 @@ propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.mo
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
       keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
-      -- attrCheck = mkAttributeCheckUtf8 (decodeUtf8 attributeName) key HyperpredicateEquals 
   QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
   searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space [keyCheck]
   let resultSet = concat
@@ -528,7 +527,6 @@ propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.mo
                 $ filter (any (\attr -> attrName attr == keyAttributeName
                                         && attrValue attr == key))
                 $ searchResults
-  --QC.run $ join $ withResource clientPool $ \client -> delete client space key
   case resultSet == [attribute] of
     True -> QC.assert True
     False -> do
