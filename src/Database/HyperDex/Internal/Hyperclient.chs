@@ -53,8 +53,6 @@ import Data.Text (Text)
 {# import Database.HyperDex.Internal.MapAttribute #}
 import Database.HyperDex.Internal.Util
 
-import Debug.Trace
-
 data Op = OpPut
         | OpPutIfNotExist
         | OpAtomicAdd
@@ -545,8 +543,7 @@ count client s checks = withClient client $ \hyperclient -> do
           -- Is this a bug in hyhac or HyperDex?
           case returnCode of 
             HyperclientSuccess -> Right n
-            HyperclientGarbage -> trace ("Actual returnCode: " ++ show returnCode)
-                                  $ Right n
+            HyperclientGarbage -> Right n
             _                  -> Left returnCode
   return (handle, continuation)
 
