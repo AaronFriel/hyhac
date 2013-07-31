@@ -19,7 +19,7 @@ module Database.HyperDex.Internal.Hyperclient
   , atomicSetUnion, atomicSetIntersect
     -- Atomic simple map operations
   , atomicMapInsert, atomicMapDelete
-  -- , hyperMapInsertConditional
+  -- , atomicConditionalMapInsert
     -- Atomic numeric value operations
   , atomicMapAdd, atomicMapSub
   , atomicMapMul, atomicMapDiv
@@ -141,9 +141,6 @@ atomicMapOr     = hyperclientMapOp OpAtomicMapOr
 atomicMapXor    = hyperclientMapOp OpAtomicMapXor 
 atomicMapStringPrepend = hyperclientMapOp OpAtomicMapStringPrepend
 atomicMapStringAppend  = hyperclientMapOp OpAtomicMapStringAppend 
-
--- hyperMapInsertConditional :: Client -> Text -> ByteString -> [AttributeCheck] -> [MapAttribute] -> AsyncResult ()
--- hyperMapInsertConditional c s k checks attrs = withClient c $ \hc -> hyperclientConditionalMapInsert hc s k checks attrs
 
 -- int64_t
 -- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
@@ -369,34 +366,34 @@ hyperclientMapOp op =
 -- /home/cloudium/git/hyhac/dist/build/libHShyhac-0.2.0.0_p.a(Hyperclient.p_o): In function `sdm2_info':
 -- /tmp/ghc20379_0/ghc20379_1.p_o:(.text+0x3dc85): undefined reference to `hyperclient_cond_map_add'
 
---hyperclientConditionalMapInsert :: Hyperclient -> Text -> ByteString
---                                -> [AttributeCheck]
---                                -> [MapAttribute]
---                                -> AsyncResultHandle ()
---hyperclientConditionalMapInsert client s k checks mapAttributes = do
---  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
---  space <- newTextUtf8 s
---  (key,keySize) <- newCBStringLen k
---  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
---  (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
---  handle <- {# call hyperclient_cond_map_add #}
---              client space
---              key (fromIntegral keySize)
---              checkPtr (fromIntegral checkSize)
---              mapAttributePtr (fromIntegral mapAttributeSize)
---              returnCodePtr
---  let continuation = do
---        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
---        free returnCodePtr
---        free space
---        free key
---        --haskellFreeMapAttributes mapAttributePtr mapAttributeSize
---        return $ 
---          case returnCode of 
---            HyperclientSuccess -> Right ()
---            _                  -> Left returnCode
---  return (handle, continuation)
---{-# INLINE hyperclientConditionalMapInsert #-}
+-- atomicConditionalMapInsert :: Hyperclient -> Text -> ByteString
+--                            -> [AttributeCheck]
+--                            -> [MapAttribute]
+--                            -> AsyncResultHandle ()
+-- atomicConditionalMapInsert client s k checks mapAttributes = do
+--   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+--   space <- newTextUtf8 s
+--   (key,keySize) <- newCBStringLen k
+--   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+--   (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
+--   handle <- {# call hyperclient_cond_map_add #}
+--               client space
+--               key (fromIntegral keySize)
+--               checkPtr (fromIntegral checkSize)
+--               mapAttributePtr (fromIntegral mapAttributeSize)
+--               returnCodePtr
+--   let continuation = do
+--         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+--         free returnCodePtr
+--         free space
+--         free key
+--         --haskellFreeMapAttributes mapAttributePtr mapAttributeSize
+--         return $ 
+--           case returnCode of 
+--             HyperclientSuccess -> Right ()
+--             _                  -> Left returnCode
+--   return (handle, continuation)
+-- {-# INLINE atomicConditionalMapInsert #-}
 
 -- int64_t
 -- hyperclient_search(struct hyperclient* client, const char* space,
