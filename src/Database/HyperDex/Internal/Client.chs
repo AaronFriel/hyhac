@@ -9,7 +9,7 @@ module Database.HyperDex.Internal.Client
   , BackoffMethod (..)
   , Handle
   , Result, AsyncResult, AsyncResultHandle, SearchStream (..)
-  , connect, close
+  , connect, close, forceClose
   , loopClient, loopClientUntil
   , withClient, withClientImmediate
   , withClientStream
@@ -71,8 +71,8 @@ data ConnectOptions =
 instance Default ConnectOptions where
   def =
     ConnectOptions
-      { connectionBackoff = BackoffExponential 10 2 -- 10 * 2^n
-      , connectionBackoffCap = Just 500000          -- Half a second.
+      { connectionBackoff = BackoffYield -- 10 * 2^n
+      , connectionBackoffCap = Just 50000           -- 0.05 seconds.
       }
 
 -- | Sane defaults for HyperDex connection options.
@@ -204,8 +204,8 @@ connect info = do
 -- is closed ought to return a 'ReturnCode' indicating the failure
 -- condition, but the behavior is ultimately undefined. Any pending
 -- requests should be disregarded. 
-close :: Client -> IO ()
-close (getClient -> c) = do
+forceClose :: Client -> IO ()
+forceClose (getClient -> c) = do
   clientData <- takeMVar c
   case clientData of
     (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
@@ -213,6 +213,27 @@ close (getClient -> c) = do
       hyperclientDestroy hc
       mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles 
       putMVar c (Nothing, Map.empty)
+
+-- | Wait for graceful termination of all outstanding requests and
+-- then close the connection.
+--
+-- /Note:/ If it is necessary to have this operation complete quickly
+-- and outstanding requests are not needed, then use 'forceClose'.
+close :: Client -> IO ()
+close client@(getClient -> c) = do
+  clientData <- takeMVar c
+  case clientData of
+    (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
+    (Just hc, handles)  -> do
+      case Map.null handles of
+        True  -> do
+          hyperclientDestroy hc
+          putMVar c (Nothing, Map.empty)
+        False -> do
+          -- Have to put it back in order to run loopClient
+          (_, newHandles) <- handleLoop hc handles
+          putMVar c (Just hc, newHandles)
+          close client
 
 doExponentialBackoff :: Int -> Double -> (Int, BackoffMethod)
 doExponentialBackoff b x = 
@@ -243,36 +264,46 @@ performBackoff method cap = do
   doDelay >> return nextDelay
 {-# INLINE performBackoff #-}
 
+-- | Runs a single iteration of hyperclient_loop, returning whether
+-- or not a handle was completed and a new set of callbacks.
+--
+-- This function does not use locking around the client.
+handleLoop :: Hyperclient -> Map Handle HandleCallback -> IO (Maybe Handle, Map Handle HandleCallback)
+handleLoop hc handles = do
+  -- TODO: Examine returnCode for things that might matter.
+  (handle, returnCode) <- hyperclientLoop hc 0
+  case returnCode of
+    HyperclientSuccess -> do
+      let clearedMap = Map.delete handle handles
+      resultMap <- do
+        case Map.lookup handle handles of
+          Just (HandleCallback entry) -> do
+            cont <- entry $ Just returnCode
+            case cont of
+              Nothing     -> return clearedMap
+              Just (h, e) -> return $ Map.insert h e clearedMap
+          Nothing -> return clearedMap
+      return $ (Just handle, resultMap)
+    HyperclientTimeout -> do
+      handleLoop hc handles
+    HyperclientNonepending -> do
+      mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles
+      return $ (Just handle, Map.empty)
+    _ -> do
+      handleLoop hc handles
+
+{-# INLINE handleLoop #-}
+
 -- | Runs hyperclient_loop exactly once, setting the appropriate MVar.
 loopClient :: Client -> IO (Maybe Handle)
-loopClient client@(getClient -> c) = do
+loopClient (getClient -> c) = do
   clientData <- takeMVar c
   case clientData of
-    (Nothing, _)        -> return Nothing
-    (Just hc, handles)  -> do
-      -- TODO: Examine returnCode for things that might matter.
-      (handle, returnCode) <- hyperclientLoop hc 0
-      case returnCode of
-        HyperclientSuccess -> do
-          let newMap = Map.delete handle handles
-          case Map.lookup handle handles of
-            Just (HandleCallback entry) -> do
-              cont <- entry $ Just returnCode
-              case cont of
-                Nothing -> putMVar c (Just hc, newMap)
-                Just (h, e) -> putMVar c (Just hc, Map.insert h e newMap)
-            Nothing -> putMVar c (Just hc, newMap)
-          return $ Just handle
-        HyperclientTimeout -> do
-          putMVar c (Just hc, handles)
-          loopClient client
-        HyperclientNonepending -> do
-          mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles
-          putMVar c (Just hc, Map.empty)
-          return $ Just handle
-        _ -> do
-          putMVar c (Just hc, handles)
-          loopClient client
+    (Nothing, _)       -> error "HyperDex client error - client has been closed."
+    (Just hc, handles) -> do
+      (maybeHandle, newHandles) <- handleLoop hc handles
+      putMVar c (Just hc, newHandles)
+      return maybeHandle
 {-# INLINE loopClient #-}
 
 -- | Run hyperclient_loop at most N times or forever until a handle
