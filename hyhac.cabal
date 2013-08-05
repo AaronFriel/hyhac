@@ -82,6 +82,21 @@ library
   extra-libraries:
     hyperclient
 
+Executable benchmark
+  default-language:  Haskell2010
+
+  Main-is:             hyhac.hs
+  hs-source-dirs:      benchmark
+  Build-depends:       base
+                     , hyhac
+                     , deepseq
+                     , criterion
+                     , bytestring
+                     , text
+                     , process
+                     , resource-pool
+  ghc-options:         -Wall -O2 -threaded -prof
+
 source-repository head
   type: git
   location: https://github.com/aaronfriel/hyhac
