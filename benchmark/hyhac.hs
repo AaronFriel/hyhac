@@ -6,7 +6,6 @@ import System.Environment(getEnv)
 import Control.Monad --(forM_,forM,void,when,join,forever)
 import Control.Applicative
 import Control.DeepSeq
-import Data.Pool
 
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.ByteString.Lazy.Char8 as BSL
@@ -28,6 +27,7 @@ main = do
   -- threaded <- (=="yes")  <$> getEnv "THREADED"
 
   _ <- system "rm dummysql"
+  _ <- system "rm dummyfile"
 
   ws <- BS.lines <$> BS.readFile "/usr/share/dict/words"
   wsl <- BSL.lines <$> BSL.readFile "/usr/share/dict/words"
@@ -51,26 +51,24 @@ main = do
 
   -- pool <- C.createCassandraPool C.defServers 3 300 5 "testkeyspace"
 
-  hyhacPool <- createPool (H.connect H.defaultConnectInfo) H.close 4 0.5 10
+  client <- H.connect H.defaultConnectInfo
 
-  _ <- withResource hyhacPool $ \client -> do
-        E.handle ignore $ void $ H.removeSpace client "phonebook"
-        H.addSpace client 
-         $ Text.unlines
-           [ "space phonebook"
-           , "key username"
-           , "attributes content"
-           -- , "subspace first, last"
-           , "create 32 partitions"
-           , "tolerate 0 failures"
-           ]
+  E.handle ignore $ void $ H.removeSpace client "phonebook"
+  _ <- H.addSpace client 
+       $ Text.unlines
+         [ "space phonebook"
+         , "key username"
+         , "attributes content"
+         -- , "subspace first, last"
+         , "create 32 partitions"
+         , "tolerate 0 failures"
+         ]
+
   -- db <- SQL.open "dummysql"
   -- SQL.execPrint db "PRAGMA journal_mode=MEMORY; PRAGMA synchronous = OFF"
   -- 
   -- SQL.exec db "create table phonebook (username txt, content text);"
   -- stmt <- SQL.prepare db "insert into phonebook (username, content) values (?,?);"
-
-  -- 
 
   --file <- openFile "/dev/null" WriteMode
 
@@ -97,9 +95,8 @@ main = do
                --                                  ])
                --                            (\insertions ->  void $ C.runCas pool $ sequence insertions),
                bench "hyperdex" $ finish (\(x,_,_) ->
-                                           withResource hyhacPool $ \client ->
-                                               H.put client "phonebook" x $!!
-                                               [H.mkAttribute "content"  lastname])
+                                           H.put client "phonebook" x $!!
+                                             [H.mkAttribute "content"  lastname])
                                          (\actions -> do
                                              failures <- lefts <$> sequence actions
                                              when (failures /= []) $
@@ -110,6 +107,10 @@ main = do
 
   -- void $ system "echo 'use testkeyspace; drop table phonebook;' | cqlsh"
 
+  _ <- system "rm dummysql"
+  _ <- system "rm dummyfile"
+
+  return ()
 
 ignore :: E.SomeException -> IO ()
 ignore _ = return ()

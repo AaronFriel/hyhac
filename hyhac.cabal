@@ -77,7 +77,7 @@ library
   ghc-options:       -O2 -W
 
   include-dirs:      include
-  includes:          hyperdex.h
+  includes:          hyperdex.hg
 
   extra-libraries:
     hyperclient
@@ -95,7 +95,7 @@ Executable benchmark
                      , text
                      , process
                      , resource-pool
-  ghc-options:         -Wall -O2 -threaded -prof
+  ghc-options:         -Wall -O2 -threaded
 
 source-repository head
   type: git
