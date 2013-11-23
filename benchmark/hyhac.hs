@@ -27,8 +27,8 @@ main = do
   reps <- read  <$> getEnv "REPS"
   -- threaded <- (=="yes")  <$> getEnv "THREADED"
 
-  _ <- system "rm dummysql"
-  _ <- system "rm dummyfile"
+  _ <- system "rm -f dummysql"
+  _ <- system "rm -f dummyfile"
 
   ws <- BS.lines <$> BS.readFile "/usr/share/dict/words"
   wsl <- BSL.lines <$> BSL.readFile "/usr/share/dict/words"
@@ -110,8 +110,8 @@ main = do
 
   -- void $ system "echo 'use testkeyspace; drop table phonebook;' | cqlsh"
 
-  _ <- system "rm dummysql"
-  _ <- system "rm dummyfile"
+  _ <- system "rm -f dummysql"
+  _ <- system "rm -f dummyfile"
 
   return ()
 
