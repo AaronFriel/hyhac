@@ -11,13 +11,13 @@
 --
 -- A client connection based API for the HyperDex key value store.
 --
--- This module exposes functions that rely on manually providing a client 
+-- This module exposes functions that rely on manually providing a client
 -- parameter, and no guarantees are provided that resources will be cleaned
 -- up unless the end-user ensures the connection is closed.
 --
 -----------------------------------------------------------------------------
 
-module Database.HyperDex.Client 
+module Database.HyperDex.Client
   ( module Database.HyperDex.Internal.Client
   , module Database.HyperDex.Internal.Hyperdex
   , module Database.HyperDex.Internal.Hyperdata
@@ -30,7 +30,7 @@ module Database.HyperDex.Client
   )
   where
 
-import Database.HyperDex.Internal.Client ( 
+import Database.HyperDex.Internal.Client (
         Client, connect, close, AsyncResult, Result
       , ConnectInfo, defaultConnectInfo
       , ConnectOptions, defaultConnectOptions

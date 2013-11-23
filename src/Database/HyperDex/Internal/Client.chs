@@ -31,7 +31,7 @@ import Control.Concurrent (yield, threadDelay)
 import Control.Concurrent.MVar
 
 import Data.Text.Encoding (encodeUtf8)
-import qualified Data.Text as Text (pack) 
+import qualified Data.Text as Text (pack)
 
 import Data.Default
 
@@ -49,7 +49,7 @@ data ConnectInfo =
   deriving (Eq, Read, Show)
 
 instance Default ConnectInfo where
-  def = 
+  def =
     ConnectInfo
       { connectHost = "127.0.0.1"
       , connectPort = 1982
@@ -91,9 +91,9 @@ data BackoffMethod
   = BackoffYield
   -- | Delay a constant number of microseconds each inter.
   | BackoffConstant Int
-  -- | Delay with an initial number of microseconds, increasing linearly by the second value. 
+  -- | Delay with an initial number of microseconds, increasing linearly by the second value.
   | BackoffLinear Int Int
-  -- | Delay with an initial number of microseconds, increasing exponentially by the second value.  
+  -- | Delay with an initial number of microseconds, increasing exponentially by the second value.
   | BackoffExponential Int Double
   deriving (Eq, Read, Show)
 
@@ -120,7 +120,7 @@ data ClientData =
     }
 
 -- | A connection to a HyperDex cluster.
-newtype Client = Client { unClientData :: ClientData } 
+newtype Client = Client { unClientData :: ClientData }
 
 -- | Internal method for returning the (MVar) wrapped connection.
 getClient :: Client -> HyperdexClientWrapper
@@ -150,7 +150,7 @@ type Result a = IO (Either ReturnCode a)
 --
 -- Internally the wrappers to the HyperDex library will return
 -- a computation that yields a 'Handle' referring to that request
--- and a continuation that will force the request to return an 
+-- and a continuation that will force the request to return an
 -- error in the form of a ReturnCode or a result.
 --
 -- The result of forcing the result is undefined.
@@ -175,7 +175,7 @@ type StreamResultHandle a = IO (Handle, Maybe ReturnCode -> Result a)
 -- The full type is an IO (IO (Either ReturnCode a)). Evaluating
 -- the result of an asynchronous call, such as the default get and
 -- put operations starts the request to the HyperDex cluster. Evaluating
--- the result of that evaluation will poll internally, using the 
+-- the result of that evaluation will poll internally, using the
 -- connection's 'BackoffMethod' until the result is available.
 --
 -- This API may be deprecated in favor of exclusively using MVars in
@@ -203,7 +203,7 @@ connect info = do
 -- immediately. Any outstanding requests at the time the 'Client'
 -- is closed ought to return a 'ReturnCode' indicating the failure
 -- condition, but the behavior is ultimately undefined. Any pending
--- requests should be disregarded. 
+-- requests should be disregarded.
 forceClose :: Client -> IO ()
 forceClose (getClient -> c) = do
   clientData <- takeMVar c
@@ -236,7 +236,7 @@ close client@(getClient -> c) = do
           close client
 
 doExponentialBackoff :: Int -> Double -> (Int, BackoffMethod)
-doExponentialBackoff b x = 
+doExponentialBackoff b x =
   let result = ceiling (fromIntegral b ** x) in
     (result, BackoffExponential result x)
 {-# INLINE doExponentialBackoff #-}
@@ -340,7 +340,7 @@ loopClientUntil client h v back Nothing = do
         (Just _, handles)  -> do
           case Map.member h handles of
             False -> return True
-            True  -> do 
+            True  -> do
               back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
               loopClientUntil client h v back' Nothing
     False -> return True
@@ -372,7 +372,7 @@ withClient client@(getClient -> c) f = do
                 return Nothing
           putMVar c (Just hc, Map.insert h wrappedCallback handles)
           return $ do
-            success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing 
+            success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing
             case success of
               True  -> takeMVar v
               False -> return $ Left HyperdexClientPollfailed
@@ -405,7 +405,7 @@ withClientStream client@(getClient -> c) f = do
                 return $ Just (h, callback)
           putMVar c (Just hc, Map.insert h wrappedCallback handles)
           return $ do
-            success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing 
+            success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing
             case success of
               True  -> takeMVar v
               False -> return $ Left HyperdexClientPollfailed
@@ -450,11 +450,11 @@ hyperdexClientCreate h port = withCBString h $ \host ->
 
 -- | C wrapper for hyperdex_client_destroy. Destroys a HyperClient.
 --
--- /Note:/ This does not ensure resources are freed. Any memory 
+-- /Note:/ This does not ensure resources are freed. Any memory
 -- allocated as staging for incomplete requests will not be returned.
 --
 -- C definition:
--- 
+--
 -- > void
 -- > hyperdex_client_destroy(struct hyperdex_client* client);
 hyperdexClientDestroy :: HyperdexClient -> IO ()

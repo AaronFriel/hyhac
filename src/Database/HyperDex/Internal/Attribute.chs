@@ -1,4 +1,4 @@
-module Database.HyperDex.Internal.Attribute 
+module Database.HyperDex.Internal.Attribute
   ( newHyperDexAttributeArray
   , Attribute (..)
   , AttributePtr

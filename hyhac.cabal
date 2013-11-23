@@ -1,7 +1,7 @@
 name:                hyhac
 version:             0.9.0.0
 synopsis:            A HyperDex client library
-description:         
+description:
   A client for accessing the HyperDex distributed database
 license:             BSD3
 license-file:        LICENSE
@@ -34,7 +34,7 @@ library
     Database.HyperDex.Client
     Database.HyperDex.Utf8
 
-  other-modules:    
+  other-modules:
     Database.HyperDex.Internal
     Database.HyperDex.Internal.AdminReturnCode
     Database.HyperDex.Internal.Admin
@@ -55,8 +55,8 @@ library
     other-modules:   Database.HyperDex.Internal.Util
 
   -- LANGUAGE extensions used by modules in this package.
-  -- other-extensions: 
-  
+  -- other-extensions:
+
   build-depends:
       base                       == 4.6.*
     , bytestring                 >= 0.10

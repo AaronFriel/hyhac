@@ -1,5 +1,5 @@
-module Database.HyperDex.Internal.ReturnCode 
-  ( ReturnCode (..) ) 
+module Database.HyperDex.Internal.ReturnCode
+  ( ReturnCode (..) )
   where
 
 #include "hyperdex/client.h"

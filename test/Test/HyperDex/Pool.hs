@@ -81,7 +81,7 @@ putHyper clientPool space key attribute = do
 getHyper :: Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
 getHyper clientPool space key attribute = do
     eitherAttrList <- QC.run . join $ withResource clientPool $ \client -> get client space key
-    let retValue = getResult attribute eitherAttrList 
+    let retValue = getResult attribute eitherAttrList
     case retValue of
       Left err -> QC.run $ do
         putStrLn $ "getHyper encountered error: " <> show err
@@ -90,7 +90,7 @@ getHyper clientPool space key attribute = do
       _ -> return ()
     return $ retValue
 
-propCanStore :: HyperSerialize a => Pool Client -> ByteString -> a 
+propCanStore :: HyperSerialize a => Pool Client -> ByteString -> a
                 -> Text -> NonEmptyBS ByteString -> Property
 propCanStore clientPool _ input space (NonEmptyBS key) =
   QC.monadicIO $ do
@@ -102,7 +102,7 @@ propCanStore clientPool _ input space (NonEmptyBS key) =
       Right output -> do
         case attribute == output of
           True -> QC.assert True
-          False -> do 
+          False -> do
             QC.run $ do
               putStrLn $ "Failed to store value:"
               putStrLn $ "  space:  " <> show space
@@ -110,7 +110,7 @@ propCanStore clientPool _ input space (NonEmptyBS key) =
               putStrLn $ "  attr:   " <> show attribute
               putStrLn $ "  output: " <> show output
             QC.assert False
-      Left reason  -> do 
+      Left reason  -> do
         QC.run $ do
           putStrLn $ "Failed to retrieve value:"
           putStrLn $ "  space:  " <> show space
@@ -158,7 +158,7 @@ propCanConditionalPutNumeric
         Right output -> do
           case succeedingAttribute == output of
             True -> QC.assert True
-            False -> do 
+            False -> do
               QC.run $ do
                 putStrLn $ "Failed to store value:"
                 putStrLn $ "  space:  " <> show space
@@ -168,7 +168,7 @@ propCanConditionalPutNumeric
                 putStrLn $ "  attr:   " <> show succeedingAttribute
                 putStrLn $ "  output: " <> show output
               QC.assert False
-        Left reason  -> do 
+        Left reason  -> do
           QC.run $ do
             putStrLn $ "Failed to retrieve value:"
             putStrLn $ "  space:  " <> show space
@@ -182,11 +182,11 @@ propCanConditionalPutNumeric
 type AsyncOp = Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 
 generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a,
-                             Show b, Eq b, HyperSerialize b, 
+                             Show b, Eq b, HyperSerialize b,
                              Show x, Arbitrary x)
                          => String         -- ^ The test name
                          -> AsyncOp        -- ^ The HyperDex operation to be performed
-                         -> (a -> b -> a)  -- ^ The operation used to simulate execution 
+                         -> (a -> b -> a)  -- ^ The operation used to simulate execution
                          -> (x -> (a, b))  -- ^ The deconstructor for the arbitrary type
                          -> (Pool Client -> Text -> Test)
 generateTestPropAtomicOp testName hyperCall localOp decons =
@@ -218,7 +218,7 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
             Right output -> do
               case output == (initial `localOp` operand)  of
                 True -> QC.assert True
-                False -> do 
+                False -> do
                   QC.run $ do
                     putStrLn $ "Failed to store value:"
                     putStrLn $ "  test name: " <> show testName
@@ -230,7 +230,7 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
                     putStrLn $ "  output:    " <> show output
                     putStrLn $ "  expected:  " <> show (initial `localOp` operand)
                   QC.assert False
-            Left reason  -> do 
+            Left reason  -> do
               QC.run $ do
                 putStrLn $ "Failed to retrieve value:"
                 putStrLn $ "  test name: " <> show testName
@@ -242,12 +242,12 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
 
 type AsyncMapOp = Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult ()
 
-generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, HyperSerialize k, HyperSerialize v, 
-                                HyperSerialize (Map k v), 
+generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, HyperSerialize k, HyperSerialize v,
+                                HyperSerialize (Map k v),
                                 Show x, Arbitrary x)
                             => String         -- ^ The test name
                             -> AsyncMapOp     -- ^ The HyperDex operation to be performed
-                            -> (Map k v -> Map k v -> Map k v)  -- ^ The operation used to simulate execution 
+                            -> (Map k v -> Map k v -> Map k v)  -- ^ The operation used to simulate execution
                             -> (x -> (Map k v, Map k v))  -- ^ The deconstructor for the arbitrary type
                             -> (Pool Client -> Text -> Test)
 generateTestPropAtomicMapOp testName hyperCall localOp decons =
@@ -279,7 +279,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
             Right output -> do
               case output == (initial `localOp` operand)  of
                 True -> QC.assert True
-                False -> do 
+                False -> do
                   QC.run $ do
                     putStrLn $ "Failed to store value:"
                     putStrLn $ "  test name: " <> show testName
@@ -291,7 +291,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
                     putStrLn $ "  output:    " <> show output
                     putStrLn $ "  expected:  " <> show (initial `localOp` operand)
                   QC.assert False
-            Left reason  -> do 
+            Left reason  -> do
               QC.run $ do
                 putStrLn $ "Failed to retrieve value:"
                 putStrLn $ "  test name: " <> show testName
@@ -616,7 +616,7 @@ testCount clientPool space =
 
 poolTests :: Test
 poolTests = buildTest $ do
-  clientPool <- mkPool 
+  clientPool <- mkPool
   let tests = mutuallyExclusive
               $ testGroup "pooled"
               $ fmap (\f -> f clientPool)

@@ -1,4 +1,4 @@
-module Database.HyperDex.Internal 
+module Database.HyperDex.Internal
   ( module Database.HyperDex.Internal.ReturnCode
   , module Database.HyperDex.Internal.Attribute
   , module Database.HyperDex.Internal.Client

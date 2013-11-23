@@ -3,7 +3,7 @@ module Database.HyperDex.Internal.HyperdexClient
     get
   , put
   , putIfNotExist
-  , delete 
+  , delete
   , putConditional
     -- Atomic numeric operations
   , atomicAdd, atomicSub
@@ -27,8 +27,8 @@ module Database.HyperDex.Internal.HyperdexClient
   , atomicMapMod
   , atomicMapAnd, atomicMapOr
   , atomicMapXor
-    -- Atomic string value operations 
-  , atomicMapStringPrepend 
+    -- Atomic string value operations
+  , atomicMapStringPrepend
   , atomicMapStringAppend
   -- Search operations
   , search
@@ -129,8 +129,8 @@ atomicMapInsert,
   atomicMapAnd,
   atomicMapOr,
   atomicMapXor,
-  atomicMapStringPrepend, 
-  atomicMapStringAppend :: Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult () 
+  atomicMapStringPrepend,
+  atomicMapStringAppend :: Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult ()
 
 atomicMapInsert = hyperdexClientMapOp OpAtomicMapInsert
 atomicMapAdd    = hyperdexClientMapOp OpAtomicMapAdd
@@ -455,7 +455,7 @@ search client s checks = withClientStream client $ \hyperdexClient -> do
 --                           const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
 --                           enum hyperdex_client_returncode* status);
 --
-deleteGroup :: Client 
+deleteGroup :: Client
             -> Text
             -> [AttributeCheck]
             -> AsyncResult ()
@@ -532,7 +532,7 @@ count client s checks = withClient client $ \hyperdexClient -> do
         free returnCodePtr
         free space
         haskellFreeAttributeChecks checkPtr checkSize
-        n <- fmap fromIntegral $ peek countPtr 
+        n <- fmap fromIntegral $ peek countPtr
         return $
           -- TODO: Why does this succeed even when it fails?
           -- returnCode of HyperdexClientGarbage (what we put in returnCodePtr)

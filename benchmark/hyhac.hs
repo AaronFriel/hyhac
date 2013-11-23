@@ -69,7 +69,7 @@ main = do
 
   -- db <- SQL.open "dummysql"
   -- SQL.execPrint db "PRAGMA journal_mode=MEMORY; PRAGMA synchronous = OFF"
-  -- 
+  --
   -- SQL.exec db "create table phonebook (username txt, content text);"
   -- stmt <- SQL.prepare db "insert into phonebook (username, content) values (?,?);"
 
