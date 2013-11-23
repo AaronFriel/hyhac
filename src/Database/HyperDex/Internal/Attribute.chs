@@ -20,13 +20,13 @@ import Database.HyperDex.Internal.Util
 import Control.Monad
 import Control.Applicative ((<$>), (<*>))
 
-#include "hyperclient.h"
+#include "hyperdex/client.h"
 
 #c
-typedef struct hyperclient_attribute hyperclient_attribute_struct;
+typedef struct hyperdex_client_attribute hyperdex_client_attribute_struct;
 #endc
 
-{# pointer *hyperclient_attribute as AttributePtr -> Attribute #}
+{# pointer *hyperdex_client_attribute as AttributePtr -> Attribute #}
 
 mkAttribute :: HyperSerialize a => ByteString -> a -> Attribute
 mkAttribute name value =  Attribute name (serialize value) (datatype value)
@@ -43,33 +43,33 @@ data Attribute = Attribute
   }
   deriving (Show, Eq, Ord)
 instance Storable Attribute where
-  sizeOf _ = {#sizeof hyperclient_attribute_struct #}
-  alignment _ = {#alignof hyperclient_attribute_struct #}
+  sizeOf _ = {#sizeof hyperdex_client_attribute_struct #}
+  alignment _ = {#alignof hyperdex_client_attribute_struct #}
   peek p = Attribute
-    <$> (peekCBString =<< ({#get hyperclient_attribute.attr #} p))
+    <$> (peekCBString =<< ({#get hyperdex_client_attribute.attr #} p))
     <*> (do
-          str <- {#get hyperclient_attribute.value #} p
-          len <- {#get hyperclient_attribute.value_sz #} p
+          str <- {#get hyperdex_client_attribute.value #} p
+          len <- {#get hyperdex_client_attribute.value_sz #} p
           peekCBStringLen (str, fromIntegral len)
         )
-    <*> liftM (toEnum . fromIntegral) ({#get hyperclient_attribute.datatype #} p)
+    <*> liftM (toEnum . fromIntegral) ({#get hyperdex_client_attribute.datatype #} p)
   poke p x = do
     attr <- newCBString (attrName x)
     (value, valueSize) <- newCBStringLen (attrValue x)
-    {#set hyperclient_attribute.attr #} p attr
-    {#set hyperclient_attribute.value #} p value
-    {#set hyperclient_attribute.value_sz #} p $ (fromIntegral valueSize)
-    {#set hyperclient_attribute.datatype #} p (fromIntegral . fromEnum $ attrDatatype x)
+    {#set hyperdex_client_attribute.attr #} p attr
+    {#set hyperdex_client_attribute.value #} p value
+    {#set hyperdex_client_attribute.value_sz #} p $ (fromIntegral valueSize)
+    {#set hyperdex_client_attribute.datatype #} p (fromIntegral . fromEnum $ attrDatatype x)
 
 haskellFreeAttributes :: Ptr Attribute -> Int -> IO ()
 haskellFreeAttributes _ 0 = return ()
 haskellFreeAttributes p n = do
-  free =<< {# get hyperclient_attribute.attr #} p
-  free =<< {# get hyperclient_attribute.value #} p
+  free =<< {# get hyperdex_client_attribute.attr #} p
+  free =<< {# get hyperdex_client_attribute.value #} p
   haskellFreeAttributes p (n-1)
 {-# INLINE haskellFreeAttributes #-}
 
 hyperdexFreeAttributes :: Ptr Attribute -> Int -> IO ()
 hyperdexFreeAttributes attributes attributeSize = wrapHyperCall $
-  {# call hyperclient_destroy_attrs #} attributes (fromIntegral attributeSize)
+  {# call hyperdex_client_destroy_attrs #} attributes (fromIntegral attributeSize)
 {-# INLINE hyperdexFreeAttributes #-}

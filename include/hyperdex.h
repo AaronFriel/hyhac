@@ -29,6 +29,11 @@
 #ifndef hyperdex_h_
 #define hyperdex_h_
 
+#ifdef __cplusplus
+extern "C"
+{
+#endif /* __cplusplus */
+
 /* This file includes enums and constants that are used throughout HyperDex. */
 
 /* Datatype occupies [9216, 9728)
@@ -36,13 +41,14 @@
  * to be determined with simple mask operations.
  */
 
-#define CONTAINER_TYPE(X) ((X) & 9664)
-#define CONTAINER_ELEM(X) ((X) & 9223)
-#define CONTAINER_VAL(X) ((X) & 9223)
-#define CONTAINER_KEY(X) ((((X) & 56) >> 3) | ((X) & 9216))
+#define CONTAINER_TYPE(X) ((enum hyperdatatype)((X) & 9664))
+#define CONTAINER_ELEM(X) ((enum hyperdatatype)((X) & 9223))
+#define CONTAINER_VAL(X) ((enum hyperdatatype)((X) & 9223))
+#define CONTAINER_KEY(X) ((enum hyperdatatype)((((X) & 56) >> 3) | ((X) & 9216)))
 #define IS_PRIMITIVE(X) (CONTAINER_TYPE(X) == HYPERDATATYPE_GENERIC)
-#define CREATE_CONTAINER(C, E) ((enum hyperdatatype)((C) | (E & 7)))
-#define CREATE_CONTAINER2(C, K, V) ((enum hyperdatatype)((C) | ((K & 7) << 3) | (V & 7)))
+#define CREATE_CONTAINER(C, E) ((enum hyperdatatype)((C) | ((E) & 7)))
+#define CREATE_CONTAINER2(C, K, V) ((enum hyperdatatype)((C) | (((K) & 7) << 3) | ((V) & 7)))
+#define RESTRICT_CONTAINER(C, V) ((enum hyperdatatype)((C) | ((V) & 7)))
 
 enum hyperdatatype
 {
@@ -79,7 +85,7 @@ enum hyperdatatype
     HYPERDATATYPE_MAP_FLOAT_INT64    = 9434,
     HYPERDATATYPE_MAP_FLOAT_FLOAT    = 9435,
 
-    // Returned if the server acts up
+    /* Returned if the server acts up */
     HYPERDATATYPE_GARBAGE   = 9727
 };
 
@@ -90,7 +96,7 @@ enum hyperpredicate
     HYPERPREDICATE_EQUALS        = 9729,
     HYPERPREDICATE_LESS_EQUAL    = 9730,
     HYPERPREDICATE_GREATER_EQUAL = 9731,
-    HYPERPREDICATE_CONTAINS_LESS_THAN = 9732, // alias of HYPERPREDICATE_LENGTH_LESS_EQUAL
+    HYPERPREDICATE_CONTAINS_LESS_THAN = 9732, /* alias of HYPERPREDICATE_LENGTH_LESS_EQUAL */
     HYPERPREDICATE_REGEX         = 9733,
     HYPERPREDICATE_LENGTH_EQUALS        = 9734,
     HYPERPREDICATE_LENGTH_LESS_EQUAL    = 9735,
@@ -99,8 +105,9 @@ enum hyperpredicate
 };
 
 #ifdef __cplusplus
+} /* extern "C" */
 
-// C++
+/* C++ */
 #include <iostream>
 
 std::ostream&

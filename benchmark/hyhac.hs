@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Criterion.Main
 import qualified Database.HyperDex as H
+import qualified Database.HyperDex.Admin as Admin
 -- import qualified Database.Cassandra.Basic as C
 import System.Environment(getEnv)
 import Control.Monad --(forM_,forM,void,when,join,forever)
@@ -51,10 +52,10 @@ main = do
 
   -- pool <- C.createCassandraPool C.defServers 3 300 5 "testkeyspace"
 
-  client <- H.connect H.defaultConnectInfo
+  admin <- Admin.connect Admin.defaultConnectInfo
 
-  E.handle ignore $ void $ H.removeSpace client "phonebook"
-  _ <- H.addSpace client 
+  E.handle ignore $ void $ Admin.removeSpace admin "phonebook"
+  _ <- Admin.addSpace admin
        $ Text.unlines
          [ "space phonebook"
          , "key username"
@@ -63,6 +64,8 @@ main = do
          , "create 32 partitions"
          , "tolerate 0 failures"
          ]
+
+  client <- H.connect H.defaultConnectInfo
 
   -- db <- SQL.open "dummysql"
   -- SQL.execPrint db "PRAGMA journal_mode=MEMORY; PRAGMA synchronous = OFF"

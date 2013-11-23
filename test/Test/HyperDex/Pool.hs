@@ -140,7 +140,7 @@ propCanConditionalPutNumeric
       failingResult <- QC.run . join $ withResource clientPool $
                           \client -> putConditional client space key [failingAttributeCheck] [failingAttribute]
       case failingResult of
-        Left HyperclientCmpfail -> return ()
+        Left HyperdexClientCmpfail -> return ()
         _ -> do
           QC.run $ do
             putStrLn $ "Conditional store with failing put (not failing correctly):"
