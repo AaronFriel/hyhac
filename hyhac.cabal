@@ -99,6 +99,7 @@ Executable benchmark
                      , text
                      , process
                      , resource-pool
+                     , direct-sqlite
   ghc-options:         -Wall -O2 -threaded
 
 source-repository head
