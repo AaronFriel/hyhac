@@ -11,18 +11,17 @@
 --
 -- A client connection based API for the HyperDex key value store.
 --
--- This module exposes functions that rely on manually providing a client 
+-- This module exposes functions that rely on manually providing a client
 -- parameter, and no guarantees are provided that resources will be cleaned
 -- up unless the end-user ensures the connection is closed.
 --
 -----------------------------------------------------------------------------
 
-module Database.HyperDex.Client 
+module Database.HyperDex.Client
   ( module Database.HyperDex.Internal.Client
   , module Database.HyperDex.Internal.Hyperdex
   , module Database.HyperDex.Internal.Hyperdata
-  , module Database.HyperDex.Internal.Space
-  , module Database.HyperDex.Internal.Hyperclient
+  , module Database.HyperDex.Internal.HyperdexClient
   -- Data structures
   , module Database.HyperDex.Internal.ReturnCode
   , module Database.HyperDex.Internal.Attribute
@@ -31,14 +30,13 @@ module Database.HyperDex.Client
   )
   where
 
-import Database.HyperDex.Internal.Client ( 
+import Database.HyperDex.Internal.Client (
         Client, connect, close, AsyncResult, Result
       , ConnectInfo, defaultConnectInfo
       , ConnectOptions, defaultConnectOptions
       , SearchStream (..)
       )
-import Database.HyperDex.Internal.Space
-import Database.HyperDex.Internal.Hyperclient
+import Database.HyperDex.Internal.HyperdexClient
 import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
 import Database.HyperDex.Internal.ReturnCode (ReturnCode (..))

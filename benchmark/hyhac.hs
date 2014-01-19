@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Criterion.Main
 import qualified Database.HyperDex as H
+import qualified Database.HyperDex.Admin as Admin
 -- import qualified Database.Cassandra.Basic as C
 import System.Environment(getEnv)
 import Control.Monad --(forM_,forM,void,when,join,forever)
@@ -26,8 +27,8 @@ main = do
   reps <- read  <$> getEnv "REPS"
   -- threaded <- (=="yes")  <$> getEnv "THREADED"
 
-  _ <- system "rm dummysql"
-  _ <- system "rm dummyfile"
+  _ <- system "rm -f dummysql"
+  _ <- system "rm -f dummyfile"
 
   ws <- BS.lines <$> BS.readFile "/usr/share/dict/words"
   wsl <- BSL.lines <$> BSL.readFile "/usr/share/dict/words"
@@ -51,10 +52,10 @@ main = do
 
   -- pool <- C.createCassandraPool C.defServers 3 300 5 "testkeyspace"
 
-  client <- H.connect H.defaultConnectInfo
+  admin <- Admin.connect Admin.defaultConnectInfo
 
-  E.handle ignore $ void $ H.removeSpace client "phonebook"
-  _ <- H.addSpace client 
+  E.handle ignore $ void $ Admin.removeSpace admin "phonebook"
+  _ <- Admin.addSpace admin
        $ Text.unlines
          [ "space phonebook"
          , "key username"
@@ -64,9 +65,11 @@ main = do
          , "tolerate 0 failures"
          ]
 
+  client <- H.connect H.defaultConnectInfo
+
   -- db <- SQL.open "dummysql"
   -- SQL.execPrint db "PRAGMA journal_mode=MEMORY; PRAGMA synchronous = OFF"
-  -- 
+  --
   -- SQL.exec db "create table phonebook (username txt, content text);"
   -- stmt <- SQL.prepare db "insert into phonebook (username, content) values (?,?);"
 
@@ -107,8 +110,8 @@ main = do
 
   -- void $ system "echo 'use testkeyspace; drop table phonebook;' | cqlsh"
 
-  _ <- system "rm dummysql"
-  _ <- system "rm dummyfile"
+  _ <- system "rm -f dummysql"
+  _ <- system "rm -f dummyfile"
 
   return ()
 

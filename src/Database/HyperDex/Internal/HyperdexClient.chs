@@ -1,9 +1,9 @@
-module Database.HyperDex.Internal.Hyperclient
-  ( -- Simple, single-key operations 
+module Database.HyperDex.Internal.HyperdexClient
+  ( -- Simple, single-key operations
     get
   , put
   , putIfNotExist
-  , delete 
+  , delete
   , putConditional
     -- Atomic numeric operations
   , atomicAdd, atomicSub
@@ -27,8 +27,8 @@ module Database.HyperDex.Internal.Hyperclient
   , atomicMapMod
   , atomicMapAnd, atomicMapOr
   , atomicMapXor
-    -- Atomic string value operations 
-  , atomicMapStringPrepend 
+    -- Atomic string value operations
+  , atomicMapStringPrepend
   , atomicMapStringAppend
   -- Search operations
   , search
@@ -44,7 +44,7 @@ import Foreign.C
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 
-#include "hyperclient.h"
+#include "hyperdex/client.h"
 
 {# import Database.HyperDex.Internal.ReturnCode #}
 {# import Database.HyperDex.Internal.Client #}
@@ -71,9 +71,9 @@ data Op = OpPut
         | OpAtomicSetRemove
         | OpAtomicSetIntersect
         | OpAtomicSetUnion
+        | OpAtomicMapDelete -- this is not a MapOp, does not need a MapAttribute
 
 data MapOp = OpAtomicMapInsert
-           | OpAtomicMapDelete
            | OpAtomicMapAdd
            | OpAtomicMapSub
            | OpAtomicMapMul
@@ -86,10 +86,10 @@ data MapOp = OpAtomicMapInsert
            | OpAtomicMapStringAppend
 
 put :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
-put = hyperclientOp OpPut
+put = hyperdexClientOp OpPut
 
 putIfNotExist :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
-putIfNotExist = hyperclientOp OpPutIfNotExist
+putIfNotExist = hyperdexClientOp OpPutIfNotExist
 
 atomicAdd, atomicSub,
   atomicMul, atomicDiv,
@@ -99,27 +99,28 @@ atomicAdd, atomicSub,
   atomicStringPrepend, atomicStringAppend,
   atomicListLPush, atomicListRPush,
   atomicSetAdd, atomicSetRemove,
+  atomicMapDelete,
   atomicSetUnion, atomicSetIntersect :: Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
 
-atomicAdd          = hyperclientOp OpAtomicAdd 
-atomicSub          = hyperclientOp OpAtomicSub 
-atomicMul          = hyperclientOp OpAtomicMul 
-atomicDiv          = hyperclientOp OpAtomicDiv 
-atomicMod          = hyperclientOp OpAtomicMod 
-atomicAnd          = hyperclientOp OpAtomicAnd 
-atomicOr           = hyperclientOp OpAtomicOr 
-atomicXor          = hyperclientOp OpAtomicXor 
-atomicStringPrepend      = hyperclientOp OpAtomicStringPrepend 
-atomicStringAppend       = hyperclientOp OpAtomicStringAppend 
-atomicListLPush    = hyperclientOp OpAtomicListLPush 
-atomicListRPush    = hyperclientOp OpAtomicListRPush 
-atomicSetAdd       = hyperclientOp OpAtomicSetAdd 
-atomicSetRemove    = hyperclientOp OpAtomicSetRemove 
-atomicSetIntersect = hyperclientOp OpAtomicSetIntersect
-atomicSetUnion     = hyperclientOp OpAtomicSetUnion 
+atomicAdd          = hyperdexClientOp OpAtomicAdd
+atomicSub          = hyperdexClientOp OpAtomicSub
+atomicMul          = hyperdexClientOp OpAtomicMul
+atomicDiv          = hyperdexClientOp OpAtomicDiv
+atomicMod          = hyperdexClientOp OpAtomicMod
+atomicAnd          = hyperdexClientOp OpAtomicAnd
+atomicOr           = hyperdexClientOp OpAtomicOr
+atomicXor          = hyperdexClientOp OpAtomicXor
+atomicStringPrepend      = hyperdexClientOp OpAtomicStringPrepend
+atomicStringAppend       = hyperdexClientOp OpAtomicStringAppend
+atomicListLPush    = hyperdexClientOp OpAtomicListLPush
+atomicListRPush    = hyperdexClientOp OpAtomicListRPush
+atomicSetAdd       = hyperdexClientOp OpAtomicSetAdd
+atomicSetRemove    = hyperdexClientOp OpAtomicSetRemove
+atomicSetIntersect = hyperdexClientOp OpAtomicSetIntersect
+atomicSetUnion     = hyperdexClientOp OpAtomicSetUnion
+atomicMapDelete    = hyperdexClientOp OpAtomicMapDelete
 
 atomicMapInsert,
-  atomicMapDelete,
   atomicMapAdd,
   atomicMapSub,
   atomicMapMul,
@@ -128,46 +129,45 @@ atomicMapInsert,
   atomicMapAnd,
   atomicMapOr,
   atomicMapXor,
-  atomicMapStringPrepend, 
-  atomicMapStringAppend :: Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult () 
+  atomicMapStringPrepend,
+  atomicMapStringAppend :: Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult ()
 
-atomicMapInsert = hyperclientMapOp OpAtomicMapInsert
-atomicMapDelete = hyperclientMapOp OpAtomicMapDelete
-atomicMapAdd    = hyperclientMapOp OpAtomicMapAdd 
-atomicMapSub    = hyperclientMapOp OpAtomicMapSub 
-atomicMapMul    = hyperclientMapOp OpAtomicMapMul 
-atomicMapDiv    = hyperclientMapOp OpAtomicMapDiv 
-atomicMapMod    = hyperclientMapOp OpAtomicMapMod 
-atomicMapAnd    = hyperclientMapOp OpAtomicMapAnd 
-atomicMapOr     = hyperclientMapOp OpAtomicMapOr 
-atomicMapXor    = hyperclientMapOp OpAtomicMapXor 
-atomicMapStringPrepend = hyperclientMapOp OpAtomicMapStringPrepend
-atomicMapStringAppend  = hyperclientMapOp OpAtomicMapStringAppend 
+atomicMapInsert = hyperdexClientMapOp OpAtomicMapInsert
+atomicMapAdd    = hyperdexClientMapOp OpAtomicMapAdd
+atomicMapSub    = hyperdexClientMapOp OpAtomicMapSub
+atomicMapMul    = hyperdexClientMapOp OpAtomicMapMul
+atomicMapDiv    = hyperdexClientMapOp OpAtomicMapDiv
+atomicMapMod    = hyperdexClientMapOp OpAtomicMapMod
+atomicMapAnd    = hyperdexClientMapOp OpAtomicMapAnd
+atomicMapOr     = hyperdexClientMapOp OpAtomicMapOr
+atomicMapXor    = hyperdexClientMapOp OpAtomicMapXor
+atomicMapStringPrepend = hyperdexClientMapOp OpAtomicMapStringPrepend
+atomicMapStringAppend  = hyperdexClientMapOp OpAtomicMapStringAppend
 
 -- int64_t
--- hyperclient_put(struct hyperclient* client, const char* space, const char* key,
---                 size_t key_sz, const struct hyperclient_attribute* attrs,
---                 size_t attrs_sz, enum hyperclient_returncode* status);
+-- hyperdex_client_put(struct hyperdexClient* client, const char* space, const char* key,
+--                     size_t key_sz, const struct hyperdex_client_attribute* attrs,
+--                     size_t attrs_sz, enum hyperdex_client_returncode* status);
 get :: Client
     -> Text
     -> ByteString
-    -> AsyncResult [Attribute] 
-get client s k = withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+    -> AsyncResult [Attribute]
+get client s k = withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   attributePtrPtr <- malloc
   attributeSizePtr <- malloc
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   handle <- wrapHyperCall $
-            {# call hyperclient_get #}
-              hyperclient
+            {# call hyperdex_client_get #}
+              hyperdexClient
               space key (fromIntegral keySize)
               returnCodePtr attributePtrPtr attributeSizePtr
   let continuation = do
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
         attributes <-
           case returnCode of
-            HyperclientSuccess -> do
+            HyperdexClientSuccess -> do
               attributePtr <- peek attributePtrPtr
               attributeSize <- fmap fromIntegral $ peek attributeSizePtr
               attrs <- peekArray attributeSize attributePtr
@@ -179,26 +179,26 @@ get client s k = withClient client $ \hyperclient -> do
         free attributeSizePtr
         free space
         free key
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right attributes
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right attributes
             _                  -> Left returnCode
   return (handle, continuation)
 
 -- int64_t
--- hyperclient_del(struct hyperclient* client, const char* space, const char* key,
---                 size_t key_sz, enum hyperclient_returncode* status);
+-- hyperdex_client_del(struct hyperdexClient* client, const char* space, const char* key,
+--                 size_t key_sz, enum hyperdex_client_returncode* status);
 delete :: Client
        -> Text
        -> ByteString
        -> AsyncResult ()
-delete client s k = withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+delete client s k = withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   handle <- wrapHyperCall $
-            {# call hyperclient_del #}
-              hyperclient
+            {# call hyperdex_client_del #}
+              hyperdexClient
               space key (fromIntegral keySize)
               returnCodePtr
   let continuation = do
@@ -206,33 +206,33 @@ delete client s k = withClient client $ \hyperclient -> do
         free returnCodePtr
         free space
         free key
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right ()
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
 
 -- int64_t
--- hyperclient_cond_put(struct hyperclient* client, const char* space,
---                      const char* key, size_t key_sz,
---                      const struct hyperclient_attribute_check* checks, size_t checks_sz,
---                      const struct hyperclient_attribute* attrs, size_t attrs_sz,
---                      enum hyperclient_returncode* status);
-putConditional :: Client 
+-- hyperdex_client_cond_put(struct hyperdexClient* client, const char* space,
+--                          const char* key, size_t key_sz,
+--                          const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
+--                          const struct hyperdex_client_attribute* attrs, size_t attrs_sz,
+--                          enum hyperdex_client_returncode* status);
+putConditional :: Client
                -> Text
                -> ByteString
                -> [AttributeCheck]
                -> [Attribute]
                -> AsyncResult ()
-putConditional client s k checks attributes = withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+putConditional client s k checks attributes = withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   handle <- wrapHyperCall $
-            {# call hyperclient_cond_put #}
-              hyperclient
+            {# call hyperdex_client_cond_put #}
+              hyperdexClient
               space key (fromIntegral keySize)
               checkPtr (fromIntegral checkSize)
               attributePtr (fromIntegral attributeSize)
@@ -244,52 +244,53 @@ putConditional client s k checks attributes = withClient client $ \hyperclient -
         free key
         haskellFreeAttributes attributePtr attributeSize
         haskellFreeAttributeChecks checkPtr checkSize
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right ()
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
 
 -- int64_t
--- hyperclient_atomic_xor(struct hyperclient* client, const char* space,
---                        const char* key, size_t key_sz,
---                        const struct hyperclient_attribute* attrs, size_t attrs_sz,
---                        enum hyperclient_returncode* status);
-hyperclientOp :: Op
+-- hyperdex_client_atomic_xor(struct hyperdexClient* client, const char* space,
+--                            const char* key, size_t key_sz,
+--                            const struct hyperdex_client_attribute* attrs, size_t attrs_sz,
+--                            enum hyperdex_client_returncode* status);
+hyperdexClientOp :: Op
               -> Client
               -> Text
               -> ByteString
               -> [Attribute]
               -> AsyncResult ()
-hyperclientOp op = 
+hyperdexClientOp op =
   \client s k attributes ->
-    withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+    withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   let ccall = case op of
-              OpPut           -> {# call hyperclient_put #}
-              OpPutIfNotExist -> {# call hyperclient_put_if_not_exist #}
-              OpAtomicAdd     -> {# call hyperclient_atomic_add #}
-              OpAtomicSub     -> {# call hyperclient_atomic_sub #}
-              OpAtomicMul     -> {# call hyperclient_atomic_mul #}
-              OpAtomicDiv     -> {# call hyperclient_atomic_div #}
-              OpAtomicMod     -> {# call hyperclient_atomic_mod #}
-              OpAtomicAnd     -> {# call hyperclient_atomic_and #}
-              OpAtomicOr      -> {# call hyperclient_atomic_or  #}
-              OpAtomicXor     -> {# call hyperclient_atomic_xor #}
-              OpAtomicStringPrepend -> {# call hyperclient_string_prepend #}
-              OpAtomicStringAppend  -> {# call hyperclient_string_append  #}
-              OpAtomicListLPush     -> {# call hyperclient_list_lpush #}
-              OpAtomicListRPush     -> {# call hyperclient_list_rpush #}
-              OpAtomicSetAdd        -> {# call hyperclient_set_add       #}
-              OpAtomicSetRemove     -> {# call hyperclient_set_remove    #}
-              OpAtomicSetIntersect  -> {# call hyperclient_set_intersect #}
-              OpAtomicSetUnion      -> {# call hyperclient_set_union     #}
+              OpPut           -> {# call hyperdex_client_put #}
+              OpPutIfNotExist -> {# call hyperdex_client_put_if_not_exist #}
+              OpAtomicAdd     -> {# call hyperdex_client_atomic_add #}
+              OpAtomicSub     -> {# call hyperdex_client_atomic_sub #}
+              OpAtomicMul     -> {# call hyperdex_client_atomic_mul #}
+              OpAtomicDiv     -> {# call hyperdex_client_atomic_div #}
+              OpAtomicMod     -> {# call hyperdex_client_atomic_mod #}
+              OpAtomicAnd     -> {# call hyperdex_client_atomic_and #}
+              OpAtomicOr      -> {# call hyperdex_client_atomic_or  #}
+              OpAtomicXor     -> {# call hyperdex_client_atomic_xor #}
+              OpAtomicStringPrepend -> {# call hyperdex_client_string_prepend #}
+              OpAtomicStringAppend  -> {# call hyperdex_client_string_append  #}
+              OpAtomicListLPush     -> {# call hyperdex_client_list_lpush #}
+              OpAtomicListRPush     -> {# call hyperdex_client_list_rpush #}
+              OpAtomicSetAdd        -> {# call hyperdex_client_set_add       #}
+              OpAtomicSetRemove     -> {# call hyperdex_client_set_remove    #}
+              OpAtomicSetIntersect  -> {# call hyperdex_client_set_intersect #}
+              OpAtomicSetUnion      -> {# call hyperdex_client_set_union     #}
+              OpAtomicMapDelete     -> {# call hyperdex_client_map_remove #}
   handle <- wrapHyperCall $
             ccall
-              hyperclient
+              hyperdexClient
               space key (fromIntegral keySize)
               attributePtr (fromIntegral attributeSize) returnCodePtr
   let continuation = do
@@ -298,47 +299,46 @@ hyperclientOp op =
         free space
         free key
         hyperdexFreeAttributes attributePtr attributeSize
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right ()
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
-{-# INLINE hyperclientOp #-}
+{-# INLINE hyperdexClientOp #-}
 
 -- int64_t
--- hyperclient_map_add(struct hyperclient* client, const char* space,
---                     const char* key, size_t key_sz,
---                     const struct hyperclient_map_attribute* attrs, size_t attrs_sz,
---                     enum hyperclient_returncode* status);
-hyperclientMapOp :: MapOp 
+-- hyperdex_client_map_add(struct hyperdexClient* client, const char* space,
+--                         const char* key, size_t key_sz,
+--                         const struct hyperdex_client_map_attribute* attrs, size_t attrs_sz,
+--                         enum hyperdex_client_returncode* status);
+hyperdexClientMapOp :: MapOp
                  -> Client
                  -> Text
                  -> ByteString
                  -> [MapAttribute]
                  -> AsyncResult ()
-hyperclientMapOp op =
+hyperdexClientMapOp op =
   \client s k mapAttributes ->
-    withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+    withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
   let ccall = case op of
-              OpAtomicMapInsert -> {# call hyperclient_map_add    #}
-              OpAtomicMapDelete -> {# call hyperclient_map_remove #}
-              OpAtomicMapAdd    -> {# call hyperclient_map_atomic_add #}
-              OpAtomicMapSub    -> {# call hyperclient_map_atomic_sub #}
-              OpAtomicMapMul    -> {# call hyperclient_map_atomic_mul #}
-              OpAtomicMapDiv    -> {# call hyperclient_map_atomic_div #}
-              OpAtomicMapMod    -> {# call hyperclient_map_atomic_mod #}
-              OpAtomicMapAnd    -> {# call hyperclient_map_atomic_and #}
-              OpAtomicMapOr     -> {# call hyperclient_map_atomic_or  #}
-              OpAtomicMapXor    -> {# call hyperclient_map_atomic_xor #}
-              OpAtomicMapStringPrepend -> {# call hyperclient_map_string_prepend #}
-              OpAtomicMapStringAppend  -> {# call hyperclient_map_string_append  #}
+              OpAtomicMapInsert -> {# call hyperdex_client_map_add    #}
+              OpAtomicMapAdd    -> {# call hyperdex_client_map_atomic_add #}
+              OpAtomicMapSub    -> {# call hyperdex_client_map_atomic_sub #}
+              OpAtomicMapMul    -> {# call hyperdex_client_map_atomic_mul #}
+              OpAtomicMapDiv    -> {# call hyperdex_client_map_atomic_div #}
+              OpAtomicMapMod    -> {# call hyperdex_client_map_atomic_mod #}
+              OpAtomicMapAnd    -> {# call hyperdex_client_map_atomic_and #}
+              OpAtomicMapOr     -> {# call hyperdex_client_map_atomic_or  #}
+              OpAtomicMapXor    -> {# call hyperdex_client_map_atomic_xor #}
+              OpAtomicMapStringPrepend -> {# call hyperdex_client_map_string_prepend #}
+              OpAtomicMapStringAppend  -> {# call hyperdex_client_map_string_append  #}
   handle <- wrapHyperCall $
             ccall
-              hyperclient space
+              hyperdexClient space
               key (fromIntegral keySize)
               mapAttributePtr (fromIntegral mapAttributeSize)
               returnCodePtr
@@ -348,18 +348,18 @@ hyperclientMapOp op =
         free space
         free key
         --haskellFreeMapAttributes mapAttributePtr mapAttributeSize
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right ()
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
-{-# INLINE hyperclientMapOp #-}
+{-# INLINE hyperdexClientMapOp #-}
 
 -- int64_t
--- hyperclient_map_add(struct hyperclient* client, const char* space,
---                     const char* key, size_t key_sz,
---                     const struct hyperclient_map_attribute* attrs, size_t attrs_sz,
---                     enum hyperclient_returncode* status);
+-- hyperdex_client_map_add(struct hyperdexClient* client, const char* space,
+--                         const char* key, size_t key_sz,
+--                         const struct hyperdex_client_map_attribute* attrs, size_t attrs_sz,
+--                         enum hyperdex_client_returncode* status);
 ---- A compilation error prevents this from being implemented:
 -- /home/cloudium/git/hyhac/dist/build/libHShyhac-0.2.0.0_p.a(Hyperclient.p_o): In function `ra9O_info':
 -- /tmp/ghc20379_0/ghc20379_1.p_o:(.text+0x1d6): undefined reference to `hyperclient_cond_map_add'
@@ -368,17 +368,17 @@ hyperclientMapOp op =
 -- /home/cloudium/git/hyhac/dist/build/libHShyhac-0.2.0.0_p.a(Hyperclient.p_o): In function `sdm2_info':
 -- /tmp/ghc20379_0/ghc20379_1.p_o:(.text+0x3dc85): undefined reference to `hyperclient_cond_map_add'
 
--- atomicConditionalMapInsert :: Hyperclient -> Text -> ByteString
+-- atomicConditionalMapInsert :: hyperdexClient -> Text -> ByteString
 --                            -> [AttributeCheck]
 --                            -> [MapAttribute]
 --                            -> AsyncResultHandle ()
 -- atomicConditionalMapInsert client s k checks mapAttributes = do
---   returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+--   returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
 --   space <- newTextUtf8 s
 --   (key,keySize) <- newCBStringLen k
 --   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
 --   (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
---   handle <- {# call hyperclient_cond_map_add #}
+--   handle <- {# call hyperdex_client_cond_map_add #}
 --               client space
 --               key (fromIntegral keySize)
 --               checkPtr (fromIntegral checkSize)
@@ -390,40 +390,40 @@ hyperclientMapOp op =
 --         free space
 --         free key
 --         --haskellFreeMapAttributes mapAttributePtr mapAttributeSize
---         return $ 
---           case returnCode of 
---             HyperclientSuccess -> Right ()
+--         return $
+--           case returnCode of
+--             HyperdexClientSuccess -> Right ()
 --             _                  -> Left returnCode
 --   return (handle, continuation)
 -- {-# INLINE atomicConditionalMapInsert #-}
 
 -- int64_t
--- hyperclient_search(struct hyperclient* client, const char* space,
---                    const struct hyperclient_attribute_check* checks, size_t checks_sz,
---                    enum hyperclient_returncode* status,
---                    struct hyperclient_attribute** attrs, size_t* attrs_sz);
+-- hyperdex_client_search(struct hyperdexClient* client, const char* space,
+--                        const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
+--                        enum hyperdex_client_returncode* status,
+--                        struct hyperdex_client_attribute** attrs, size_t* attrs_sz);
 search :: Client
           -> Text
-          -> [AttributeCheck] 
+          -> [AttributeCheck]
           -> AsyncResult (SearchStream [Attribute])
-search client s checks = withClientStream client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+search client s checks = withClientStream client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   resultSetPtrPtr <- malloc
   resultSetSizePtr <- malloc
   handle <- wrapHyperCall $
-            {# call hyperclient_search #}
-              hyperclient space
+            {# call hyperdex_client_search #}
+              hyperdexClient space
               checkPtr (fromIntegral checkSize :: {# type size_t #})
               returnCodePtr
               resultSetPtrPtr resultSetSizePtr
   case handle >= 0 of
     True -> do
-      let continuation (Just HyperclientSuccess) = do
+      let continuation (Just HyperdexClientSuccess) = do
             returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
             case returnCode of
-              HyperclientSuccess -> do
+              HyperdexClientSuccess -> do
                 resultSize <- peek resultSetSizePtr
                 resultSetPtr <- peek resultSetPtrPtr
                 resultSet <- peekArray (fromIntegral resultSize) resultSetPtr
@@ -435,8 +435,8 @@ search client s checks = withClientStream client $ \hyperclient -> do
             haskellFreeAttributeChecks checkPtr checkSize
             free resultSetPtrPtr
             free resultSetSizePtr
-            return $ Left $ case e of 
-                              Nothing -> HyperclientDupeattr
+            return $ Left $ case e of
+                              Nothing -> HyperdexClientDupeattr
                               Just rc -> rc
       return (handle, continuation)
     False -> do
@@ -451,21 +451,21 @@ search client s checks = withClientStream client $ \hyperclient -> do
       return (handle, continuation)
 
 -- int64_t
--- hyperclient_group_del(struct hyperclient* client, const char* space,
---                       const struct hyperclient_attribute_check* checks, size_t checks_sz,
---                       enum hyperclient_returncode* status);
+-- hyperdex_client_group_del(struct hyperdexClient* client, const char* space,
+--                           const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
+--                           enum hyperdex_client_returncode* status);
 --
-deleteGroup :: Client 
+deleteGroup :: Client
             -> Text
             -> [AttributeCheck]
             -> AsyncResult ()
-deleteGroup client s checks = withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+deleteGroup client s checks = withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   handle <- wrapHyperCall $
-            {# call hyperclient_group_del #}
-              hyperclient space
+            {# call hyperdex_client_group_del #}
+              hyperdexClient space
               checkPtr (fromIntegral checkSize)
               returnCodePtr
   let continuation = do
@@ -473,28 +473,28 @@ deleteGroup client s checks = withClient client $ \hyperclient -> do
         free returnCodePtr
         free space
         haskellFreeAttributeChecks checkPtr checkSize
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right ()
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right ()
             _                  -> Left returnCode
   return (handle, continuation)
 
 -- int64_t
--- hyperclient_search_describe(struct hyperclient* client, const char* space,
---                             const struct hyperclient_attribute_check* checks, size_t checks_sz,
---                             enum hyperclient_returncode* status, const char** description);
+-- hyperdex_client_search_describe(struct hyperdexClient* client, const char* space,
+--                                 const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
+--                                 enum hyperdex_client_returncode* status, const char** description);
 describeSearch :: Client
                -> Text
                -> [AttributeCheck]
                -> AsyncResult Text
-describeSearch client s checks = withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+describeSearch client s checks = withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   descPtr <- malloc
   handle <- wrapHyperCall $
-            {# call hyperclient_search_describe #}
-              hyperclient space
+            {# call hyperdex_client_search_describe #}
+              hyperdexClient space
               checkPtr (fromIntegral checkSize)
               returnCodePtr descPtr
   let continuation = do
@@ -502,29 +502,29 @@ describeSearch client s checks = withClient client $ \hyperclient -> do
         free returnCodePtr
         free space
         haskellFreeAttributeChecks checkPtr checkSize
-        desc <- peekTextUtf8 descPtr 
-        return $ 
-          case returnCode of 
-            HyperclientSuccess -> Right desc
+        desc <- peekTextUtf8 descPtr
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right desc
             _                  -> Left returnCode
   return (handle, continuation)
 
 -- int64_t
--- hyperclient_count(struct hyperclient* client, const char* space,
---                   const struct hyperclient_attribute_check* checks, size_t checks_sz,
---                   enum hyperclient_returncode* status, uint64_t* result);
+-- hyperdex_client_count(struct hyperdexClient* client, const char* space,
+--                       const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
+--                       enum hyperdex_client_returncode* status, uint64_t* result);
 count :: Client
       -> Text
       -> [AttributeCheck]
       -> AsyncResult Integer
-count client s checks = withClient client $ \hyperclient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperclientGarbage)
+count client s checks = withClient client $ \hyperdexClient -> do
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   countPtr <- new 1010101010
   handle <- wrapHyperCall $
-            {# call hyperclient_count #}
-              hyperclient space
+            {# call hyperdex_client_count #}
+              hyperdexClient space
               checkPtr (fromIntegral checkSize)
               returnCodePtr countPtr
   let continuation = do
@@ -532,15 +532,15 @@ count client s checks = withClient client $ \hyperclient -> do
         free returnCodePtr
         free space
         haskellFreeAttributeChecks checkPtr checkSize
-        n <- fmap fromIntegral $ peek countPtr 
+        n <- fmap fromIntegral $ peek countPtr
         return $
           -- TODO: Why does this succeed even when it fails?
-          -- returnCode of HyperclientGarbage (what we put in returnCodePtr)
+          -- returnCode of HyperdexClientGarbage (what we put in returnCodePtr)
           -- usually means success, but occasionally failure.
           -- Is this a bug in hyhac or HyperDex?
-          case returnCode of 
-            HyperclientSuccess -> Right n
-            HyperclientGarbage -> Right n
+          case returnCode of
+            HyperdexClientSuccess -> Right n
+            HyperdexClientGarbage -> Right n
             _                  -> Left returnCode
   return (handle, continuation)
 

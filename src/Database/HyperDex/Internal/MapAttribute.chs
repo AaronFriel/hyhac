@@ -23,13 +23,13 @@ import qualified Data.Map as Map
 import Control.Monad
 import Control.Applicative ((<$>), (<*>))
 
-#include "hyperclient.h"
+#include "hyperdex/client.h"
 
 #c
-typedef struct hyperclient_map_attribute hyperclient_map_attribute_struct;
+typedef struct hyperdex_client_map_attribute hyperdex_client_map_attribute_struct;
 #endc
 
-{# pointer *hyperclient_map_attribute as MapAttributePtr -> MapAttribute #}
+{# pointer *hyperdex_client_map_attribute as MapAttributePtr -> MapAttribute #}
 
 mkMapAttribute :: (HyperSerialize k, HyperSerialize v) => ByteString -> k -> v -> MapAttribute
 mkMapAttribute name key value =  MapAttribute name (serialize key) (datatype key) (serialize value) (datatype value)
@@ -52,39 +52,39 @@ data MapAttribute = MapAttribute
   }
   deriving (Show, Eq)
 instance Storable MapAttribute where
-  sizeOf _    = {#sizeof hyperclient_map_attribute_struct #}
-  alignment _ = {#alignof hyperclient_map_attribute_struct #}
+  sizeOf _    = {#sizeof hyperdex_client_map_attribute_struct #}
+  alignment _ = {#alignof hyperdex_client_map_attribute_struct #}
   peek p = MapAttribute
-    <$> (peekCBString =<< ({#get hyperclient_map_attribute.attr #} p))
+    <$> (peekCBString =<< ({#get hyperdex_client_map_attribute.attr #} p))
     <*> (do
-          str <- {#get hyperclient_map_attribute.map_key #} p
-          len <- {#get hyperclient_map_attribute.map_key_sz #} p
+          str <- {#get hyperdex_client_map_attribute.map_key #} p
+          len <- {#get hyperdex_client_map_attribute.map_key_sz #} p
           peekCBStringLen (str, fromIntegral len)
         )
-    <*> liftM (toEnum . fromIntegral) ({#get hyperclient_map_attribute.map_key_datatype #} p)
+    <*> liftM (toEnum . fromIntegral) ({#get hyperdex_client_map_attribute.map_key_datatype #} p)
     <*> (do
-          str <- {#get hyperclient_map_attribute.value #} p
-          len <- {#get hyperclient_map_attribute.value_sz #} p
+          str <- {#get hyperdex_client_map_attribute.value #} p
+          len <- {#get hyperdex_client_map_attribute.value_sz #} p
           peekCBStringLen (str, fromIntegral len)
         )
-    <*> liftM (toEnum . fromIntegral) ({#get hyperclient_map_attribute.value_datatype #} p)
+    <*> liftM (toEnum . fromIntegral) ({#get hyperdex_client_map_attribute.value_datatype #} p)
   poke p x = do
     attr <- newCBString (mapAttrName x)
     (key, keySize) <- newCBStringLen (mapAttrKey x)
     (value, valueSize) <- newCBStringLen (mapAttrValue x)
-    {#set hyperclient_map_attribute.attr #} p attr
-    {#set hyperclient_map_attribute.map_key #} p key
-    {#set hyperclient_map_attribute.map_key_sz #} p $ (fromIntegral keySize)
-    {#set hyperclient_map_attribute.map_key_datatype #} p (fromIntegral . fromEnum $ mapAttrKeyDatatype x)
-    {#set hyperclient_map_attribute.value #} p value
-    {#set hyperclient_map_attribute.value_sz #} p $ (fromIntegral valueSize)
-    {#set hyperclient_map_attribute.value_datatype #} p (fromIntegral . fromEnum $ mapAttrValueDatatype x)
-    
+    {#set hyperdex_client_map_attribute.attr #} p attr
+    {#set hyperdex_client_map_attribute.map_key #} p key
+    {#set hyperdex_client_map_attribute.map_key_sz #} p $ (fromIntegral keySize)
+    {#set hyperdex_client_map_attribute.map_key_datatype #} p (fromIntegral . fromEnum $ mapAttrKeyDatatype x)
+    {#set hyperdex_client_map_attribute.value #} p value
+    {#set hyperdex_client_map_attribute.value_sz #} p $ (fromIntegral valueSize)
+    {#set hyperdex_client_map_attribute.value_datatype #} p (fromIntegral . fromEnum $ mapAttrValueDatatype x)
+
 haskellFreeMapAttributes :: Ptr MapAttribute -> Int -> IO ()
 haskellFreeMapAttributes _ 0 = return ()
 haskellFreeMapAttributes p n = do
-  free =<< {# get hyperclient_attribute.attr #} p
-  free =<< {# get hyperclient_attribute.value #} p
+  free =<< {# get hyperdex_client_attribute.attr #} p
+  free =<< {# get hyperdex_client_attribute.value #} p
   haskellFreeMapAttributes p (n-1)
 {-# INLINE haskellFreeMapAttributes #-}
 

@@ -1,4 +1,4 @@
-module Database.HyperDex.Internal.Space 
+module Database.HyperDex.Internal.Space
   ( addSpace
   , removeSpace
   )
@@ -9,28 +9,36 @@ import Foreign.C
 
 import Data.Text (Text)
 
-{#import Database.HyperDex.Internal.Client #}
-{#import Database.HyperDex.Internal.ReturnCode #}
+{#import Database.HyperDex.Internal.Admin #}
+{#import Database.HyperDex.Internal.AdminReturnCode #}
 import Database.HyperDex.Internal.Util
 
-#include "hyperclient.h"
+#include "hyperdex/admin.h"
 
-addSpace :: Client -> Text -> IO ReturnCode
-addSpace c desc  = withClientImmediate c $ \hc -> do
-  hyperclientAddSpace hc desc
+addSpace :: Admin -> Text -> IO ReturnCode
+addSpace c desc  = withAdminImmediate c $ \hc -> do
+  hyperdexAdminAddSpace hc desc
 
-removeSpace :: Client -> Text -> IO ReturnCode
-removeSpace c name = withClientImmediate c $ \hc -> do
-  hyperclientRemoveSpace hc name
+removeSpace :: Admin -> Text -> IO ReturnCode
+removeSpace c name = withAdminImmediate c $ \hc -> do
+  hyperdexAdminRemoveSpace hc name
 
--- enum hyperclient_returncode
--- hyperclient_add_space(struct hyperclient* client, const char* description);
-hyperclientAddSpace :: Hyperclient -> Text -> IO ReturnCode
-hyperclientAddSpace client d = withTextUtf8 d $ \description -> do
-  fmap (toEnum . fromIntegral) $ wrapHyperCall $ {#call hyperclient_add_space #} client description
+-- int64_t
+-- hyperdex_admin_add_space(struct hyperdex_admin* admin, const char* description, enum hyperdex_admin_returncode* status);
+hyperdexAdminAddSpace :: HyperdexAdmin -> Text -> IO ReturnCode
+hyperdexAdminAddSpace admin d = withTextUtf8 d $ \description -> do
+  alloca $ \returnCodePtr -> do
+    -- TODO nh2: handle int64_t return (and figure out what it is)
+    admin_visible_id_or_minus_1 <- wrapHyperCall $ {#call hyperdex_admin_add_space #} admin description returnCodePtr
+    returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+    return returnCode
 
--- enum hyperclient_returncode
--- hyperclient_rm_space(struct hyperclient* client, const char* space);
-hyperclientRemoveSpace :: Hyperclient -> Text -> IO ReturnCode
-hyperclientRemoveSpace client s = withTextUtf8 s $ \space -> do
-  fmap (toEnum . fromIntegral) $ wrapHyperCall $ {#call hyperclient_rm_space #} client space
+-- int64_t
+-- hyperdex_admin_rm_space(struct hyperdex_admin* admin, const char* name, enum hyperdex_admin_returncode* status);
+hyperdexAdminRemoveSpace :: HyperdexAdmin -> Text -> IO ReturnCode
+hyperdexAdminRemoveSpace admin s = withTextUtf8 s $ \space -> do
+  alloca $ \returnCodePtr -> do
+    -- TODO nh2: handle int64_t return (and figure out what it is)
+    admin_visible_id_or_minus_1 <- wrapHyperCall $ {#call hyperdex_admin_rm_space #} admin space returnCodePtr
+    returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+    return returnCode
