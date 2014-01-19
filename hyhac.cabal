@@ -5,7 +5,7 @@ description:
   A client for accessing the HyperDex distributed database
 license:             BSD3
 license-file:        LICENSE
-author:              Aaron Friel
+author:              Aaron Friel <mayreply@aaronfriel.com>, Niklas Hambüchen <mail@nh2.me>
 maintainer:          mayreply@aaronfriel.com
 copyright:           (c) 2013 Aaron Friel
 category:            Database
@@ -58,7 +58,7 @@ library
   -- other-extensions:
 
   build-depends:
-      base                       == 4.6.*
+      base                       >= 4.6
     , bytestring                 >= 0.10
     , cereal                     >= 0.3.5
     , containers                 >= 0.5
