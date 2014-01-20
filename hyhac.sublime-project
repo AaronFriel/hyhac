@@ -2,7 +2,8 @@
 	"folders":
 	[
 		{
-			"path": "/home/cloudium/git/hyhac"
+			"follow_symlinks": true,
+			"path": "."
 		}
 	]
 }
