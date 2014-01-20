@@ -24,8 +24,8 @@ import Data.ByteString (ByteString)
 {# import Database.HyperDex.Internal.ReturnCode #}
 import Database.HyperDex.Internal.Util
 
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HashMap
 
 import Control.Concurrent (yield, threadDelay)
 import Control.Concurrent.MVar
@@ -71,7 +71,7 @@ data ConnectOptions =
 instance Default ConnectOptions where
   def =
     ConnectOptions
-      { connectionBackoff = BackoffYield -- 10 * 2^n
+      { connectionBackoff	= BackoffYield -- 10 * 2^n
       , connectionBackoffCap = Just 50000           -- 0.05 seconds.
       }
 
@@ -104,6 +104,8 @@ data BackoffMethod
 -- will store a new Handle and HandleCallback.
 newtype HandleCallback = HandleCallback (Maybe ReturnCode -> IO (Maybe (Handle, HandleCallback)))
 
+type HandleMap = HashMap Int64 HandleCallback
+
 -- | The core data type managing access to a 'HyperdexClient' object and all
 -- currently running asynchronous operations.
 --
@@ -111,12 +113,12 @@ newtype HandleCallback = HandleCallback (Maybe ReturnCode -> IO (Maybe (Handle, 
 -- a map of open handles and continuations, or callbacks, that must be executed
 -- to complete operations. A 'HandleCallback' may yield Nothing or a new 'Handle'
 -- and 'HandleCallback' to be stored in the map.
-type HyperdexClientWrapper = MVar (Maybe HyperdexClient, Map Handle HandleCallback)
+type HyperdexClientWrapper = MVar (Maybe HyperdexClient, HandleMap)
 
 data ClientData =
   ClientData
-    { hypderdexClientWrapper :: HyperdexClientWrapper
-    , connectionInfo     :: ConnectInfo
+    { hypderdexClientWrapper  :: HyperdexClientWrapper
+    , connectionInfo        :: ConnectInfo
     }
 
 -- | A connection to a HyperDex cluster.
@@ -141,7 +143,10 @@ getConnectOptions = connectOptions . getConnectInfo
 -- it is monotonically increasing while operations are outstanding,
 -- lower values are used first, and negative values represent an
 -- error.
-type Handle = {# type int64_t #}
+type Handle = CLong
+
+handleToInt64 :: CLong -> Int64
+handleToInt64 (CLong i) = i
 
 -- | A return value from HyperDex.
 type Result a = IO (Either ReturnCode a)
@@ -188,7 +193,7 @@ newtype SearchStream a = SearchStream (a, Result (SearchStream a))
 connect :: ConnectInfo -> IO Client
 connect info = do
   hyperdexclient <- hyperdexClientCreate (encodeUtf8 . Text.pack . connectHost $ info) (connectPort info)
-  clientData <- newMVar (Just hyperdexclient, Map.empty)
+  clientData <- newMVar (Just hyperdexclient, HashMap.empty)
   return $
     Client
     $ ClientData
@@ -211,8 +216,8 @@ forceClose (getClient -> c) = do
     (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
     (Just hc, handles)  -> do
       hyperdexClientDestroy hc
-      mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles
-      putMVar c (Nothing, Map.empty)
+      mapM_ (\(HandleCallback cont) -> cont Nothing) $ HashMap.elems handles
+      putMVar c (Nothing, HashMap.empty)
 
 -- | Wait for graceful termination of all outstanding requests and
 -- then close the connection.
@@ -225,10 +230,10 @@ close client@(getClient -> c) = do
   case clientData of
     (Nothing, _)        -> error "HyperDex client error - cannot close a client connection twice."
     (Just hc, handles)  -> do
-      case Map.null handles of
+      case HashMap.null handles of
         True  -> do
           hyperdexClientDestroy hc
-          putMVar c (Nothing, Map.empty)
+          putMVar c (Nothing, HashMap.empty)
         False -> do
           -- Have to put it back in order to run loopClient
           (_, newHandles) <- handleLoop hc handles
@@ -268,27 +273,27 @@ performBackoff method cap = do
 -- or not a handle was completed and a new set of callbacks.
 --
 -- This function does not use locking around the client.
-handleLoop :: HyperdexClient -> Map Handle HandleCallback -> IO (Maybe Handle, Map Handle HandleCallback)
+handleLoop :: HyperdexClient -> HandleMap -> IO (Maybe Handle, HandleMap)
 handleLoop hc handles = do
   -- TODO: Examine returnCode for things that might matter.
   (handle, returnCode) <- hyperdexClientLoop hc 0
   case returnCode of
     HyperdexClientSuccess -> do
-      let clearedMap = Map.delete handle handles
+      let clearedMap = HashMap.delete (handleToInt64 handle) handles
       resultMap <- do
-        case Map.lookup handle handles of
+        case HashMap.lookup (handleToInt64 handle) handles of
           Just (HandleCallback entry) -> do
             cont <- entry $ Just returnCode
             case cont of
               Nothing     -> return clearedMap
-              Just (h, e) -> return $ Map.insert h e clearedMap
+              Just (h, e) -> return $ HashMap.insert (handleToInt64 h) e clearedMap
           Nothing -> return clearedMap
       return $ (Just handle, resultMap)
     HyperdexClientTimeout -> do
       handleLoop hc handles
     HyperdexClientNonepending -> do
-      mapM_ (\(HandleCallback cont) -> cont Nothing) $ Map.elems handles
-      return $ (Just handle, Map.empty)
+      mapM_ (\(HandleCallback cont) -> cont Nothing) $ HashMap.elems handles
+      return $ (Just handle, HashMap.empty)
     _ -> do
       handleLoop hc handles
 
@@ -321,7 +326,7 @@ loopClientUntil client h v back (Just n) = do
       case clientData of
         (Nothing, _)       -> return True
         (Just _, handles)  -> do
-          case Map.member h handles of
+          case HashMap.member (handleToInt64 h) handles of
             False -> return True
             True  -> do
               back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
@@ -338,7 +343,7 @@ loopClientUntil client h v back Nothing = do
       case clientData of
         (Nothing, _)       -> return False
         (Just _, handles)  -> do
-          case Map.member h handles of
+          case HashMap.member (handleToInt64 h) handles of
             False -> return True
             True  -> do
               back' <- performBackoff back (connectionBackoffCap . getConnectOptions $ client)
@@ -370,7 +375,7 @@ withClient client@(getClient -> c) f = do
                 returnValue <- cont
                 putMVar v returnValue
                 return Nothing
-          putMVar c (Just hc, Map.insert h wrappedCallback handles)
+          putMVar c (Just hc, HashMap.insert (handleToInt64 h) wrappedCallback handles)
           return $ do
             success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing
             case success of
@@ -403,7 +408,7 @@ withClientStream client@(getClient -> c) f = do
                 (result, callback) <- wrapSearchStream returnValue client h cont
                 putMVar v $ result
                 return $ Just (h, callback)
-          putMVar c (Just hc, Map.insert h wrappedCallback handles)
+          putMVar c (Just hc, HashMap.insert (handleToInt64 h) wrappedCallback handles)
           return $ do
             success <- loopClientUntil client h v (connectionBackoff . getConnectOptions $ client) Nothing
             case success of

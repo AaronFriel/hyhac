@@ -29,7 +29,7 @@ hyperdexAdminAddSpace :: HyperdexAdmin -> Text -> IO ReturnCode
 hyperdexAdminAddSpace admin d = withTextUtf8 d $ \description -> do
   alloca $ \returnCodePtr -> do
     -- TODO nh2: handle int64_t return (and figure out what it is)
-    admin_visible_id_or_minus_1 <- wrapHyperCall $ {#call hyperdex_admin_add_space #} admin description returnCodePtr
+    _ <- wrapHyperCall $ {#call hyperdex_admin_add_space #} admin description returnCodePtr
     returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
     return returnCode
 
@@ -39,6 +39,6 @@ hyperdexAdminRemoveSpace :: HyperdexAdmin -> Text -> IO ReturnCode
 hyperdexAdminRemoveSpace admin s = withTextUtf8 s $ \space -> do
   alloca $ \returnCodePtr -> do
     -- TODO nh2: handle int64_t return (and figure out what it is)
-    admin_visible_id_or_minus_1 <- wrapHyperCall $ {#call hyperdex_admin_rm_space #} admin space returnCodePtr
+    _ <- wrapHyperCall $ {#call hyperdex_admin_rm_space #} admin space returnCodePtr
     returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
     return returnCode
