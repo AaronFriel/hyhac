@@ -185,9 +185,13 @@ get client s k = withClient client $ \hyperdexClient -> do
             _                  -> Left returnCode
   return (handle, continuation)
 
+
 -- int64_t
--- hyperdex_client_del(struct hyperdexClient* client, const char* space, const char* key,
---                 size_t key_sz, enum hyperdex_client_returncode* status);
+-- hyperdex_client_del(struct hyperdex_client* client,
+--                     const char* space,
+--                     const char* key, size_t key_sz,
+--                     enum hyperdex_client_returncode* status);
+
 delete :: Client
        -> Text
        -> ByteString
@@ -199,7 +203,8 @@ delete client s k = withClient client $ \hyperdexClient -> do
   handle <- wrapHyperCall $
             {# call hyperdex_client_del #}
               hyperdexClient
-              space key (fromIntegral keySize)
+              space
+              key (fromIntegral keySize)
               returnCodePtr
   let continuation = do
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
@@ -451,33 +456,34 @@ search client s checks = withClientStream client $ \hyperdexClient -> do
       return (handle, continuation)
 
 -- int64_t
--- hyperdex_client_group_del(struct hyperdexClient* client, const char* space,
+-- hyperdex_client_group_del(struct hyperdex_client* client,
+--                           const char* space,
 --                           const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
 --                           enum hyperdex_client_returncode* status);
---
 deleteGroup :: Client
             -> Text
             -> [AttributeCheck]
             -> AsyncResult ()
 deleteGroup client s checks = withClient client $ \hyperdexClient -> do
-  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
-  space <- newTextUtf8 s
-  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
-  handle <- wrapHyperCall $
-            {# call hyperdex_client_group_del #}
-              hyperdexClient space
-              checkPtr (fromIntegral checkSize)
-              returnCodePtr
-  let continuation = do
-        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-        free returnCodePtr
-        free space
-        haskellFreeAttributeChecks checkPtr checkSize
-        return $
-          case returnCode of
-            HyperdexClientSuccess -> Right ()
-            _                  -> Left returnCode
-  return (handle, continuation)
+	returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
+	space <- newTextUtf8 s
+	(checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+	handle <-	wrapHyperCall $
+	         	{# call hyperdex_client_group_del #}
+	         		hyperdexClient
+	         		space
+	         		checkPtr (fromIntegral checkSize)
+	         		returnCodePtr
+	let continuation = do
+		returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+		free returnCodePtr
+		free space
+		haskellFreeAttributeChecks checkPtr checkSize
+		return $
+		  case returnCode of
+				HyperdexClientSuccess	-> Right ()
+				_                    	-> Left returnCode
+	return (handle, continuation)
 
 -- int64_t
 -- hyperdex_client_search_describe(struct hyperdexClient* client, const char* space,
@@ -521,7 +527,7 @@ count client s checks = withClient client $ \hyperdexClient -> do
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
   space <- newTextUtf8 s
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
-  countPtr <- new 1010101010
+  countPtr <- new 0
   handle <- wrapHyperCall $
             {# call hyperdex_client_count #}
               hyperdexClient space
