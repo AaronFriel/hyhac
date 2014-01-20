@@ -411,7 +411,7 @@ testAtomicMap clientPool space =
   [ testGroup "int-int"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map Int64 Int64)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference  :: Op (Map Int64 Int64)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map Int64 Int64)) overlappingMaps
         , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Int64 Int64)) (checkAddition . overlappingMaps)
         , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Int64 Int64)) (checkSubtraction . overlappingMaps)
         , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Int64 Int64)) (checkMultiplication . overlappingMaps)
@@ -423,7 +423,7 @@ testAtomicMap clientPool space =
   , testGroup "int-float"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Int64 Double)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference :: Op (Map Int64 Double)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Int64 Double)) overlappingMaps
         , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Int64 Double)) overlappingMaps
         , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Int64 Double)) overlappingMaps
         , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Int64 Double)) overlappingMaps
@@ -432,14 +432,14 @@ testAtomicMap clientPool space =
   , testGroup "int-string"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Int64 ByteString)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference :: Op (Map Int64 ByteString)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Int64 ByteString)) overlappingMaps
         , generateTestPropAtomicMapOp "prepend" atomicMapStringPrepend (opOverMap prepend :: Op (Map Int64 ByteString)) overlappingMaps
         , generateTestPropAtomicMapOp "prepend" atomicMapStringAppend  (opOverMap append  :: Op (Map Int64 ByteString)) overlappingMaps
         ]
   ,  testGroup "float-int"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map Double Int64)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference  :: Op (Map Double Int64)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map Double Int64)) overlappingMaps
         , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Double Int64)) (checkAddition . overlappingMaps)
         , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Double Int64)) (checkSubtraction . overlappingMaps)
         , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Double Int64)) (checkMultiplication . overlappingMaps)
@@ -451,7 +451,7 @@ testAtomicMap clientPool space =
   , testGroup "float-float"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Double Double)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference :: Op (Map Double Double)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Double Double)) overlappingMaps
         , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Double Double)) overlappingMaps
         , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Double Double)) overlappingMaps
         , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Double Double)) overlappingMaps
@@ -460,14 +460,14 @@ testAtomicMap clientPool space =
   , testGroup "float-string"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Double ByteString)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference :: Op (Map Double ByteString)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Double ByteString)) overlappingMaps
         , generateTestPropAtomicMapOp "prepend" atomicMapStringPrepend (opOverMap prepend :: Op (Map Double ByteString)) overlappingMaps
         , generateTestPropAtomicMapOp "prepend" atomicMapStringAppend  (opOverMap append  :: Op (Map Double ByteString)) overlappingMaps
         ]
   ,  testGroup "string-int"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map ByteString Int64)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference  :: Op (Map ByteString Int64)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map ByteString Int64)) overlappingMaps
         , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map ByteString Int64)) (checkAddition . overlappingMaps)
         , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map ByteString Int64)) (checkSubtraction . overlappingMaps)
         , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map ByteString Int64)) (checkMultiplication . overlappingMaps)
@@ -479,7 +479,7 @@ testAtomicMap clientPool space =
   , testGroup "string-float"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map ByteString Double)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference :: Op (Map ByteString Double)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map ByteString Double)) overlappingMaps
         , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map ByteString Double)) overlappingMaps
         , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map ByteString Double)) overlappingMaps
         , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map ByteString Double)) overlappingMaps
@@ -488,7 +488,7 @@ testAtomicMap clientPool space =
   , testGroup "string-string"
     $ fmap (\f -> f clientPool space)
         [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map ByteString ByteString)) nonOverlappingMaps
-        , generateTestPropAtomicMapOp "delete" atomicMapDelete (Map.difference :: Op (Map ByteString ByteString)) overlappingMaps
+        , generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map ByteString ByteString)) overlappingMaps
         , generateTestPropAtomicMapOp "prepend" atomicMapStringPrepend (opOverMap prepend :: Op (Map ByteString ByteString)) overlappingMaps
         , generateTestPropAtomicMapOp "prepend" atomicMapStringAppend  (opOverMap append  :: Op (Map ByteString ByteString)) overlappingMaps
         ]
@@ -627,7 +627,7 @@ poolTests = buildTest $ do
                 ++
                 fmap (\f -> f clientPool defaultSpace)
                 [ testSearch
-                , testDeleteGroup
+                -- , testDeleteGroup
                 , testCount
                 , testAtomic
                 ]

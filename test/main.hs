@@ -4,7 +4,7 @@ module Main ( main ) where
 
 import Test.HyperDex.Space
 
-import Database.HyperDex
+import Database.HyperDex.Admin
 
 import Control.Concurrent (threadDelay, forkFinally)
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
