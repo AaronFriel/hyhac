@@ -7,7 +7,7 @@ module Database.HyperDex.Internal.Admin
 import Foreign
 import Foreign.C
 
-import Data.ByteString (ByteString)
+import Data.ByteString (ByteString, useAsCString)
 
 {# import Database.HyperDex.Internal.AdminReturnCode #}
 import Database.HyperDex.Internal.Util
@@ -433,7 +433,7 @@ wrapSearchStream (Right a) admin h cont = do
 -- > struct hyperdex_admin*
 -- > hyperdex_admin_create(const char* coordinator, uint16_t port);
 hyperdexAdminCreate :: ByteString -> Word16 -> IO HyperdexAdmin
-hyperdexAdminCreate h port = withCBString h $ \host ->
+hyperdexAdminCreate h port = useAsCString h $ \host ->
   wrapHyperCall $ {# call hyperdex_admin_create #} host (fromIntegral port)
 
 -- | C wrapper for hyperdex_admin_destroy. Destroys a HyperdexAdmin.

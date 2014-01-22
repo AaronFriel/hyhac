@@ -159,7 +159,7 @@ get client s k = withClient client $ \hyperdexClient -> do
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   handle <- wrapHyperCall $
-            {# call hyperdex_client_get #}
+            {# call unsafe hyperdex_client_get #}
               hyperdexClient
               space key (fromIntegral keySize)
               returnCodePtr attributePtrPtr attributeSizePtr
@@ -201,7 +201,7 @@ delete client s k = withClient client $ \hyperdexClient -> do
   space <- newTextUtf8 s
   (key,keySize) <- newCBStringLen k
   handle <- wrapHyperCall $
-            {# call hyperdex_client_del #}
+            {# call unsafe hyperdex_client_del #}
               hyperdexClient
               space
               key (fromIntegral keySize)
@@ -236,7 +236,7 @@ putConditional client s k checks attributes = withClient client $ \hyperdexClien
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   handle <- wrapHyperCall $
-            {# call hyperdex_client_cond_put #}
+            {# call unsafe hyperdex_client_cond_put #}
               hyperdexClient
               space key (fromIntegral keySize)
               checkPtr (fromIntegral checkSize)
@@ -274,25 +274,25 @@ hyperdexClientOp op =
   (key,keySize) <- newCBStringLen k
   (attributePtr, attributeSize) <- newHyperDexAttributeArray attributes
   let ccall = case op of
-              OpPut           -> {# call hyperdex_client_put #}
-              OpPutIfNotExist -> {# call hyperdex_client_put_if_not_exist #}
-              OpAtomicAdd     -> {# call hyperdex_client_atomic_add #}
-              OpAtomicSub     -> {# call hyperdex_client_atomic_sub #}
-              OpAtomicMul     -> {# call hyperdex_client_atomic_mul #}
-              OpAtomicDiv     -> {# call hyperdex_client_atomic_div #}
-              OpAtomicMod     -> {# call hyperdex_client_atomic_mod #}
-              OpAtomicAnd     -> {# call hyperdex_client_atomic_and #}
-              OpAtomicOr      -> {# call hyperdex_client_atomic_or  #}
-              OpAtomicXor     -> {# call hyperdex_client_atomic_xor #}
-              OpAtomicStringPrepend -> {# call hyperdex_client_string_prepend #}
-              OpAtomicStringAppend  -> {# call hyperdex_client_string_append  #}
-              OpAtomicListLPush     -> {# call hyperdex_client_list_lpush #}
-              OpAtomicListRPush     -> {# call hyperdex_client_list_rpush #}
-              OpAtomicSetAdd        -> {# call hyperdex_client_set_add       #}
-              OpAtomicSetRemove     -> {# call hyperdex_client_set_remove    #}
-              OpAtomicSetIntersect  -> {# call hyperdex_client_set_intersect #}
-              OpAtomicSetUnion      -> {# call hyperdex_client_set_union     #}
-              OpAtomicMapDelete     -> {# call hyperdex_client_map_remove #}
+              OpPut           -> {# call unsafe hyperdex_client_put #}
+              OpPutIfNotExist -> {# call unsafe hyperdex_client_put_if_not_exist #}
+              OpAtomicAdd     -> {# call unsafe hyperdex_client_atomic_add #}
+              OpAtomicSub     -> {# call unsafe hyperdex_client_atomic_sub #}
+              OpAtomicMul     -> {# call unsafe hyperdex_client_atomic_mul #}
+              OpAtomicDiv     -> {# call unsafe hyperdex_client_atomic_div #}
+              OpAtomicMod     -> {# call unsafe hyperdex_client_atomic_mod #}
+              OpAtomicAnd     -> {# call unsafe hyperdex_client_atomic_and #}
+              OpAtomicOr      -> {# call unsafe hyperdex_client_atomic_or  #}
+              OpAtomicXor     -> {# call unsafe hyperdex_client_atomic_xor #}
+              OpAtomicStringPrepend -> {# call unsafe hyperdex_client_string_prepend #}
+              OpAtomicStringAppend  -> {# call unsafe hyperdex_client_string_append  #}
+              OpAtomicListLPush     -> {# call unsafe hyperdex_client_list_lpush #}
+              OpAtomicListRPush     -> {# call unsafe hyperdex_client_list_rpush #}
+              OpAtomicSetAdd        -> {# call unsafe hyperdex_client_set_add       #}
+              OpAtomicSetRemove     -> {# call unsafe hyperdex_client_set_remove    #}
+              OpAtomicSetIntersect  -> {# call unsafe hyperdex_client_set_intersect #}
+              OpAtomicSetUnion      -> {# call unsafe hyperdex_client_set_union     #}
+              OpAtomicMapDelete     -> {# call unsafe hyperdex_client_map_remove #}
   handle <- wrapHyperCall $
             ccall
               hyperdexClient
@@ -330,17 +330,17 @@ hyperdexClientMapOp op =
   (key,keySize) <- newCBStringLen k
   (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
   let ccall = case op of
-              OpAtomicMapInsert -> {# call hyperdex_client_map_add    #}
-              OpAtomicMapAdd    -> {# call hyperdex_client_map_atomic_add #}
-              OpAtomicMapSub    -> {# call hyperdex_client_map_atomic_sub #}
-              OpAtomicMapMul    -> {# call hyperdex_client_map_atomic_mul #}
-              OpAtomicMapDiv    -> {# call hyperdex_client_map_atomic_div #}
-              OpAtomicMapMod    -> {# call hyperdex_client_map_atomic_mod #}
-              OpAtomicMapAnd    -> {# call hyperdex_client_map_atomic_and #}
-              OpAtomicMapOr     -> {# call hyperdex_client_map_atomic_or  #}
-              OpAtomicMapXor    -> {# call hyperdex_client_map_atomic_xor #}
-              OpAtomicMapStringPrepend -> {# call hyperdex_client_map_string_prepend #}
-              OpAtomicMapStringAppend  -> {# call hyperdex_client_map_string_append  #}
+              OpAtomicMapInsert -> {# call unsafe hyperdex_client_map_add    #}
+              OpAtomicMapAdd    -> {# call unsafe hyperdex_client_map_atomic_add #}
+              OpAtomicMapSub    -> {# call unsafe hyperdex_client_map_atomic_sub #}
+              OpAtomicMapMul    -> {# call unsafe hyperdex_client_map_atomic_mul #}
+              OpAtomicMapDiv    -> {# call unsafe hyperdex_client_map_atomic_div #}
+              OpAtomicMapMod    -> {# call unsafe hyperdex_client_map_atomic_mod #}
+              OpAtomicMapAnd    -> {# call unsafe hyperdex_client_map_atomic_and #}
+              OpAtomicMapOr     -> {# call unsafe hyperdex_client_map_atomic_or  #}
+              OpAtomicMapXor    -> {# call unsafe hyperdex_client_map_atomic_xor #}
+              OpAtomicMapStringPrepend -> {# call unsafe hyperdex_client_map_string_prepend #}
+              OpAtomicMapStringAppend  -> {# call unsafe hyperdex_client_map_string_append  #}
   handle <- wrapHyperCall $
             ccall
               hyperdexClient space
@@ -383,7 +383,7 @@ hyperdexClientMapOp op =
 --   (key,keySize) <- newCBStringLen k
 --   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
 --   (mapAttributePtr, mapAttributeSize) <- newHyperDexMapAttributeArray mapAttributes
---   handle <- {# call hyperdex_client_cond_map_add #}
+--   handle <- {# call unsafe hyperdex_client_cond_map_add #}
 --               client space
 --               key (fromIntegral keySize)
 --               checkPtr (fromIntegral checkSize)
@@ -418,7 +418,7 @@ search client s checks = withClientStream client $ \hyperdexClient -> do
   resultSetPtrPtr <- malloc
   resultSetSizePtr <- malloc
   handle <- wrapHyperCall $
-            {# call hyperdex_client_search #}
+            {# call unsafe hyperdex_client_search #}
               hyperdexClient space
               checkPtr (fromIntegral checkSize :: {# type size_t #})
               returnCodePtr
@@ -469,7 +469,7 @@ deleteGroup client s checks = withClient client $ \hyperdexClient -> do
 	space <- newTextUtf8 s
 	(checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
 	handle <-	wrapHyperCall $
-	         	{# call hyperdex_client_group_del #}
+	         	{# call unsafe hyperdex_client_group_del #}
 	         		hyperdexClient
 	         		space
 	         		checkPtr (fromIntegral checkSize)
@@ -499,7 +499,7 @@ describeSearch client s checks = withClient client $ \hyperdexClient -> do
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   descPtr <- malloc
   handle <- wrapHyperCall $
-            {# call hyperdex_client_search_describe #}
+            {# call unsafe hyperdex_client_search_describe #}
               hyperdexClient space
               checkPtr (fromIntegral checkSize)
               returnCodePtr descPtr
@@ -529,7 +529,7 @@ count client s checks = withClient client $ \hyperdexClient -> do
   (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
   countPtr <- new 0
   handle <- wrapHyperCall $
-            {# call hyperdex_client_count #}
+            {# call unsafe hyperdex_client_count #}
               hyperdexClient space
               checkPtr (fromIntegral checkSize)
               returnCodePtr countPtr

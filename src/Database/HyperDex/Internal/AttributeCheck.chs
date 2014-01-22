@@ -10,7 +10,7 @@ module Database.HyperDex.Internal.AttributeCheck
 import Foreign
 import Foreign.C
 
-import Data.ByteString (ByteString)
+import Data.ByteString (ByteString, packCString, packCStringLen)
 
 import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Hyperdata
@@ -46,11 +46,11 @@ instance Storable AttributeCheck where
   sizeOf _ = {#sizeof hyperdex_client_attribute_check_struct #}
   alignment _ = {#alignof hyperdex_client_attribute_check_struct #}
   peek p = AttributeCheck
-    <$> (peekCBString =<< ({#get hyperdex_client_attribute_check.attr #} p))
+    <$> (packCString =<< ({#get hyperdex_client_attribute_check.attr #} p))
     <*> (do
           str <- {#get hyperdex_client_attribute_check.value #} p
           len <- {#get hyperdex_client_attribute_check.value_sz #} p
-          peekCBStringLen (str, fromIntegral len)
+          packCStringLen (str, fromIntegral len)
         )
     <*> liftM (toEnum . fromIntegral) ({#get hyperdex_client_attribute_check.datatype #} p)
     <*> liftM (toEnum . fromIntegral) ({#get hyperdex_client_attribute_check.predicate #} p)

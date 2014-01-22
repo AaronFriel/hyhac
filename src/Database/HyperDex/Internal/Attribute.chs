@@ -11,7 +11,7 @@ module Database.HyperDex.Internal.Attribute
 import Foreign
 import Foreign.C
 
-import Data.ByteString (ByteString)
+import Data.ByteString (ByteString, packCString, packCStringLen)
 
 import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Hyperdata
@@ -46,11 +46,11 @@ instance Storable Attribute where
   sizeOf _ = {#sizeof hyperdex_client_attribute_struct #}
   alignment _ = {#alignof hyperdex_client_attribute_struct #}
   peek p = Attribute
-    <$> (peekCBString =<< ({#get hyperdex_client_attribute.attr #} p))
+    <$> (packCString =<< ({#get hyperdex_client_attribute.attr #} p))
     <*> (do
           str <- {#get hyperdex_client_attribute.value #} p
           len <- {#get hyperdex_client_attribute.value_sz #} p
-          peekCBStringLen (str, fromIntegral len)
+          packCStringLen (str, fromIntegral len)
         )
     <*> liftM (toEnum . fromIntegral) ({#get hyperdex_client_attribute.datatype #} p)
   poke p x = do

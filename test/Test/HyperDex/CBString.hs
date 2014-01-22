@@ -9,7 +9,7 @@ import Test.QuickCheck.Monadic
 
 import Test.HyperDex.Util
 
-import Data.ByteString (ByteString)
+import Data.ByteString (ByteString, packCString, packCStringLen)
 
 import Database.HyperDex.Internal.Util
 
@@ -23,7 +23,7 @@ canRoundTripArbitraryString =
 testRoundTripArbitraryString :: ByteString -> Property
 testRoundTripArbitraryString input = 
   monadicIO $ do
-   output <- run $ newCBStringLen input >>= peekCBStringLen 
+   output <- run $ newCBStringLen input >>= packCStringLen 
    return $ output == input
 
 canRoundTripNulTerminatedString :: Test
@@ -34,7 +34,7 @@ canRoundTripNulTerminatedString =
 testRoundTripNulTerminatedString :: NonNul ByteString -> Property
 testRoundTripNulTerminatedString (NonNul input) = 
   monadicIO $ do
-   output <- run $ newCBString input >>= peekCBString 
+   output <- run $ newCBString input >>= packCString 
    return $ output == input
 
 cBStringTests :: Test

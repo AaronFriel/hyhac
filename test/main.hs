@@ -15,6 +15,9 @@ import Test.HyperDex.Shared (sharedTests)
 import Test.HyperDex.Pool (poolTests)
 import Test.HyperDex.CBString (cBStringTests)
 
+-- TODO:
+-- import Test.HyperDex.Simulator
+
 tests :: Test
 tests =
   testGroup "hyhac-tests"

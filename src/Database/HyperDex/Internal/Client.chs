@@ -19,7 +19,7 @@ module Database.HyperDex.Internal.Client
 import Foreign
 import Foreign.C
 
-import Data.ByteString (ByteString)
+import Data.ByteString (ByteString, useAsCString)
 
 {# import Database.HyperDex.Internal.ReturnCode #}
 import Database.HyperDex.Internal.Util
@@ -450,7 +450,7 @@ wrapSearchStream (Right a) client h cont = do
 -- > struct hyperdex_client*
 -- > hyperdex_client_create(const char* coordinator, uint16_t port);
 hyperdexClientCreate :: ByteString -> Word16 -> IO HyperdexClient
-hyperdexClientCreate h port = withCBString h $ \host ->
+hyperdexClientCreate h port = useAsCString h $ \host ->
   wrapHyperCall $ {# call hyperdex_client_create #} host (fromIntegral port)
 
 -- | C wrapper for hyperdex_client_destroy. Destroys a HyperClient.
