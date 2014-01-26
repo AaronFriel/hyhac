@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns #-}
 
------------------------------------------------------------------------------
 -- |
 -- Module      :  Data.HyperDex.Admin
 -- Copyright   :  (c) Aaron Friel 2013
+--            	  (c) Niklas Hambüchen 2013-2014 
 -- License     :  BSD-style
 -- Maintainer  :  mayreply@aaronfriel.com
 -- Stability   :  maybe
@@ -11,8 +11,6 @@
 --
 -- TODO description
 --
------------------------------------------------------------------------------
-
 module Database.HyperDex.Admin
   ( module Database.HyperDex.Internal.Admin
   , module Database.HyperDex.Internal.AdminReturnCode

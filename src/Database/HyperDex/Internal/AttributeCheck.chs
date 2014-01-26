@@ -1,3 +1,13 @@
+
+-- |
+-- Module     	: Database.HyperDex.Internal.AttributeCheck
+-- Copyright  	: (c) Aaron Friel 2013-2014
+--            	  (c) Niklas Hambüchen 2013-2014 
+-- License    	: BSD-style
+-- Maintainer 	: mayreply@aaronfriel.com
+-- Stability  	: unstable
+-- Portability	: portable
+--
 module Database.HyperDex.Internal.AttributeCheck
   ( AttributeCheck (..)
   , AttributeCheckPtr

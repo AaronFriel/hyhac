@@ -1,5 +1,5 @@
 name:                hyhac
-version:             0.10.0.0
+version:             0.11.0.0
 synopsis:            A HyperDex client library
 description:
   A client for accessing the HyperDex distributed database
@@ -9,6 +9,7 @@ author:              Aaron Friel <mayreply@aaronfriel.com>, Niklas Hambüchen <m
 maintainer:          mayreply@aaronfriel.com
 copyright:           (c) 2013 Aaron Friel
 category:            Database
+
 build-type:          Simple
 
 extra-source-files:  README.md
@@ -33,6 +34,7 @@ library
     Database.HyperDex.Admin
     Database.HyperDex.Client
     Database.HyperDex.Utf8
+    Database.HyperDex.Exception
 
   other-modules:
     Database.HyperDex.Internal
@@ -47,6 +49,7 @@ library
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
     Database.HyperDex.Internal.HyperdexClient
+    Database.HyperDex.Internal.Core
 
   if flag(tests)
     exposed-modules: Database.HyperDex.Internal.Util

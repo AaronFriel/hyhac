@@ -1,4 +1,13 @@
 
+-- |
+-- Module     	: Database.HyperDex.Internal.Hyperdex
+-- Copyright  	: (c) Aaron Friel 2013-2014
+--            	  (c) Niklas Hambüchen 2013-2014 
+-- License    	: BSD-style
+-- Maintainer 	: mayreply@aaronfriel.com
+-- Stability  	: unstable
+-- Portability	: portable
+--
 module Database.HyperDex.Internal.Hyperdex where
 
 -- import Foreign.C.Types
