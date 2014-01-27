@@ -10,7 +10,6 @@ module Database.HyperDex.Internal.Result
   ( Result
 	, AsyncResult
 	, AsyncResultHandle
-	, StreamResultHandle
 	, SearchStream (..)
   )
   where
@@ -18,7 +17,7 @@ module Database.HyperDex.Internal.Result
 import Database.HyperDex.Internal.Handle
 
 -- | A return value from HyperDex.
-type Result r a = IO (Either r a)
+type Result a = IO (Either Int a)
 
 -- | A return value used internally by HyperdexClient operations.
 --
@@ -27,23 +26,9 @@ type Result r a = IO (Either r a)
 -- and a continuation that will force the request to return an
 -- error in the form of a ReturnCode or a result.
 --
--- The result of forcing the result is undefined.
--- The HyperdexClient and its workings are not party to the MVar locking
--- mechanism, and the ReturnCode and/or return value may be in the
--- process of being modified when the computation is forced.
 --
--- Consequently, the only safe way to use this is with a wrapper such
--- as 'withClient', which only allows the continuation to be run after
--- the HyperdexClient has returned the corresponding Handle or after the
--- HyperdexClient has been destroyed.
-type AsyncResultHandle r a = IO (Handle, Result r a)
-
--- | A return value used internally by HyperdexClient operations.
---
-
--- This is the same as 'AsyncResultHandle' except it gives the callback
--- the result of the loop operation that yields the returned 'Handle'.
-type StreamResultHandle r a = IO (Handle, Maybe r -> Result r a)
+type AsyncResultHandle a =
+	IO (Handle, IO (), Result a)
 
 -- | Return values from HyperDex in an asynchronous wrapper.
 -- 
@@ -57,8 +42,8 @@ type StreamResultHandle r a = IO (Handle, Maybe r -> Result r a)
 --
 -- This API may be deprecated in favor of exclusively using MVars in
 -- a future version.
-type AsyncResult r a = IO (Result r a)
+type AsyncResult a = IO (Result a)
 
 -- | A return value from HyperDex containing a value and a result that may be
 -- evaluated to return additional values.
-newtype SearchStream r a = SearchStream (a, Result r (SearchStream r a))
+newtype SearchStream a = SearchStream (Result (a, SearchStream a))

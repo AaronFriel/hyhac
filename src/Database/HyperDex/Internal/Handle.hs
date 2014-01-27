@@ -1,4 +1,4 @@
-{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE DeriveDataTypeable, NoImplicitPrelude #-}
 
 -- |
 -- Module       : Database.HyperDex.Internal.Handle
@@ -10,12 +10,15 @@
 --
 module Database.HyperDex.Internal.Handle
   ( Handle
-	, HandleMap
-	, HandleCallback (..)
-	, empty, null
-	, insert, delete
-	, lookup, member
-	, elems
+  , handleToCLong
+  , handleFromCLong
+  , handleSuccess
+  , HandleMap
+  , HandleCallback (..)
+  , empty, null
+  , insert, delete
+  , lookup, member
+  , keys, elems
   )
   where
 
@@ -23,6 +26,7 @@ import Prelude hiding (null, lookup)
 
 import Foreign
 import Foreign.C
+import Data.Typeable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 
@@ -36,7 +40,17 @@ import qualified Data.HashMap.Strict as HashMap
 -- outstanding operation using a given client. In practice it is monotonically 
 -- increasing while operations are outstanding, lower values are used first, and
 -- negative values represent an error.
-type Handle = CLong
+newtype Handle = Handle { unHandle :: Int64 }
+  deriving (Show, Eq, Ord, Typeable)
+
+handleFromCLong :: CLong -> Handle
+handleFromCLong (CLong x) = Handle x
+
+handleToCLong :: Handle -> CLong
+handleToCLong (Handle x) = CLong x
+
+handleSuccess :: Handle -> Bool
+handleSuccess (Handle x) = x >= 0
 
 -- | A mapping of handles to callbacks functions that perform cleanup and return
 -- the asynchronous values to their caller.
@@ -45,24 +59,15 @@ newtype HandleMap = HandleMap { unHandleMap :: HashMap Int64 HandleCallback }
 -- | A callback used to perform work when the HyperdexClient loop indicates an
 -- operation has been completed.
 --
--- The callback is passed either:
+-- The first parameter is a cleanup function to free any allocations.
 --
---   * 'Nothing', indicating that execution has halted
+-- The second parameter is a continuation defined by the wrapper around the C
+-- library function.
 --
---   * 'Just r', indicating the return code of the operation
---
--- In each case the callback may return either:
---
---   * 'Nothing', indicating that no further execution is necessary
---
---   * 'Just (h, callback)', indicating a new execution handle and callback
---     should be registered.
---
-newtype HandleCallback = 
-  HandleCallback (Maybe Int -> IO (Maybe (Handle, HandleCallback)))
-
-unCLong :: CLong -> Int64
-unCLong (CLong a) = a
+data HandleCallback = HandleCallback
+  { callbackCleanup      :: !(IO ())
+  , callbackContinuation :: !(IO ())
+  }
 
 empty :: HandleMap
 empty = HandleMap $ HashMap.empty
@@ -71,16 +76,19 @@ null :: HandleMap -> Bool
 null = HashMap.null . unHandleMap
 
 insert :: Handle -> HandleCallback -> HandleMap -> HandleMap
-insert k v = HandleMap . HashMap.insert (unCLong k) v . unHandleMap
+insert k v = HandleMap . HashMap.insert (unHandle k) v . unHandleMap
 
 delete :: Handle -> HandleMap -> HandleMap
-delete k = HandleMap . HashMap.delete (unCLong k) . unHandleMap
+delete k = HandleMap . HashMap.delete (unHandle k) . unHandleMap
 
 lookup :: Handle -> HandleMap -> Maybe HandleCallback
-lookup k = HashMap.lookup (unCLong k) . unHandleMap
+lookup k = HashMap.lookup (unHandle k) . unHandleMap
 
 member :: Handle -> HandleMap -> Bool
-member k = HashMap.member (unCLong k) . unHandleMap
+member k = HashMap.member (unHandle k) . unHandleMap
 
 elems :: HandleMap -> [HandleCallback]
 elems = HashMap.elems . unHandleMap
+
+keys :: HandleMap -> [Handle]
+keys = map Handle . HashMap.keys . unHandleMap
