@@ -125,6 +125,7 @@ runHyhacLoop status queue ptr = runResourceT $ do
 voidException :: MonadIO m => IO a -> m ()
 voidException f = 
   liftIO $ (void $ f)
+
 -- | Loops forever waiting on commands to run against HyperDex.
 --
 -- If the control channel deadlocks or an exception is uncaught, use of
@@ -166,7 +167,6 @@ hyhacLoop queue ptr failLoop mapRef = do
   lift $ writeIORef mapRef outMap 
   hyhacLoop queue ptr failLoop mapRef
   where
---    handleResult :: HandleMap -> IO 
     handleResult !inMap !f = do
       (result, !outMap) <- lift $ f inMap
       case result of
