@@ -1,19 +1,18 @@
-
+{-# LANGUAGE RecordWildCards #-}
 -- |
--- Module     	: Database.HyperDex.Internal.AttributeCheck
--- Copyright  	: (c) Aaron Friel 2013-2014
---            	  (c) Niklas Hambüchen 2013-2014 
--- License    	: BSD-style
--- Maintainer 	: mayreply@aaronfriel.com
--- Stability  	: unstable
--- Portability	: portable
+-- Module       : Database.HyperDex.Internal.AttributeCheck
+-- Copyright    : (c) Aaron Friel 2013-2014
+--                (c) Niklas Hambüchen 2013-2014 
+-- License      : BSD-style
+-- Maintainer   : mayreply@aaronfriel.com
+-- Stability    : unstable
+-- Portability  : portable
 --
 module Database.HyperDex.Internal.AttributeCheck
   ( AttributeCheck (..)
   , AttributeCheckPtr
   , mkAttributeCheck
-  , newHyperDexAttributeCheckArray
-  , haskellFreeAttributeChecks
+  , rNewAttributeCheckArray
   )
   where
 
@@ -27,6 +26,8 @@ import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Util
 
 import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Resource
 import Control.Applicative ((<$>), (<*>))
 
 #include "hyperdex/client.h"
@@ -41,10 +42,6 @@ mkAttributeCheck :: HyperSerialize a => ByteString -> a -> Hyperpredicate -> Att
 mkAttributeCheck name value predicate =  AttributeCheck name (serialize value) (datatype value) predicate
 {-# INLINE mkAttributeCheck #-}
 
-newHyperDexAttributeCheckArray :: [AttributeCheck] -> IO (Ptr AttributeCheck, Int)
-newHyperDexAttributeCheckArray as = newArray as >>= \ptr -> return (ptr, length as)
-{-# INLINE newHyperDexAttributeCheckArray #-}
-
 data AttributeCheck = AttributeCheck
   { attrCheckName      :: ByteString
   , attrCheckValue     :: ByteString
@@ -52,6 +49,7 @@ data AttributeCheck = AttributeCheck
   , attrCheckPredicate :: Hyperpredicate
   }
   deriving (Show, Eq)
+
 instance Storable AttributeCheck where
   sizeOf _ = {#sizeof hyperdex_client_attribute_check_struct #}
   alignment _ = {#alignof hyperdex_client_attribute_check_struct #}
@@ -73,10 +71,30 @@ instance Storable AttributeCheck where
     {#set hyperdex_client_attribute_check.datatype #} p (fromIntegral . fromEnum $ attrCheckDatatype x)
     {#set hyperdex_client_attribute_check.predicate #} p (fromIntegral . fromEnum $ attrCheckPredicate x)
 
-haskellFreeAttributeChecks :: Ptr AttributeCheck -> Int -> IO ()
-haskellFreeAttributeChecks _ 0 = return ()
-haskellFreeAttributeChecks p n = do
-  free =<< {# get hyperdex_client_attribute.attr #} p
-  free =<< {# get hyperdex_client_attribute.value #} p
-  haskellFreeAttributeChecks p (n-1)
-{-# INLINE haskellFreeAttributeChecks #-}
+rPokeAttributeCheck :: MonadResource m => AttributeCheck -> Ptr AttributeCheck -> m ()
+rPokeAttributeCheck (AttributeCheck {..}) ptr = do
+  name <- rNewCBString0 attrCheckName
+  (value, valueLen) <- rNewCBStringLen attrCheckValue
+  let datatype = fromIntegral . fromEnum $ attrCheckDatatype
+  let predicate = fromIntegral . fromEnum $ attrCheckPredicate
+  liftIO $ do
+    {#set hyperdex_client_attribute_check.attr #} ptr name
+    {#set hyperdex_client_attribute_check.value #} ptr value
+    {#set hyperdex_client_attribute_check.value_sz #} ptr $ (fromIntegral valueLen)
+    {#set hyperdex_client_attribute_check.datatype #} ptr datatype
+    {#set hyperdex_client_attribute_check.predicate #} ptr predicate
+
+-- rNewAttributeCheck :: MonadResource m => AttributeCheck -> m (Ptr AttributeCheck)
+-- rNewAttributeCheck attrCheck = do
+--   ptr <- rMalloc
+--   rPokeAttributeCheck attrCheck ptr
+--   return ptr
+
+rNewAttributeCheckArray :: MonadResource m => [AttributeCheck] -> m (Ptr AttributeCheck, Int)
+rNewAttributeCheckArray checks = do
+  let len = length checks
+  arrayPtr <- rMallocArray len
+  forM (zip checks [0..]) $ \(attrCheck, i) -> do
+    let attrCheckPtr = advancePtr arrayPtr i
+    rPokeAttributeCheck attrCheck attrCheckPtr
+  return (arrayPtr, len)

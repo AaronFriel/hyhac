@@ -1,4 +1,4 @@
-
+{-# LANGUAGE RecordWildCards #-}
 -- |
 -- Module     	: Database.HyperDex.Internal.MapAttribute
 -- Copyright  	: (c) Aaron Friel 2013-2014
@@ -13,8 +13,7 @@ module Database.HyperDex.Internal.MapAttribute
   , MapAttributePtr
   , mkMapAttribute
   , mkMapAttributesFromMap
-  , newHyperDexMapAttributeArray
-  , haskellFreeMapAttributes
+  , rNewMapAttributeArray
   )
   where
 
@@ -31,6 +30,8 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Resource
 import Control.Applicative ((<$>), (<*>))
 
 #include "hyperdex/client.h"
@@ -48,10 +49,6 @@ mkMapAttribute name key value =  MapAttribute name (serialize key) (datatype key
 mkMapAttributesFromMap :: (HyperSerialize k, HyperSerialize v) => ByteString -> (Map k v) -> [MapAttribute]
 mkMapAttributesFromMap name = map (uncurry $ mkMapAttribute name) . Map.toList
 {-# INLINE mkMapAttributesFromMap #-}
-
-newHyperDexMapAttributeArray :: [MapAttribute] -> IO (Ptr MapAttribute, Int)
-newHyperDexMapAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
-{-# INLINE newHyperDexMapAttributeArray #-}
 
 data MapAttribute = MapAttribute
   { mapAttrName      :: ByteString
@@ -90,11 +87,27 @@ instance Storable MapAttribute where
     {#set hyperdex_client_map_attribute.value_sz #} p $ (fromIntegral valueSize)
     {#set hyperdex_client_map_attribute.value_datatype #} p (fromIntegral . fromEnum $ mapAttrValueDatatype x)
 
-haskellFreeMapAttributes :: Ptr MapAttribute -> Int -> IO ()
-haskellFreeMapAttributes _ 0 = return ()
-haskellFreeMapAttributes p n = do
-  free =<< {# get hyperdex_client_attribute.attr #} p
-  free =<< {# get hyperdex_client_attribute.value #} p
-  haskellFreeMapAttributes p (n-1)
-{-# INLINE haskellFreeMapAttributes #-}
+rPokeMapAttribute :: MonadResource m => MapAttribute -> Ptr MapAttribute -> m ()
+rPokeMapAttribute (MapAttribute {..}) ptr = do
+  name <- rNewCBString0 mapAttrName
+  (key, keyLen) <- rNewCBStringLen mapAttrKey
+  (value, valueLen) <- rNewCBStringLen mapAttrValue
+  let keyType = fromIntegral . fromEnum $ mapAttrKeyDatatype
+  let valueType = fromIntegral . fromEnum $ mapAttrValueDatatype
+  liftIO $ do
+    {#set hyperdex_client_map_attribute.attr #} ptr name
+    {#set hyperdex_client_map_attribute.map_key #} ptr key
+    {#set hyperdex_client_map_attribute.map_key_sz #} ptr $ fromIntegral keyLen
+    {#set hyperdex_client_map_attribute.map_key_datatype #} ptr keyType
+    {#set hyperdex_client_map_attribute.value #} ptr value
+    {#set hyperdex_client_map_attribute.value_sz #} ptr $ fromIntegral valueLen
+    {#set hyperdex_client_map_attribute.value_datatype #} ptr valueType
 
+rNewMapAttributeArray :: MonadResource m => [MapAttribute] -> m (Ptr MapAttribute, Int)
+rNewMapAttributeArray mapAttrs = do
+  let len = length mapAttrs
+  arrayPtr <- rMallocArray len
+  forM (zip mapAttrs [0..]) $ \(mapAttr, i) -> do
+    let mapAttrPtr = advancePtr arrayPtr i
+    rPokeMapAttribute mapAttr mapAttrPtr
+  return (arrayPtr, len)

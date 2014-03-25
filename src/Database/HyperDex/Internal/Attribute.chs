@@ -1,20 +1,20 @@
-
+{-# LANGUAGE RecordWildCards #-}
 -- |
--- Module     	: Database.HyperDex.Internal.Attribute
--- Copyright  	: (c) Aaron Friel 2013-2014
---            	  (c) Niklas Hambüchen 2013-2014 
--- License    	: BSD-style
--- Maintainer 	: mayreply@aaronfriel.com
--- Stability  	: unstable
--- Portability	: portable
+-- Module       : Database.HyperDex.Internal.Attribute
+-- Copyright    : (c) Aaron Friel 2013-2014
+--                (c) Niklas Hambüchen 2013-2014 
+-- License      : BSD-style
+-- Maintainer   : mayreply@aaronfriel.com
+-- Stability    : unstable
+-- Portability  : portable
 --
 module Database.HyperDex.Internal.Attribute
-  ( newHyperDexAttributeArray
-  , Attribute (..)
+  ( Attribute (..)
   , AttributePtr
   , mkAttribute
-  , haskellFreeAttributes
-  , hyperdexFreeAttributes
+  , rMallocAttributeArray
+  , rPeekAttributeArray
+  , rNewAttributeArray
   )
   where
 
@@ -28,6 +28,8 @@ import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Util
 
 import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Resource
 import Control.Applicative ((<$>), (<*>))
 
 #include "hyperdex/client.h"
@@ -41,10 +43,6 @@ typedef struct hyperdex_client_attribute hyperdex_client_attribute_struct;
 mkAttribute :: HyperSerialize a => ByteString -> a -> Attribute
 mkAttribute name value =  Attribute name (serialize value) (datatype value)
 {-# INLINE mkAttribute #-}
-
-newHyperDexAttributeArray :: [Attribute] -> IO (Ptr Attribute, Int)
-newHyperDexAttributeArray as = newArray as >>= \ptr -> return (ptr, length as)
-{-# INLINE newHyperDexAttributeArray #-}
 
 data Attribute = Attribute
   { attrName     :: ByteString
@@ -71,15 +69,57 @@ instance Storable Attribute where
     {#set hyperdex_client_attribute.value_sz #} p $ (fromIntegral valueSize)
     {#set hyperdex_client_attribute.datatype #} p (fromIntegral . fromEnum $ attrDatatype x)
 
-haskellFreeAttributes :: Ptr Attribute -> Int -> IO ()
-haskellFreeAttributes _ 0 = return ()
-haskellFreeAttributes p n = do
-  free =<< {# get hyperdex_client_attribute.attr #} p
-  free =<< {# get hyperdex_client_attribute.value #} p
-  haskellFreeAttributes p (n-1)
-{-# INLINE haskellFreeAttributes #-}
+rPokeAttribute :: MonadResource m => Attribute -> Ptr Attribute -> m ()
+rPokeAttribute (Attribute {..}) ptr = do
+  name <- rNewCBString0 attrName
+  (value, valueLen) <- rNewCBStringLen attrValue
+  let datatype = fromIntegral . fromEnum $ attrDatatype
+  liftIO $ do
+    {#set hyperdex_client_attribute.attr #} ptr name
+    {#set hyperdex_client_attribute.value #} ptr value
+    {#set hyperdex_client_attribute.value_sz #} ptr (fromIntegral valueLen)
+    {#set hyperdex_client_attribute.datatype #} ptr datatype
+{-# INLINE rPokeAttribute #-}
 
-hyperdexFreeAttributes :: Ptr Attribute -> Int -> IO ()
+rMallocAttributeArray :: MonadResource m 
+                      => m (Ptr (Ptr Attribute), Ptr CULong, m [Attribute])
+rMallocAttributeArray = do
+  ptrPtr <- rMalloc
+  szPtr <- rMalloc
+  let peek = rPeekAttributeArray ptrPtr szPtr
+  return (ptrPtr, szPtr, peek)
+{-# INLINE rMallocAttributeArray #-}
+
+rPeekAttributeArray :: MonadResource m 
+                    => Ptr (Ptr Attribute) 
+                    -> Ptr CULong
+                    -> m [Attribute]
+rPeekAttributeArray ptrPtr szPtr = do
+  sz <- liftIO $ peek szPtr
+  attrPtr <- liftIO $ peek ptrPtr
+  rkey <- register $ hyperdexFreeAttributes attrPtr sz
+  attrs <- liftIO $ peekArray (fromIntegral sz) attrPtr
+  release rkey
+  return attrs
+{-# INLINE rPeekAttributeArray #-}
+
+-- rNewAttribute :: MonadResource m => Attribute -> m (Ptr Attribute)
+-- rNewAttribute attr = do
+--   ptr <- rMalloc
+--   rPokeAttribute attr ptr
+--   return ptr
+
+rNewAttributeArray :: MonadResource m => [Attribute] -> m (Ptr Attribute, Int)
+rNewAttributeArray attrs = do
+  let len = length attrs
+  arrayPtr <- rMallocArray len
+  forM (zip attrs [0..]) $ \(attr, i) -> do
+    let attrPtr = advancePtr arrayPtr i
+    rPokeAttribute attr attrPtr
+  return (arrayPtr, len)
+{-# INLINE rNewAttributeArray #-}
+
+hyperdexFreeAttributes :: Ptr Attribute -> CULong -> IO ()
 hyperdexFreeAttributes attributes attributeSize = wrapHyperCall $
-  {# call hyperdex_client_destroy_attrs #} attributes (fromIntegral attributeSize)
+  {# call hyperdex_client_destroy_attrs #} attributes attributeSize
 {-# INLINE hyperdexFreeAttributes #-}

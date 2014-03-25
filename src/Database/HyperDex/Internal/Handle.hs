@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveDataTypeable, NoImplicitPrelude #-}
+{-# LANGUAGE DeriveDataTypeable, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE NoImplicitPrelude #-}
 
 -- |
 -- Module       : Database.HyperDex.Internal.Handle
@@ -10,23 +11,28 @@
 --
 module Database.HyperDex.Internal.Handle
   ( Handle
-  , handleToCLong
-  , handleFromCLong
+  , mkHandle
+  , unHandle
   , handleSuccess
+  , invalidHandle
+  , wrapHyperCallHandle
   , HandleMap
-  , HandleCallback (..)
   , empty, null
   , insert, delete
   , lookup, member
   , keys, elems
+  , toList
   )
   where
 
 import Prelude hiding (null, lookup)
 
+import Database.HyperDex.Internal.Util (wrapHyperCall)
+
 import Foreign
 import Foreign.C
 import Data.Typeable
+import Data.Hashable
 import Data.HashMap.Strict (HashMap)
 import qualified Data.HashMap.Strict as HashMap
 
@@ -40,55 +46,52 @@ import qualified Data.HashMap.Strict as HashMap
 -- outstanding operation using a given client. In practice it is monotonically 
 -- increasing while operations are outstanding, lower values are used first, and
 -- negative values represent an error.
-newtype Handle = Handle { unHandle :: Int64 }
-  deriving (Show, Eq, Ord, Typeable)
+newtype Handle = Handle Int64
+  deriving (Show, Eq, Ord, Typeable, Hashable)
 
-handleFromCLong :: CLong -> Handle
-handleFromCLong (CLong x) = Handle x
+mkHandle :: CLong -> Handle
+mkHandle (CLong x) = Handle x
 
-handleToCLong :: Handle -> CLong
-handleToCLong (Handle x) = CLong x
+unHandle :: Handle -> CLong
+unHandle (Handle x) = CLong x
 
 handleSuccess :: Handle -> Bool
 handleSuccess (Handle x) = x >= 0
 
+invalidHandle :: Handle
+invalidHandle = Handle minBound
+
+wrapHyperCallHandle :: IO CLong -> IO Handle
+wrapHyperCallHandle = fmap mkHandle . wrapHyperCall
+{-# INLINE wrapHyperCallHandle #-}
+
 -- | A mapping of handles to callbacks functions that perform cleanup and return
 -- the asynchronous values to their caller.
-newtype HandleMap = HandleMap { unHandleMap :: HashMap Int64 HandleCallback }
+type HandleMap a = HashMap Handle a
 
--- | A callback used to perform work when the HyperdexClient loop indicates an
--- operation has been completed.
---
--- The first parameter is a cleanup function to free any allocations.
---
--- The second parameter is a continuation defined by the wrapper around the C
--- library function.
---
-data HandleCallback = HandleCallback
-  { callbackCleanup      :: !(IO ())
-  , callbackContinuation :: !(IO ())
-  }
+empty :: HandleMap a
+empty = HashMap.empty
 
-empty :: HandleMap
-empty = HandleMap $ HashMap.empty
+null :: HandleMap a -> Bool
+null = HashMap.null
 
-null :: HandleMap -> Bool
-null = HashMap.null . unHandleMap
+insert :: Handle -> a -> HandleMap a -> HandleMap a
+insert k v = HashMap.insert k v
 
-insert :: Handle -> HandleCallback -> HandleMap -> HandleMap
-insert k v = HandleMap . HashMap.insert (unHandle k) v . unHandleMap
+delete :: Handle -> HandleMap a -> HandleMap a
+delete k = HashMap.delete k
 
-delete :: Handle -> HandleMap -> HandleMap
-delete k = HandleMap . HashMap.delete (unHandle k) . unHandleMap
+lookup :: Handle -> HandleMap a -> Maybe a
+lookup k = HashMap.lookup k
 
-lookup :: Handle -> HandleMap -> Maybe HandleCallback
-lookup k = HashMap.lookup (unHandle k) . unHandleMap
+member :: Handle -> HandleMap a -> Bool
+member k = HashMap.member k
 
-member :: Handle -> HandleMap -> Bool
-member k = HashMap.member (unHandle k) . unHandleMap
+elems :: HandleMap a -> [a]
+elems = HashMap.elems
 
-elems :: HandleMap -> [HandleCallback]
-elems = HashMap.elems . unHandleMap
+keys :: HandleMap a -> [Handle]
+keys = HashMap.keys
 
-keys :: HandleMap -> [Handle]
-keys = map Handle . HashMap.keys . unHandleMap
+toList :: HandleMap a -> [(Handle, a)]
+toList = HashMap.toList

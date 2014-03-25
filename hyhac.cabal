@@ -1,5 +1,5 @@
 name:                hyhac
-version:             0.11.0.0
+version:             0.15.0.0
 synopsis:            A HyperDex client library
 description:
   A client for accessing the HyperDex distributed database
@@ -40,7 +40,6 @@ library
     Database.HyperDex.Internal
     Database.HyperDex.Internal.AdminReturnCode
     Database.HyperDex.Internal.Admin
-    Database.HyperDex.Internal.ReturnCode
     Database.HyperDex.Internal.Client
     Database.HyperDex.Internal.Space
     Database.HyperDex.Internal.Attribute
@@ -66,11 +65,13 @@ library
     , cereal                     >= 0.3.5
     , containers                 >= 0.5
     , unordered-containers       >= 0.2
+    , hashable
     , mtl                        >= 2.1
     , transformers               >= 0.2
-    , random                     >= 1.0
+    , transformers-base
+    , stm
     , text
-    , resource-pool              >= 0.2.0
+    , resourcet                  >= 0.4.0
     , data-default
 
     -- Only included so cabal install --only-dependencies will bring in
