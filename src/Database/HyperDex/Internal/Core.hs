@@ -242,7 +242,7 @@ runHyhacLoop status queue ptr = runResourceT $ do
 --           -> (forall a. ReturnCode -> ResIO a)
 --           -> IORef HandleMap
 --           -> ResIO ()
-hyhacLoop queue ptr failLoop mapRef = do
+hyhacLoop queue ptr failLoop mapRef = forever $ do
   inMap <- liftIO $ readIORef mapRef
   cmd <- liftIO $ readInTQueueIO queue
   !outMap <- case cmd of
@@ -267,8 +267,7 @@ hyhacLoop queue ptr failLoop mapRef = do
       handleResult inMap $ loopUntil handle ptr
     -- LoopReady -> do
     --   handleResult inMap $ loopOnce ptr
-  liftIO $ writeIORef mapRef outMap 
-  hyhacLoop queue ptr failLoop mapRef
+  liftIO $ writeIORef mapRef outMap
   where
 --    handleResult :: HandleMap -> IO 
     handleResult !inMap !f = do
@@ -321,13 +320,12 @@ hyhacLoopFailure :: HyperDex o
                  => ControlReader o
                  -> ReturnCode o
                  -> IO ()
-hyhacLoopFailure queue rc = do
+hyhacLoopFailure queue rc = forever $ do
   cmd <- readInTQueueIO queue
   case cmd of
     RunCall c -> do
       liftIO $ failCallback rc c
     _ -> return ()
-  hyhacLoopFailure queue rc
 
 failCallback :: HyperDex o
              => ReturnCode o
