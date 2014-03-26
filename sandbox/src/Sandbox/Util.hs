@@ -123,8 +123,6 @@ unwrapResourceT :: (MonadResource m, MonadBase IO m)
                 => ResourceT IO a
                 -> m (ReleaseKey, a)
 unwrapResourceT (ResourceT r) = do
-  -- TODO: run this past Gabriel and see if I need to do anything more to mask
-  -- exceptions
   istate <- createInternalState
   rkey <- register (stateCleanup istate)
   result <- liftIO $ r istate
@@ -140,7 +138,7 @@ tryUnwrapResourceT :: (MonadResource m, MonadBase IO m)
                    => ResourceT IO a
                    -> m (Maybe (ReleaseKey, a))
 tryUnwrapResourceT (ResourceT r) = do
-  -- TODO: run this past Gabriel and see if I need to do anything more to mask
+  -- TODO: run this past Snoyman and see if I need to do anything more to mask
   -- exceptions
   istate <- createInternalState
   rkey <- register (stateCleanup istate)

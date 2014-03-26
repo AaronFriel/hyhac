@@ -240,8 +240,9 @@ rNewCBStringLen bs = do
 --                 => ResourceT IO a
 --                 -> m (ReleaseKey, a)
 unwrapResourceT (ResourceT r) = do
-  -- TODO: run this past Gabriel and see if I need to do anything more to mask
-  -- exceptions
+  -- TODO: run this past Michael Snoyman and see if I need to do anything more
+  -- to mask exceptions
+  -- P.S.: Apologies to Snoyman for putting down the wrong name.
   istate <- createInternalState
   rkey <- register (stateCleanup istate)
   result <- liftIO $ r istate
