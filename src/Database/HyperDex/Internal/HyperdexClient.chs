@@ -144,7 +144,7 @@ get :: ByteString
     -> ByteString
     -> HyperDexConnection Client
     -> IO (AsyncResult Client [Attribute])
-get s k = wrapDeferred $ do
+get s k = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
@@ -171,7 +171,7 @@ delete :: ByteString
        -> ByteString
        -> HyperDexConnection Client
        -> IO (AsyncResult Client ())
-delete s k = wrapDeferred $ do
+delete s k = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
@@ -200,7 +200,7 @@ putConditional :: ByteString
                -> [Attribute]
                -> HyperDexConnection Client
                -> IO (AsyncResult Client ())
-putConditional s k checks attrs = wrapDeferred $ do
+putConditional s k checks attrs = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
@@ -232,7 +232,7 @@ hyperdexClientOp :: ClientCall
                  -> [Attribute]
                  -> HyperDexConnection Client
                  -> IO (AsyncResult Client ())
-hyperdexClientOp call s k attrs = wrapDeferred $ do
+hyperdexClientOp call s k attrs = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
@@ -263,7 +263,7 @@ hyperdexClientMapOp :: MapCall
                     -> [MapAttribute]
                     -> HyperDexConnection Client
                     -> IO (AsyncResult Client ())
-hyperdexClientMapOp call s k mapAttrs = wrapDeferred $ do
+hyperdexClientMapOp call s k mapAttrs = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
@@ -292,7 +292,7 @@ hyperdexClientMapOp call s k mapAttrs = wrapDeferred $ do
 --       -> ByteString
 --       -> [AttributeCheck]
 --       -> IO (SearchStream [Attribute])
-search s checks = wrapIterator $ do
+search s checks = clientIterator $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
@@ -322,7 +322,7 @@ deleteGroup :: ByteString
             -> [AttributeCheck]
             -> HyperDexConnection Client
             -> IO (AsyncResult Client ())
-deleteGroup s checks = wrapDeferred $ do
+deleteGroup s checks = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
@@ -348,7 +348,7 @@ describeSearch :: ByteString
                -> [AttributeCheck]
                -> HyperDexConnection Client
                -> IO (AsyncResult Client ByteString)
-describeSearch s checks = wrapDeferred $ do
+describeSearch s checks = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
@@ -372,9 +372,6 @@ describeSearch s checks = wrapDeferred $ do
           _             -> return $ Left returnCode
   return $ Call ccall callback
 
-unCULong :: CULong -> Word64
-unCULong (CULong w) = w
-
 -- int64_t
 -- hyperdex_client_count(struct hyperdexClient* client, const char* space,
 --                       const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
@@ -383,7 +380,7 @@ count :: ByteString
       -> [AttributeCheck]
       -> HyperDexConnection Client
       -> IO (AsyncResult Client Word64)
-count s checks = wrapDeferred $ do
+count s checks = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks

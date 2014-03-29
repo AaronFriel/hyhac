@@ -13,13 +13,10 @@
 --
 module Database.HyperDex.Admin
   ( module Database.HyperDex.Internal.Admin
-  , module Database.HyperDex.Internal.AdminReturnCode
   , module Database.HyperDex.Internal.Hyperdex
-  , module Database.HyperDex.Internal.Space
   )
   where
 
-import Database.HyperDex.Internal.Admin -- TODO restrict exports
-import Database.HyperDex.Internal.AdminReturnCode (ReturnCode (..))
+import Database.HyperDex.Internal.Admin hiding (peekReturnCode)
+import Database.HyperDex.Internal.HyperdexAdmin
 import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
-import Database.HyperDex.Internal.Space -- TODO restrict exports

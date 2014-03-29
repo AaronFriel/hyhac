@@ -13,8 +13,9 @@ module Database.HyperDex.Internal.Client
   ( Client
   , ReturnCode (..)
   , clientConnect
-  , HyperDexConnection
   , peekReturnCode
+  , clientDeferred
+  , clientIterator
   )
   where
 
@@ -160,6 +161,10 @@ instance Enum (ReturnCode Client) where
 
 clientConnect :: ConnectInfo -> IO (HyperDexConnection Client)
 clientConnect = connect
+
+clientDeferred = wrapDeferred (ClientSuccess==)
+
+clientIterator = wrapIterator (ClientSuccess==) (ClientSearchdone==)
 
 -- clientDisconnect :: (HyperDexConnection Client) -> IO ()
 -- clientDisconnect = disconnect

@@ -35,6 +35,7 @@ module Database.HyperDex.Internal.Util
  , tryUnwrapResourceT
  -- Miscellany
  , forkIO_
+ , unCULong
  )
  where
 
@@ -272,3 +273,6 @@ tryUnwrapResourceT (ResourceT r) = do
 forkIO_ :: IO a -> IO ()
 forkIO_ = void . forkIO . void
 {-# INLINE forkIO_ #-}
+
+unCULong :: CULong -> Word64
+unCULong (CULong w) = w

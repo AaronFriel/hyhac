@@ -63,8 +63,8 @@ class HyperDex o where
          -- ^ The hostname or IP address of the coordinator.
          -> CUShort
          -- ^ The port number. 
-         -> IO (o)
-         -- ^ The wrapped opaque type.
+         -> IO o
+         -- ^ Returns pointer to opaque structure.
 
   -- | Destroy the connection.
   destroy :: o
@@ -388,10 +388,11 @@ data CallDescription o t a b = CallDescription
   }
 
 wrapDeferred :: HyperDex o 
-             => ResIO (Call o (HyperDexResult o a))
+             => (ReturnCode o -> Bool)
+             -> ResIO (Call o (HyperDexResult o a))
              -> HyperDexConnection o
              -> IO (AsyncResult o a)
-wrapDeferred = wrapGeneral deferred
+wrapDeferred deferredSuccess = wrapGeneral deferred
   where
     deferred = CallDescription
       { resultIntermediate = newEmptyMVar :: IO (MVar (HyperDexResult o a))
@@ -407,10 +408,12 @@ wrapDeferred = wrapGeneral deferred
       }
 
 wrapIterator :: HyperDex o
-             => ResIO (Call o (HyperDexResult o a))
+             => (ReturnCode o -> Bool)
+             -> (ReturnCode o -> Bool)
+             -> ResIO (Call o (HyperDexResult o a))
              -> HyperDexConnection o
              -> IO (Stream o a)
-wrapIterator = wrapGeneral iterator
+wrapIterator iteratorComplete iteratorSuccess = wrapGeneral iterator
   where
     iterator = CallDescription
       { resultIntermediate = newTQueueIO :: IO (TQueue (Maybe (HyperDexResult o a)))
