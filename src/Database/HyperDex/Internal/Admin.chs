@@ -56,7 +56,6 @@ instance HyperDex Admin where
                         | AdminGarbage
                         deriving (Eq,Show)
 
-
   failureCode = AdminSuccess
 
   isTransient AdminInterrupted = True
@@ -69,13 +68,6 @@ instance HyperDex Admin where
 
   isNonePending AdminNonepending = True
   isNonePending _                = False
-
-  deferredSuccess AdminSuccess = True
-  deferredSuccess _            = False
-  iteratorSuccess AdminSuccess = True
-  iteratorSuccess _            = False
-  iteratorComplete AdminSuccess = True
-  iteratorComplete _            = False
 
   create host port =
     wrapHyperCall $ {# call hyperdex_admin_create #} host port

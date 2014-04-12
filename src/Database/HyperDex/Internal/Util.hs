@@ -32,7 +32,6 @@ module Database.HyperDex.Internal.Util
  , rNewCBString0
  , rNewCBStringLen
  , unwrapResourceT
- , tryUnwrapResourceT
  -- Miscellany
  , forkIO_
  , unCULong
@@ -41,7 +40,6 @@ module Database.HyperDex.Internal.Util
 
 import Control.Concurrent
 import Control.Concurrent.STM
-import Control.Exception
 import Control.Monad
 import Control.Monad.Base
 import Control.Monad.IO.Class
@@ -237,38 +235,14 @@ rNewCBStringLen bs = do
 -- | Run a ResourceT in an environment, capturing the resources it allocates and
 -- registering them in a parent MonadResource. Return the release key for the 
 -- captured resources, and the result of the action.
--- unwrapResourceT :: (MonadResource m, MonadBase IO m)
---                 => ResourceT IO a
---                 -> m (ReleaseKey, a)
+unwrapResourceT :: (MonadResource m, MonadBase IO m)
+                => ResourceT IO a
+                -> m (ReleaseKey, a)
 unwrapResourceT (ResourceT r) = do
-  -- TODO: run this past Michael Snoyman and see if I need to do anything more
-  -- to mask exceptions
-  -- P.S.: Apologies to Snoyman for putting down the wrong name.
   istate <- createInternalState
   rkey <- register (stateCleanup istate)
   result <- liftIO $ r istate
   return (rkey, result)
-
--- | Run a ResourceT in an environment, capturing the resources it allocates and
--- registering them in a parent MonadResource. Return the release key for the 
--- captured resources, and the result of the action.
---
--- This catches any exceptions from the input action, releasing resources and
--- returning 'Nothing' if an exception is caught.
-tryUnwrapResourceT :: (MonadResource m, MonadBase IO m)
-                   => ResourceT IO a
-                   -> m (Maybe (ReleaseKey, a))
-tryUnwrapResourceT (ResourceT r) = do
-  istate <- createInternalState
-  rkey <- register (stateCleanup istate)
-  liftIO $ catch (runAction istate rkey) (handleException rkey) 
-  where
-    runAction istate rkey = do
-      result <- r istate
-      return $ Just (rkey, result)
-    handleException rkey = \(_ :: SomeException) -> do
-      release rkey
-      return Nothing
 
 forkIO_ :: IO a -> IO ()
 forkIO_ = void . forkIO . void

@@ -43,6 +43,7 @@ library
     Database.HyperDex.Internal.Attribute
     Database.HyperDex.Internal.AttributeCheck
     Database.HyperDex.Internal.MapAttribute
+    Database.HyperDex.Internal.PerfCounter
     Database.HyperDex.Internal.Hyperdex
     Database.HyperDex.Internal.Hyperdata
     Database.HyperDex.Internal.HyperdexAdmin
@@ -85,7 +86,7 @@ library
     cpp-options:   -D__UNIX__
     build-depends: unix
 
-  ghc-options:       -O2 -W
+  ghc-options:       -O2 -Wall
 
   include-dirs:      include
   includes:          hyperdex.h

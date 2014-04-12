@@ -25,6 +25,7 @@ import Database.HyperDex.Internal.Options
 import Database.HyperDex.Internal.Util
 
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Resource
 import Foreign
 import Foreign.C
 
@@ -81,13 +82,6 @@ instance HyperDex Client where
 
   isNonePending ClientNonepending = True
   isNonePending _                 = False
-
-  deferredSuccess ClientSuccess = True
-  deferredSuccess _             = False
-  iteratorSuccess ClientSuccess = True
-  iteratorSuccess _             = False
-  iteratorComplete ClientSearchdone = True
-  iteratorComplete _                = False
 
   create host port =
     wrapHyperCall $ {# call hyperdex_client_create #} host port
@@ -162,8 +156,14 @@ instance Enum (ReturnCode Client) where
 clientConnect :: ConnectInfo -> IO (HyperDexConnection Client)
 clientConnect = connect
 
+clientDeferred :: ResIO (AsyncCall Client a)
+               -> HyperDexConnection Client
+               -> IO (AsyncResult Client a)
 clientDeferred = wrapDeferred (ClientSuccess==)
 
+clientIterator :: ResIO (AsyncCall Client a)
+               -> HyperDexConnection Client
+               -> IO (Stream Client a)
 clientIterator = wrapIterator (ClientSuccess==) (ClientSearchdone==)
 
 -- clientDisconnect :: (HyperDexConnection Client) -> IO ()

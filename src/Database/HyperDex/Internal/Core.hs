@@ -34,7 +34,7 @@ import Database.HyperDex.Internal.Util
 
 import Control.Concurrent
 import Control.Concurrent.STM
-import Control.Exception
+import Control.Exception hiding (handle)
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
@@ -54,10 +54,6 @@ class HyperDex o where
   isTransient :: ReturnCode o -> Bool
   isGlobalError :: ReturnCode o -> Bool
   isNonePending :: ReturnCode o -> Bool
-
-  deferredSuccess :: ReturnCode o -> Bool
-  iteratorSuccess :: ReturnCode o -> Bool
-  iteratorComplete :: ReturnCode o -> Bool
 
   -- | Create a connection.
   create :: CString
@@ -241,11 +237,12 @@ runHyhacLoop status queue ptr = runResourceT $ do
 -- If the control channel deadlocks or an exception is uncaught, use of
 -- ResourceT ensures that all pending transactions will have their resources
 -- freed.
--- hyhacLoop :: InTQueue Command
---           -> ClientPtr
---           -> (forall a. ReturnCode -> ResIO a)
---           -> IORef HandleMap
---           -> ResIO ()
+hyhacLoop :: (HyperDex o)
+          => InTQueue (Command o)
+          -> o
+          -> (ReturnCode o -> (ResIO (HandleMap o)))
+          -> IORef (HandleMap o)
+          -> ResIO ()
 hyhacLoop queue ptr failLoop mapRef = forever $ do
   inMap <- liftIO $ readIORef mapRef
   cmd <- liftIO $ readInTQueueIO queue
@@ -331,7 +328,7 @@ failCallback :: HyperDex o
              -> IO ()
 failCallback rc (Wrapped state _ callback) = do
   forkIO_ $ do
-    callback rc
+    void $ callback rc
     release state
 
 allocateHandleMap :: (HyperDex o, MonadResource m)

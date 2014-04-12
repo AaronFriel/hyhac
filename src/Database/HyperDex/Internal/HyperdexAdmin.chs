@@ -20,6 +20,7 @@ module Database.HyperDex.Internal.HyperdexAdmin
   , serverOffline
   , serverForget
   , serverKill
+  , enablePerfCounters
   , disablePerfCounters
   , rawBackup
   )
@@ -36,6 +37,7 @@ import Control.Monad.IO.Class
 #include "hyperdex/admin.h"
 
 {# import Database.HyperDex.Internal.Admin #}
+{# import Database.HyperDex.Internal.PerfCounter #}
 import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
@@ -231,23 +233,21 @@ serverKill = serverOp {# call hyperdex_admin_server_forget #}
 --                                     enum hyperdex_admin_returncode* status,
 --                                     struct hyperdex_admin_perf_counter* pc);
 -- TODO: perf counters object
---enablePerfCounters pc = adminDeferred $ do
---  returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
---  host <- rNewCBString0
---  spacesPtr <- rMalloc
---  let ccall ptr = 
---        wrapHyperCallHandle $
---          {# call hyperdex_admin_server_register #}
---            ptr
---            (unCULong t)
---            host
---            returnCodePtr
---  let callback = do
---        returnCode <- peekReturnCode returnCodePtr
---        case returnCode of
---          AdminSuccess -> return $ Right ()
---          _            -> return $ Left returnCode
---  return $ AsyncCall ccall callback
+enablePerfCounters = wrapIterator (AdminSuccess==) (const False) $ do
+  returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
+  perfCounterPtr <- rMalloc
+  let ccall ptr =
+        wrapHyperCallHandle $
+          {# call hyperdex_admin_enable_perf_counters #}
+            ptr
+            returnCodePtr
+            perfCounterPtr
+  let callback = do
+        returnCode <- peekReturnCode returnCodePtr
+        case returnCode of
+          AdminSuccess -> liftIO $ fmap Right $ peek perfCounterPtr
+          _            -> return $ Left returnCode
+  return $ AsyncCall ccall callback
 
 -- void
 -- hyperdex_admin_disable_perf_counters(struct hyperdex_admin* admin);
@@ -269,7 +269,7 @@ rawBackup host port name = adminImmediate $ do
   hostPtr <- rNewCBString0 $ host
   namePtr <- rNewCBString0 $ name
   returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
-  let ccall ptr = 
+  let ccall _ = 
         wrapHyperCall $
           {# call hyperdex_admin_raw_backup #}
             hostPtr portVal
