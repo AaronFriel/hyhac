@@ -9,6 +9,8 @@
 --
 module Database.HyperDex.Internal.HyperdexAdmin
   ( dumpConfig
+  , addSpace
+  , rmSpace
   , setReadOnly
   , waitUntilStable
   , validateSpace
@@ -18,24 +20,22 @@ module Database.HyperDex.Internal.HyperdexAdmin
   , serverOffline
   , serverForget
   , serverKill
+  , disablePerfCounters
+  , rawBackup
   )
   where
 
 import Foreign
 import Foreign.C
 
-import Data.ByteString (ByteString, packCString)
+import Data.ByteString (packCString)
 import qualified Data.ByteString.Char8 as BS
-import Data.Word
 
 import Control.Monad.IO.Class
 
 #include "hyperdex/admin.h"
 
 {# import Database.HyperDex.Internal.Admin #}
-{# import Database.HyperDex.Internal.Attribute #}
-{# import Database.HyperDex.Internal.AttributeCheck #}
-{# import Database.HyperDex.Internal.MapAttribute #}
 import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
@@ -61,7 +61,7 @@ dumpConfig = adminDeferred $ do
                             config <- packCString cStr
                             return $ Right config
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_read_only(struct hyperdex_admin* admin, int ro,
@@ -79,7 +79,7 @@ setReadOnly ro = adminDeferred $ do
         case returnCode of
           AdminSuccess -> return $ Right ()
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_wait_until_stable(struct hyperdex_admin* admin,
@@ -96,34 +96,33 @@ waitUntilStable = adminDeferred $ do
         case returnCode of
           AdminSuccess -> return $ Right ()
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int
 -- hyperdex_admin_validate_space(struct hyperdex_admin* admin,
 --                               const char* description,
 --                               enum hyperdex_admin_returncode* status);
--- TODO: handle sync results
---validateSpace desc = adminDeferred $ do
---  returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
---  descPtr <- rNewCBString0 desc
---  let ccall ptr = 
---        wrapHyperCallHandle $
---          {# call hyperdex_admin_validate_space #}
---            ptr
---            descPtr
---            returnCodePtr
---  let callback = do
---        returnCode <- peekReturnCode returnCodePtr
---        case returnCode of
---          AdminSuccess -> return $ Right ()
---          _            -> return $ Left returnCode
---  return $ Call ccall callback
+validateSpace desc = adminImmediate $ do
+  returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
+  descPtr <- rNewCBString0 desc
+  let ccall ptr = 
+        wrapHyperCall $
+          {# call hyperdex_admin_validate_space #}
+            ptr
+            descPtr
+            returnCodePtr
+  let callback r = do
+        returnCode <- peekReturnCode returnCodePtr
+        case returnCode of
+          AdminSuccess -> return $ Right r
+          _            -> return $ Left returnCode
+  return $ SyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_add_space(struct hyperdex_admin* admin,
 --                          const char* description,
 --                          enum hyperdex_admin_returncode* status);
-validateSpace desc = adminDeferred $ do
+addSpace desc = adminDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
   descPtr <- rNewCBString0 desc
   let ccall ptr = 
@@ -137,7 +136,7 @@ validateSpace desc = adminDeferred $ do
         case returnCode of
           AdminSuccess -> return $ Right ()
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_rm_space(struct hyperdex_admin* admin,
@@ -157,7 +156,7 @@ rmSpace s = adminDeferred $ do
         case returnCode of
           AdminSuccess -> return $ Right ()
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_list_spaces(struct hyperdex_admin* admin,
@@ -180,7 +179,7 @@ listSpaces = adminDeferred $ do
                             config <- packCString cStr
                             return $ Right $ BS.lines config
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_server_register(struct hyperdex_admin* admin,
@@ -201,7 +200,7 @@ serverRegister t h = adminDeferred $ do
         case returnCode of
           AdminSuccess -> return $ Right ()
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_admin_server_online(struct hyperdex_admin* admin,
@@ -248,17 +247,41 @@ serverKill = serverOp {# call hyperdex_admin_server_forget #}
 --        case returnCode of
 --          AdminSuccess -> return $ Right ()
 --          _            -> return $ Left returnCode
---  return $ Call ccall callback
+--  return $ AsyncCall ccall callback
 
 -- void
 -- hyperdex_admin_disable_perf_counters(struct hyperdex_admin* admin);
--- TODO: handle sync results
+disablePerfCounters = adminImmediate $ do
+  let ccall ptr = 
+        wrapHyperCall $
+          {# call hyperdex_admin_disable_perf_counters #}
+            ptr
+  let callback () = return $ Right ()
+  return $ SyncCall ccall callback
 
 -- int
 -- hyperdex_admin_raw_backup(const char* host, uint16_t port,
 --                           const char* name,
 --                           enum hyperdex_admin_returncode* status);
--- TODO: handle sync results
+-- TODO: update to latest API for backup
+rawBackup host port name = adminImmediate $ do
+  let portVal = CUShort $ port
+  hostPtr <- rNewCBString0 $ host
+  namePtr <- rNewCBString0 $ name
+  returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
+  let ccall ptr = 
+        wrapHyperCall $
+          {# call hyperdex_admin_raw_backup #}
+            hostPtr portVal
+            namePtr
+            returnCodePtr
+  let callback r = do
+        returnCode <- peekReturnCode returnCodePtr
+        case returnCode of
+          AdminSuccess -> return $ Right r
+          _            -> return $ Left returnCode
+  return $ SyncCall ccall callback
+
 
 serverOp call t = adminDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
@@ -273,4 +296,4 @@ serverOp call t = adminDeferred $ do
         case returnCode of
           AdminSuccess -> return $ Right ()
           _            -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback

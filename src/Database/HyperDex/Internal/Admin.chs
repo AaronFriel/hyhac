@@ -15,6 +15,7 @@ module Database.HyperDex.Internal.Admin
   , adminConnect
   , peekReturnCode
   , adminDeferred
+  , adminImmediate
   )
   where
 
@@ -24,6 +25,7 @@ import Database.HyperDex.Internal.Options
 import Database.HyperDex.Internal.Util
 
 import Control.Monad.IO.Class
+import Control.Monad.Trans.Resource
 import Foreign
 import Foreign.C
 
@@ -123,6 +125,11 @@ adminConnect :: ConnectInfo -> IO (HyperDexConnection Admin)
 adminConnect = connect
 
 adminDeferred = wrapDeferred (AdminSuccess==)
+
+adminImmediate :: ResIO (SyncCall Admin a)
+               -> HyperDexConnection Admin
+               -> IO (AsyncResult Admin a)
+adminImmediate = wrapImmediate
 
 -- adminDisconnect :: (HyperDexConnection Admin) -> IO ()
 -- adminDisconnect = disconnect

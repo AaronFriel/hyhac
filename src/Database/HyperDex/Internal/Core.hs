@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeFamilies, BangPatterns, RecordWildCards #-}
+{-# LANGUAGE ExistentialQuantification, TypeFamilies, BangPatterns, RecordWildCards #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 -- For writing code this is really nice:
 {-# LANGUAGE TypeHoles #-}
@@ -18,10 +18,12 @@ module Database.HyperDex.Internal.Core
   , AsyncResult
   , Stream
   , readStream
-  , Call (..)
+  , AsyncCall (..)
+  , SyncCall (..)
   , connect
   , wrapDeferred
   , wrapIterator
+  , wrapImmediate
   )
   where
 
@@ -35,14 +37,13 @@ import Control.Concurrent.STM
 import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Class
 import Control.Monad.Trans.Resource
 import Data.IORef
 import Foreign.C
 
 -- | A generalization over the two types of HyperDex connections, admin and
 -- client.
--- 
+--
 -- The terminology here may not be precisely correct - but this is effectively
 -- an interface to the HyperDex event loop that is wrapped around in the HyperDex
 -- client library.
@@ -53,7 +54,7 @@ class HyperDex o where
   isTransient :: ReturnCode o -> Bool
   isGlobalError :: ReturnCode o -> Bool
   isNonePending :: ReturnCode o -> Bool
-  
+
   deferredSuccess :: ReturnCode o -> Bool
   iteratorSuccess :: ReturnCode o -> Bool
   iteratorComplete :: ReturnCode o -> Bool
@@ -62,7 +63,7 @@ class HyperDex o where
   create :: CString
          -- ^ The hostname or IP address of the coordinator.
          -> CUShort
-         -- ^ The port number. 
+         -- ^ The port number.
          -> IO o
          -- ^ Returns pointer to opaque structure.
 
@@ -86,7 +87,8 @@ data HyperDex o => HyperDexConnection o = HyperDexConnection
   , info_    :: {-# UNPACK #-} !ConnectInfo
   }
 
-data Command o = RunCall                  !(ResIO (Wrapped o))
+data Command o = RunAsync  {-# UNPACK #-} !(Wrapped o)
+               | RunSync                  !(o -> IO ())
                | Demand    {-# UNPACK #-} !Handle
              --  | LoopReady {-# UNPACK #-} !Handle
 
@@ -97,22 +99,24 @@ type ControlReader o = InTQueue (Command o)
 -- | Current status of HyperDex client connection (healthy if empty)
 type ConnectionStatus o = TMVar (ReturnCode o)
 
-type CCall o = o -> IO Handle
-
 type Callback o = ReturnCode o -> IO Bool
 
-data Wrapped o = Wrapped !(CCall o)
-                         !(Callback o)
+data Wrapped o = Wrapped {-# UNPACK  #-} !ReleaseKey
+                                         !(o -> IO Handle)
+                                         !(Callback o)
 
-data Call o a = Call !(CCall o)
-                     !(ResIO a)
+data AsyncCall o a = AsyncCall !(o -> IO Handle)
+                               !(ResIO (HyperDexResult o a))
+
+data SyncCall o a = forall r. SyncCall !(o -> IO r)
+                                       !(r -> ResIO (HyperDexResult o a))
 
 type HandleMap o = HandleMap.HandleMap (ReleaseKey, Callback o)
 
 -- | 'HyperDexResult' represents a single HyperDex return value.
 type HyperDexResult o a = Either (ReturnCode o) a
 
--- | 'AsyncResult' represents an action synchronously demanding the result 
+-- | 'AsyncResult' represents an action synchronously demanding the result
 -- of a call that produces a single value.
 type AsyncResult o a = IO (HyperDexResult o a)
 
@@ -129,7 +133,7 @@ data Stream o a = Stream !(TQueue (Maybe (HyperDexResult o a)))
 makeStream :: TQueue (Maybe (HyperDexResult o a)) -> IO () -> Stream o a
 makeStream = Stream
 
--- | Try to read a value from a queue, if 'Just Nothing', place it back on top. 
+-- | Try to read a value from a queue, if 'Just Nothing', place it back on top.
 tryReadStreamUndo :: TQueue (Maybe a) -> STM (Maybe (Maybe a))
 tryReadStreamUndo q = do
   a <- tryReadTQueue q
@@ -176,7 +180,7 @@ connect info = runResourceT $ do
     -- register listener for HyperDex loop fd here
     return $ HyperDexConnection outQ status info
 
-clientCall :: HyperDex o 
+clientCall :: HyperDex o
            => HyperDexConnection o
            -> Command o
            -> IO ()
@@ -185,9 +189,9 @@ clientCall (HyperDexConnection {..}) cmd = do
   cleanup <- atomically $ do
     status <- tryReadTMVar status_
     case status of
-      Just rc -> 
-        case cmd of 
-          RunCall c -> return (failCallback rc c)
+      Just rc ->
+        case cmd of
+          RunAsync c -> return (failCallback rc c)
           _         -> return (return ())
       Nothing -> do
         writeOutTQueue control_ cmd
@@ -213,8 +217,8 @@ demandHandle handleVar client = do
 -- live references to the control channel.
 --
 -- Upon termination resources are registered that will set the status of the
--- loop to a failure state (if it has not already), clean up all pending 
--- callbacks, and launch a failure loop that will respond to all incoming 
+-- loop to a failure state (if it has not already), clean up all pending
+-- callbacks, and launch a failure loop that will respond to all incoming
 -- commands with a failure condition.
 runHyhacLoop :: (HyperDex o)
              => ConnectionStatus o
@@ -223,7 +227,7 @@ runHyhacLoop :: (HyperDex o)
              -> IO ()
 runHyhacLoop status queue ptr = runResourceT $ do
   void $ register $ forkIO_ $ do
-    void $ atomically $ tryPutTMVar status failureCode 
+    void $ atomically $ tryPutTMVar status failureCode
     hyhacLoopFailure queue failureCode
   (_,mapRef) <- allocateHandleMap status
   hyhacLoop queue ptr loopFail mapRef
@@ -246,30 +250,24 @@ hyhacLoop queue ptr failLoop mapRef = forever $ do
   inMap <- liftIO $ readIORef mapRef
   cmd <- liftIO $ readInTQueueIO queue
   !outMap <- case cmd of
-    RunCall c -> do
-      -- If no exceptions are thrown, return a pair of the releaseKey for the
-      -- resources allocated by the call as well as the return value (handle,
-      -- callback). Otherwise, 'Nothing'.
-      ret <- tryUnwrapResourceT $ do
-        (Wrapped ccall callback) <- c
-        handle <- liftIO $ ccall ptr
-        return (handle, callback)
-      case ret of
-        Just (state,(handle,callback)) -> do
-          case HandleMap.lookup handle inMap of
-            -- if a duplicate handle is received, clean up state previously
-            -- used by that handle.
-            Just (priorState, _) -> release priorState
-            _                    -> return ()
-          return $ HandleMap.insert handle (state, callback) inMap
-        _ -> return inMap
+    RunAsync (Wrapped state ccall callback) -> do
+      handle <- liftIO $ ccall ptr
+      case HandleMap.lookup handle inMap of
+        -- if a duplicate handle is received, clean up state previously
+        -- used by that handle.
+        Just (priorState, _) -> release priorState
+        _                    -> return ()
+      return $ HandleMap.insert handle (state, callback) inMap
+    RunSync f -> do
+      liftIO $ f ptr
+      return inMap
     Demand handle -> do
       handleResult inMap $ loopUntil handle ptr
     -- LoopReady -> do
     --   handleResult inMap $ loopOnce ptr
   liftIO $ writeIORef mapRef outMap
   where
---    handleResult :: HandleMap -> IO 
+--    handleResult :: HandleMap -> IO
     handleResult !inMap !f = do
       (result, !outMap) <- liftIO $ f inMap
       case result of
@@ -286,7 +284,7 @@ hyhacLoop queue ptr failLoop mapRef = forever $ do
         Right _ -> return outMap
 
 loopOnce :: HyperDex o
-         => o 
+         => o
          -> HandleMap o
          -> IO (Either (ReturnCode o) Handle, HandleMap o)
 loopOnce ptr !inMap = do
@@ -323,25 +321,25 @@ hyhacLoopFailure :: HyperDex o
 hyhacLoopFailure queue rc = forever $ do
   cmd <- readInTQueueIO queue
   case cmd of
-    RunCall c -> do
+    RunAsync c -> do
       liftIO $ failCallback rc c
     _ -> return ()
 
 failCallback :: HyperDex o
              => ReturnCode o
-             -> ResIO (Wrapped o)
+             -> Wrapped o
              -> IO ()
-failCallback rc c = do
-  forkIO_ $ runResourceT $ tryUnwrapResourceT $ do
-    (Wrapped _ callback) <- c
-    void $ lift $ callback rc
+failCallback rc (Wrapped state _ callback) = do
+  forkIO_ $ do
+    callback rc
+    release state
 
 allocateHandleMap :: (HyperDex o, MonadResource m)
                   => ConnectionStatus o
                   -> m (ReleaseKey, IORef (HandleMap o))
 allocateHandleMap status = do
   allocateResource $ mkResource alloc free
-  where 
+  where
     alloc = newIORef HandleMap.empty
     free mapRef = do
       hMap <- readIORef mapRef
@@ -366,7 +364,7 @@ releaseMap rc hMap = do
   leftoverMap <- foldM fold hMap (HandleMap.toList hMap)
   releaseAll leftoverMap
   return HandleMap.empty
-  where 
+  where
     fold priorMap (h,(state,callback)) =
       runCallback rc h (state, callback) priorMap
 
@@ -376,7 +374,7 @@ releaseAll hMap = do
   forM_ (HandleMap.elems hMap) $ \(state, _) -> do
     release state
 
-data CallDescription o t a b = CallDescription
+data CallDescription o a b = forall t. CallDescription
   { resultIntermediate :: IO t
   , failureAction      :: t -> ReturnCode o -> IO ()
   , defaultFailureCode :: ReturnCode o
@@ -387,9 +385,9 @@ data CallDescription o t a b = CallDescription
   , returnResult       :: HyperDexConnection o -> MVar Handle -> t -> b
   }
 
-wrapDeferred :: HyperDex o 
+wrapDeferred :: HyperDex o
              => (ReturnCode o -> Bool)
-             -> ResIO (Call o (HyperDexResult o a))
+             -> ResIO (AsyncCall o a)
              -> HyperDexConnection o
              -> IO (AsyncResult o a)
 wrapDeferred deferredSuccess = wrapGeneral deferred
@@ -403,14 +401,14 @@ wrapDeferred deferredSuccess = wrapGeneral deferred
       , completeAction = const $ return ()
       , returnCodeComplete = deferredSuccess
       , returnCodeSuccess  = deferredSuccess
-      , returnResult = \client hvar m -> 
+      , returnResult = \client hvar m ->
                           mvarToAsync m (demandHandle hvar client)
       }
 
 wrapIterator :: HyperDex o
              => (ReturnCode o -> Bool)
              -> (ReturnCode o -> Bool)
-             -> ResIO (Call o (HyperDexResult o a))
+             -> ResIO (AsyncCall o a)
              -> HyperDexConnection o
              -> IO (Stream o a)
 wrapIterator iteratorComplete iteratorSuccess = wrapGeneral iterator
@@ -418,7 +416,7 @@ wrapIterator iteratorComplete iteratorSuccess = wrapGeneral iterator
     iterator = CallDescription
       { resultIntermediate = newTQueueIO :: IO (TQueue (Maybe (HyperDexResult o a)))
       , failureAction = \m rc -> do
-          atomically $ do 
+          atomically $ do
             writeTQueue m $ Just $ Left rc
             writeTQueue m $ Nothing
       , defaultFailureCode = failureCode
@@ -430,30 +428,28 @@ wrapIterator iteratorComplete iteratorSuccess = wrapGeneral iterator
                           makeStream m (demandHandle hvar client)
       }
 
--- wrapGeneral :: HyperDex o
---             => CallDescription o t a
---             -> ResIO (Call o (HyperDexResult o a))
---             -> HyperDexConnection o
---             -> IO (HyperDexResult o a)
+wrapGeneral :: HyperDex o
+            => CallDescription o a b
+            -> ResIO (AsyncCall o a)
+            -> HyperDexConnection o
+            -> IO b
 wrapGeneral (CallDescription {..}) = \hyhacCall client -> do
   output <- resultIntermediate
   handleVar <- newEmptyMVar
-  clientCall client $ RunCall $ do
+  wrappedCall <- runResourceT $ do
     -- In the event that this call does not complete, call the failure action
     -- and set the handle to an invalid result.
-    rkey <- register $ do
+    handleKey <- register $ do
       void $ tryPutMVar handleVar invalidHandle
       failureAction output defaultFailureCode
-    -- Allocating the resources necessary for the Hyperdex call, register them
-    -- and return the C function call and callback. No attempt is made to
-    -- bracket the call. If an exception is thrown the action registered above
-    -- will ensure failure modes are correctly handled.
-    Call ccall callback <- hyhacCall
-    --
+
+    -- Invert control of the resources of the ResourceT.
+    (rkey, AsyncCall ccall callback) <- unwrapResourceT hyhacCall
+
     let -- Routine to prevent failure action from firing
-        unregister = void $ unprotect rkey
+        unregister = void $ unprotect handleKey
         -- Rewrite the C call to take the handle generated, put it in HandleVar
-        ccall' = captureHandle handleVar ccall
+        ccall' = captureOutput handleVar ccall
         -- Rewrite the callback to handle success/failure modes. There is a 2x2
         -- matrix of return code membership in 'returnCodeSuccess'
         -- 'returnCodeComplete', 'successCodes' and this handles those
@@ -476,23 +472,35 @@ wrapGeneral (CallDescription {..}) = \hyhacCall client -> do
                   void $ tryPutMVar handleVar invalidHandle
                   failureAction output rc
           return complete
-    return $ Wrapped ccall' callback'
+    return $ Wrapped rkey ccall' callback'
+  clientCall client $ RunAsync wrappedCall
   return $ returnResult client handleVar output
 
+wrapImmediate :: HyperDex o
+              => ResIO (SyncCall o a)
+              -> HyperDexConnection o
+              -> IO (AsyncResult o a)
+wrapImmediate = \hyhacCall client -> do
+  bVar <- newEmptyMVar
+  clientCall client $ RunSync $ \ptr -> runResourceT $ do
+    SyncCall ccall callback <- hyhacCall
+    result <- (liftIO $ ccall ptr) >>= callback
+    void $ liftIO $ tryPutMVar bVar result
+  return $ readMVar bVar
 
-captureHandle :: MVar Handle -> (a -> IO Handle) -> (a -> IO Handle)
-captureHandle mvar f = \a -> do
+captureOutput :: MVar b -> (a -> IO b) -> (a -> IO b)
+captureOutput mvar f = \a -> do
   h <- f a
-  putMVar mvar h
+  void $ tryPutMVar mvar h
   return h
 
 -- | Transform an MVar that will be filled by a callback into an async value.
 mvarToAsync :: MVar a -> IO () -> IO a
 mvarToAsync m demand = do
-  result <- tryTakeMVar m
+  result <- tryReadMVar m
   case result of
     Just a -> return a
     Nothing -> do
       demand
       yield
-      takeMVar m
+      readMVar m

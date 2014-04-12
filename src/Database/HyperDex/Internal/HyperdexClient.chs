@@ -160,7 +160,7 @@ get s k = clientDeferred $ do
         case returnCode of
           ClientSuccess -> fmap Right peekResult
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_client_del(struct hyperdex_client* client,
@@ -186,7 +186,7 @@ delete s k = clientDeferred $ do
         case returnCode of
           ClientSuccess -> return $ Right ()
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_client_cond_put(struct hyperdexClient* client, const char* space,
@@ -219,7 +219,7 @@ putConditional s k checks attrs = clientDeferred $ do
         case returnCode of
           ClientSuccess -> return $ Right ()
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_client_atomic_xor(struct hyperdexClient* client, const char* space,
@@ -249,7 +249,7 @@ hyperdexClientOp call s k attrs = clientDeferred $ do
         case returnCode of
           ClientSuccess -> return $ Right ()
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 {-# INLINE hyperdexClientOp #-}
 
 -- int64_t
@@ -280,7 +280,7 @@ hyperdexClientMapOp call s k mapAttrs = clientDeferred $ do
         case returnCode of
           ClientSuccess -> return $ Right ()
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 {-# INLINE hyperdexClientMapOp #-}
 
 -- -- int64_t
@@ -310,7 +310,7 @@ search s checks = clientIterator $ do
         case returnCode of
           ClientSuccess -> fmap Right peekResult
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 
 -- int64_t
@@ -338,7 +338,7 @@ deleteGroup s checks = clientDeferred $ do
         case returnCode of
           ClientSuccess -> return $ Right ()
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_client_search_describe(struct hyperdexClient* client, const char* space,
@@ -370,7 +370,7 @@ describeSearch s checks = clientDeferred $ do
                               description <- packCString cStr
                               return $ Right description
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
 
 -- int64_t
 -- hyperdex_client_count(struct hyperdexClient* client, const char* space,
@@ -399,4 +399,4 @@ count s checks = clientDeferred $ do
         case returnCode of
           ClientSuccess -> liftIO $ fmap (Right . unCULong) $ peek countPtr 
           _             -> return $ Left returnCode
-  return $ Call ccall callback
+  return $ AsyncCall ccall callback
