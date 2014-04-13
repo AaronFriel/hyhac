@@ -13,10 +13,9 @@
 --
 module Database.HyperDex.Admin
   ( module Database.HyperDex.Internal.Admin
-  , module Database.HyperDex.Internal.Hyperdex
+  , module Database.HyperDex.Internal.HyperdexAdmin
   )
   where
 
-import Database.HyperDex.Internal.Admin hiding (peekReturnCode)
-import Database.HyperDex.Internal.HyperdexAdmin
-import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
+import Database.HyperDex.Internal.Admin hiding (Admin, ReturnCode (..), adminConnect)
+import Database.HyperDex.Internal.HyperdexAdmin 

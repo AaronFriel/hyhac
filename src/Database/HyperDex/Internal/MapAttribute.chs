@@ -88,26 +88,26 @@ instance Storable MapAttribute where
     {#set hyperdex_client_map_attribute.value_datatype #} p (fromIntegral . fromEnum $ mapAttrValueDatatype x)
 
 rPokeMapAttribute :: MonadResource m => MapAttribute -> Ptr MapAttribute -> m ()
-rPokeMapAttribute (MapAttribute {..}) ptr = do
+rPokeMapAttribute (MapAttribute {..}) p = do
   name <- rNewCBString0 mapAttrName
   (key, keyLen) <- rNewCBStringLen mapAttrKey
   (value, valueLen) <- rNewCBStringLen mapAttrValue
   let keyType = fromIntegral . fromEnum $ mapAttrKeyDatatype
   let valueType = fromIntegral . fromEnum $ mapAttrValueDatatype
   liftIO $ do
-    {#set hyperdex_client_map_attribute.attr #} ptr name
-    {#set hyperdex_client_map_attribute.map_key #} ptr key
-    {#set hyperdex_client_map_attribute.map_key_sz #} ptr $ fromIntegral keyLen
-    {#set hyperdex_client_map_attribute.map_key_datatype #} ptr keyType
-    {#set hyperdex_client_map_attribute.value #} ptr value
-    {#set hyperdex_client_map_attribute.value_sz #} ptr $ fromIntegral valueLen
-    {#set hyperdex_client_map_attribute.value_datatype #} ptr valueType
+    {#set hyperdex_client_map_attribute.attr #} p name
+    {#set hyperdex_client_map_attribute.map_key #} p key
+    {#set hyperdex_client_map_attribute.map_key_sz #} p $ fromIntegral keyLen
+    {#set hyperdex_client_map_attribute.map_key_datatype #} p keyType
+    {#set hyperdex_client_map_attribute.value #} p value
+    {#set hyperdex_client_map_attribute.value_sz #} p $ fromIntegral valueLen
+    {#set hyperdex_client_map_attribute.value_datatype #} p valueType
 
 rNewMapAttributeArray :: MonadResource m => [MapAttribute] -> m (Ptr MapAttribute, Int)
 rNewMapAttributeArray mapAttrs = do
   let len = length mapAttrs
   arrayPtr <- rMallocArray len
-  forM (zip mapAttrs [0..]) $ \(mapAttr, i) -> do
+  forM_ (zip mapAttrs [0..]) $ \(mapAttr, i) -> do
     let mapAttrPtr = advancePtr arrayPtr i
     rPokeMapAttribute mapAttr mapAttrPtr
   return (arrayPtr, len)

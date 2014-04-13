@@ -1,4 +1,4 @@
-
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
 -- |
 -- Module       : Database.HyperDex.Internal.HyperdexClient
 -- Copyright    : (c) Aaron Friel 2013-2014
@@ -52,7 +52,6 @@ import Foreign
 import Foreign.C
 
 import Data.ByteString (ByteString, packCString)
-import Data.Word
 
 import Control.Monad.IO.Class
 

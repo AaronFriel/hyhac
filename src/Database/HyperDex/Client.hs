@@ -36,7 +36,7 @@ import Database.HyperDex.Internal.Client (
       -- , SearchStream (..)
       )
 import Database.HyperDex.Internal.HyperdexClient
-import Database.HyperDex.Internal.Client hiding (peekReturnCode)
+import Database.HyperDex.Internal.Client (Client, ReturnCode (..), clientConnect)
 import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
 import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)

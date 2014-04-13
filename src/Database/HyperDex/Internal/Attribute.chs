@@ -70,15 +70,15 @@ instance Storable Attribute where
     {#set hyperdex_client_attribute.datatype #} p (fromIntegral . fromEnum $ attrDatatype x)
 
 rPokeAttribute :: MonadResource m => Attribute -> Ptr Attribute -> m ()
-rPokeAttribute (Attribute {..}) ptr = do
+rPokeAttribute (Attribute {..}) p = do
   name <- rNewCBString0 attrName
   (value, valueLen) <- rNewCBStringLen attrValue
-  let datatype = fromIntegral . fromEnum $ attrDatatype
+  let datatypeVal = fromIntegral . fromEnum $ attrDatatype
   liftIO $ do
-    {#set hyperdex_client_attribute.attr #} ptr name
-    {#set hyperdex_client_attribute.value #} ptr value
-    {#set hyperdex_client_attribute.value_sz #} ptr (fromIntegral valueLen)
-    {#set hyperdex_client_attribute.datatype #} ptr datatype
+    {#set hyperdex_client_attribute.attr #} p name
+    {#set hyperdex_client_attribute.value #} p value
+    {#set hyperdex_client_attribute.value_sz #} p (fromIntegral valueLen)
+    {#set hyperdex_client_attribute.datatype #} p datatypeVal
 {-# INLINE rPokeAttribute #-}
 
 rMallocAttributeArray :: MonadResource m 
@@ -86,8 +86,8 @@ rMallocAttributeArray :: MonadResource m
 rMallocAttributeArray = do
   ptrPtr <- rMalloc
   szPtr <- rMalloc
-  let peek = rPeekAttributeArray ptrPtr szPtr
-  return (ptrPtr, szPtr, peek)
+  let peekFn = rPeekAttributeArray ptrPtr szPtr
+  return (ptrPtr, szPtr, peekFn)
 {-# INLINE rMallocAttributeArray #-}
 
 rPeekAttributeArray :: MonadResource m 
@@ -113,7 +113,7 @@ rNewAttributeArray :: MonadResource m => [Attribute] -> m (Ptr Attribute, Int)
 rNewAttributeArray attrs = do
   let len = length attrs
   arrayPtr <- rMallocArray len
-  forM (zip attrs [0..]) $ \(attr, i) -> do
+  forM_ (zip attrs [0..]) $ \(attr, i) -> do
     let attrPtr = advancePtr arrayPtr i
     rPokeAttribute attr attrPtr
   return (arrayPtr, len)

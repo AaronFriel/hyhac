@@ -34,7 +34,6 @@ library
     Database.HyperDex.Admin
     Database.HyperDex.Client
     Database.HyperDex.Utf8
-    Database.HyperDex.Exception
 
   other-modules:
     Database.HyperDex.Internal
@@ -52,7 +51,7 @@ library
 
   if flag(tests)
     exposed-modules: Database.HyperDex.Internal.Util
-    ghc-options: -Werror -Wall -fno-warn-orphans
+    ghc-options: -Werror -Wall
   else
     other-modules:   Database.HyperDex.Internal.Util
 

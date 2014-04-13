@@ -116,6 +116,9 @@ instance Enum (ReturnCode Admin) where
 adminConnect :: ConnectInfo -> IO (HyperDexConnection Admin)
 adminConnect = connect
 
+adminDeferred :: ResIO (AsyncCall Admin a) 
+              -> HyperDexConnection Admin
+              -> IO (AsyncResult Admin a)
 adminDeferred = wrapDeferred (AdminSuccess==)
 
 adminImmediate :: ResIO (SyncCall Admin a)

@@ -17,15 +17,11 @@ module Database.HyperDex.Internal.PerfCounter
 import Foreign
 import Foreign.C
 
-import Data.ByteString (ByteString, packCString, packCStringLen)
+import Data.ByteString (ByteString, packCString)
 
-import Database.HyperDex.Internal.Hyperdex
-import Database.HyperDex.Internal.Hyperdata
 import Database.HyperDex.Internal.Util
 
 import Control.Monad
-import Control.Monad.IO.Class
-import Control.Monad.Trans.Resource
 import Control.Applicative ((<$>), (<*>))
 
 #include "hyperdex/admin.h"

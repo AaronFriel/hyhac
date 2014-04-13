@@ -1,4 +1,5 @@
-
+{-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE RankNTypes #-}
 -- |
 -- Module       : Database.HyperDex.Internal.HyperdexAdmin
 -- Copyright    : (c) Aaron Friel 2013-2014
@@ -282,7 +283,13 @@ rawBackup host port name = adminImmediate $ do
           _            -> return $ Left returnCode
   return $ SyncCall ccall callback
 
+type ServerCall t = Admin -> t -> Ptr CInt -> IO CLong
 
+
+serverOp :: forall t. ServerCall t
+         -> t
+         -> HyperDexConnection Admin
+         -> IO (AsyncResult Admin ())	
 serverOp call t = adminDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
   let ccall ptr = 

@@ -72,17 +72,17 @@ instance Storable AttributeCheck where
     {#set hyperdex_client_attribute_check.predicate #} p (fromIntegral . fromEnum $ attrCheckPredicate x)
 
 rPokeAttributeCheck :: MonadResource m => AttributeCheck -> Ptr AttributeCheck -> m ()
-rPokeAttributeCheck (AttributeCheck {..}) ptr = do
+rPokeAttributeCheck (AttributeCheck {..}) p = do
   name <- rNewCBString0 attrCheckName
   (value, valueLen) <- rNewCBStringLen attrCheckValue
-  let datatype = fromIntegral . fromEnum $ attrCheckDatatype
+  let datatypeVal = fromIntegral . fromEnum $ attrCheckDatatype
   let predicate = fromIntegral . fromEnum $ attrCheckPredicate
   liftIO $ do
-    {#set hyperdex_client_attribute_check.attr #} ptr name
-    {#set hyperdex_client_attribute_check.value #} ptr value
-    {#set hyperdex_client_attribute_check.value_sz #} ptr $ (fromIntegral valueLen)
-    {#set hyperdex_client_attribute_check.datatype #} ptr datatype
-    {#set hyperdex_client_attribute_check.predicate #} ptr predicate
+    {#set hyperdex_client_attribute_check.attr #} p name
+    {#set hyperdex_client_attribute_check.value #} p value
+    {#set hyperdex_client_attribute_check.value_sz #} p $ (fromIntegral valueLen)
+    {#set hyperdex_client_attribute_check.datatype #} p datatypeVal
+    {#set hyperdex_client_attribute_check.predicate #} p predicate
 
 -- rNewAttributeCheck :: MonadResource m => AttributeCheck -> m (Ptr AttributeCheck)
 -- rNewAttributeCheck attrCheck = do
@@ -94,7 +94,7 @@ rNewAttributeCheckArray :: MonadResource m => [AttributeCheck] -> m (Ptr Attribu
 rNewAttributeCheckArray checks = do
   let len = length checks
   arrayPtr <- rMallocArray len
-  forM (zip checks [0..]) $ \(attrCheck, i) -> do
+  forM_ (zip checks [0..]) $ \(attrCheck, i) -> do
     let attrCheckPtr = advancePtr arrayPtr i
     rPokeAttributeCheck attrCheck attrCheckPtr
   return (arrayPtr, len)
