@@ -97,7 +97,7 @@ main = do
                --                                  [ C.col "last" lastnamel
                --                                  ])
                --                            (\insertions ->  void $ C.runCas pool $ sequence insertions),
-               bench "hyperdex" $ finish (\(x,_,_) ->
+               bench "hyperdex" . whnfIO $ finish (\(x,_,_) ->
                                            H.put client "phonebook" x $!!
                                              [H.mkAttribute "content"  lastname])
                                          (\actions -> do

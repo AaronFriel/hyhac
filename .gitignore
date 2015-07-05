@@ -11,4 +11,4 @@ cabal.config
 *.sublime-project
 *.sublime-workspace
 *.TMP
-
+.tags

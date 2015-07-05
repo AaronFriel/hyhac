@@ -463,27 +463,30 @@ search client s checks = withClientStream client $ \hyperdexClient -> do
 deleteGroup :: Client
             -> Text
             -> [AttributeCheck]
-            -> AsyncResult ()
+            -> AsyncResult Integer
 deleteGroup client s checks = withClient client $ \hyperdexClient -> do
-	returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
-	space <- newTextUtf8 s
-	(checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
-	handle <-	wrapHyperCall $
-	         	{# call unsafe hyperdex_client_group_del #}
-	         		hyperdexClient
-	         		space
-	         		checkPtr (fromIntegral checkSize)
-	         		returnCodePtr
-	let continuation = do
-		returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-		free returnCodePtr
-		free space
-		haskellFreeAttributeChecks checkPtr checkSize
-		return $
-		  case returnCode of
-				HyperdexClientSuccess	-> Right ()
-				_                    	-> Left returnCode
-	return (handle, continuation)
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexClientGarbage)
+  space <- newTextUtf8 s
+  (checkPtr, checkSize) <- newHyperDexAttributeCheckArray checks
+  countPtr <- new 0
+  handle <- wrapHyperCall $
+            {# call unsafe hyperdex_client_group_del #}
+              hyperdexClient
+              space
+              checkPtr (fromIntegral checkSize)
+              returnCodePtr
+              countPtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        n <- fmap fromIntegral $ peek countPtr
+        free returnCodePtr
+        free space
+        haskellFreeAttributeChecks checkPtr checkSize
+        return $
+          case returnCode of
+            HyperdexClientSuccess -> Right n
+            _                     -> Left returnCode
+  return (handle, continuation)
 
 -- int64_t
 -- hyperdex_client_search_describe(struct hyperdexClient* client, const char* space,
@@ -539,6 +542,7 @@ count client s checks = withClient client $ \hyperdexClient -> do
         free space
         haskellFreeAttributeChecks checkPtr checkSize
         n <- fmap fromIntegral $ peek countPtr
+        free countPtr
         return $
           -- TODO: Why does this succeed even when it fails?
           -- returnCode of HyperdexClientGarbage (what we put in returnCodePtr)
