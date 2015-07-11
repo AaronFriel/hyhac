@@ -43,7 +43,14 @@ data AttributeCheck = AttributeCheck
   }
   deriving (Show, Eq)
 instance Storable AttributeCheck where
-  sizeOf _ = {#sizeof hyperdex_client_attribute_check_struct #}
+  -- Note [sizeOf fudging] in Attribute.chs
+  sizeOf _ = 
+    case size `mod` align of
+          0 -> size
+          n -> size + (align - n) 
+    where
+      align = {#alignof hyperdex_client_attribute_check_struct #}
+      size = {#sizeof hyperdex_client_attribute_check_struct #}
   alignment _ = {#alignof hyperdex_client_attribute_check_struct #}
   peek p = AttributeCheck
     <$> (packCString =<< ({#get hyperdex_client_attribute_check.attr #} p))
