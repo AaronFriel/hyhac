@@ -59,7 +59,14 @@ data MapAttribute = MapAttribute
   }
   deriving (Show, Eq)
 instance Storable MapAttribute where
-  sizeOf _    = {#sizeof hyperdex_client_map_attribute_struct #}
+  -- Note [sizeOf fudging] in Attribute.chs
+  sizeOf _ = 
+    case size `mod` align of
+          0 -> size
+          n -> size + (align - n) 
+    where
+      align = {#alignof hyperdex_client_map_attribute_struct #}
+      size = {#sizeof hyperdex_client_map_attribute_struct #}
   alignment _ = {#alignof hyperdex_client_map_attribute_struct #}
   peek p = MapAttribute
     <$> (packCString =<< ({#get hyperdex_client_map_attribute.attr #} p))

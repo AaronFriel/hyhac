@@ -6,13 +6,20 @@ import Data.Text
 import Data.Monoid ((<>))
 import Test.QuickCheck.Arbitrary
 
+import Test.Framework
+import Test.Framework.Providers.HUnit
+import Test.HUnit hiding (Test)
+
 import Data.Int (Int64)
 import Data.ByteString (ByteString)
 import Data.Set (Set)
 import Data.Map (Map)
 
-import Database.HyperDex
+import Control.Monad
+
+import Database.HyperDex hiding (connect, defaultConnectInfo)
 import Database.HyperDex.Utf8
+import Database.HyperDex.Admin
 
 import Test.HyperDex.Util ()
 
@@ -46,8 +53,7 @@ makeSpaceDesc name =
   \   map(float, string) still_looking,     \n\
   \   map(float, int) for_a_reason,         \n\
   \   map(float, float) for_float_keyed_map \n\
-  \create 10 partitions                     \n\
-  \tolerate 2 failures"
+  \tolerate 0 failures"
 
 newtype DefaultSpaceAttributes = DefaultSpaceAttributes { unDefaultSpace :: [Attribute] }
   deriving (Show, Eq)
@@ -107,3 +113,15 @@ pickAttributeName value =
 
 keyAttributeName :: ByteString
 keyAttributeName = "username"
+
+addSpaceTest :: Test
+addSpaceTest = testCase "Can add a space" $ do
+  client <- connect defaultConnectInfo
+  result <- join $ addSpace client defaultSpaceDesc
+  assertEqual "Add space: " (Right ()) result
+
+removeSpaceTest :: Test
+removeSpaceTest = testCase "Can remove a space" $ do
+  client <- connect defaultConnectInfo
+  result <- join $ removeSpace client defaultSpace
+  assertEqual "remove space: " (Right ()) result

@@ -51,7 +51,7 @@ library
 
   if flag(tests)
     exposed-modules: Database.HyperDex.Internal.Util
-    ghc-options: -Werror -Wall
+    ghc-options: -Werror -Wall -fno-warn-orphans -debug
   else
     other-modules:   Database.HyperDex.Internal.Util
 

@@ -14,8 +14,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import Data.Either(lefts)
 
-import System.Cmd
-import System.IO
+import System.Process
 -- import qualified Database.SQLite3 as SQL
 import qualified Control.Exception as E
 
@@ -97,7 +96,7 @@ main = do
                --                                  [ C.col "last" lastnamel
                --                                  ])
                --                            (\insertions ->  void $ C.runCas pool $ sequence insertions),
-               bench "hyperdex" $ finish (\(x,_,_) ->
+               bench "hyperdex" . whnfIO $ finish (\(x,_,_) ->
                                            H.put client "phonebook" x $!!
                                              [H.mkAttribute "content"  lastname])
                                          (\actions -> do

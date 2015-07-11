@@ -320,10 +320,11 @@ search s checks = clientIterator $ do
 deleteGroup :: ByteString
             -> [AttributeCheck]
             -> HyperDexConnection Client
-            -> IO (AsyncResult Client ())
+            -> IO (AsyncResult Client Integer)
 deleteGroup s checks = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
+  countPtr <- rNew 0
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
   let ccall ptr =
         wrapHyperCallHandle $
@@ -335,7 +336,7 @@ deleteGroup s checks = clientDeferred $ do
   let callback = do
         returnCode <- peekReturnCode returnCodePtr
         case returnCode of
-          ClientSuccess -> return $ Right ()
+          ClientSuccess -> return $ Right countPtr
           _             -> return $ Left returnCode
   return $ AsyncCall ccall callback
 

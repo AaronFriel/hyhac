@@ -25,30 +25,36 @@ import Database.HyperDex.Internal.Util
 
 #include "hyperdex/admin.h"
 
-addSpace :: Admin -> Text -> IO ReturnCode
-addSpace c desc  = withAdminImmediate c $ \hc -> do
-  hyperdexAdminAddSpace hc desc
+addSpace :: Admin -> Text -> AsyncResult ()
+addSpace client d = withAdmin client $ \hyperdexClient -> do
+  description <- newTextUtf8 d
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexAdminGarbage)
+  handle <- wrapHyperCall $ 
+              {# call unsafe hyperdex_admin_add_space #}
+              hyperdexClient description returnCodePtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        free returnCodePtr
+        free description
+        return $ 
+          case returnCode of
+            HyperdexAdminSuccess -> Right ()
+            _                    -> Left returnCode
+  return (handle, continuation)
 
-removeSpace :: Admin -> Text -> IO ReturnCode
-removeSpace c name = withAdminImmediate c $ \hc -> do
-  hyperdexAdminRemoveSpace hc name
-
--- int64_t
--- hyperdex_admin_add_space(struct hyperdex_admin* admin, const char* description, enum hyperdex_admin_returncode* status);
-hyperdexAdminAddSpace :: HyperdexAdmin -> Text -> IO ReturnCode
-hyperdexAdminAddSpace admin d = withTextUtf8 d $ \description -> do
-  alloca $ \returnCodePtr -> do
-    -- TODO nh2: handle int64_t return (and figure out what it is)
-    _ <- wrapHyperCall $ {#call hyperdex_admin_add_space #} admin description returnCodePtr
-    returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-    return returnCode
-
--- int64_t
--- hyperdex_admin_rm_space(struct hyperdex_admin* admin, const char* name, enum hyperdex_admin_returncode* status);
-hyperdexAdminRemoveSpace :: HyperdexAdmin -> Text -> IO ReturnCode
-hyperdexAdminRemoveSpace admin s = withTextUtf8 s $ \space -> do
-  alloca $ \returnCodePtr -> do
-    -- TODO nh2: handle int64_t return (and figure out what it is)
-    _ <- wrapHyperCall $ {#call hyperdex_admin_rm_space #} admin space returnCodePtr
-    returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
-    return returnCode
+removeSpace :: Admin -> Text -> AsyncResult ()
+removeSpace client s = withAdmin client $ \hyperdexClient -> do
+  space <- newTextUtf8 s
+  returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexAdminGarbage)
+  handle <- wrapHyperCall $ 
+              {# call unsafe hyperdex_admin_rm_space #}
+              hyperdexClient space returnCodePtr
+  let continuation = do
+        returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
+        free returnCodePtr
+        free space
+        return $ 
+          case returnCode of
+            HyperdexAdminSuccess -> Right ()
+            _                    -> Left returnCode
+  return (handle, continuation)
