@@ -8,6 +8,7 @@ import Database.HyperDex.Admin
 
 import Control.Concurrent (threadDelay, forkFinally)
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
+import Control.Monad
 
 import Test.Framework
 
@@ -22,25 +23,22 @@ tests :: Test
 tests =
   testGroup "hyhac-tests"
   [ testGroup "hyperdex"
-    [ poolTests
+    [ addSpaceTest
+    , poolTests
     , sharedTests
+    , removeSpaceTest
     ]
   , cBStringTests
   ]
 
 preamble :: IO ()
-preamble = do
-  client <- connect defaultConnectInfo
-  removeSpace client defaultSpace
-  threadDelay 250000
-  addSpace client defaultSpaceDesc
-  threadDelay 250000
-  close client
+preamble = return ()
 
 postscript :: IO ()
 postscript = do
   client <- connect defaultConnectInfo
-  removeSpace client defaultSpace
+  -- Force remove space in case it was not deleted.
+  _ <- join $ removeSpace client defaultSpace
   close client
 
 main = do

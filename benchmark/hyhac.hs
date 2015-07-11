@@ -14,8 +14,7 @@ import qualified Data.Text as Text
 import qualified Data.Text.IO as Text
 import Data.Either(lefts)
 
-import System.Cmd
-import System.IO
+import System.Process
 -- import qualified Database.SQLite3 as SQL
 import qualified Control.Exception as E
 
