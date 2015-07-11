@@ -12,3 +12,4 @@ cabal.config
 *.sublime-workspace
 *.TMP
 .tags
+/daemons/
