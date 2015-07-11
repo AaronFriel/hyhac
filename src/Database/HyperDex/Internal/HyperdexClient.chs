@@ -311,20 +311,20 @@ search s checks = clientIterator $ do
           _             -> return $ Left returnCode
   return $ AsyncCall ccall callback
 
-
 -- int64_t
 -- hyperdex_client_group_del(struct hyperdex_client* client,
 --                           const char* space,
 --                           const struct hyperdex_client_attribute_check* checks, size_t checks_sz,
---                           enum hyperdex_client_returncode* status);
+--                           enum hyperdex_client_returncode* status,
+--                           uint64_t* count);
 deleteGroup :: ByteString
             -> [AttributeCheck]
             -> HyperDexConnection Client
-            -> IO (AsyncResult Client Integer)
+            -> IO (AsyncResult Client Word64)
 deleteGroup s checks = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
-  countPtr <- rNew 0
+  countPtr <- rMalloc
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
   let ccall ptr =
         wrapHyperCallHandle $
@@ -333,10 +333,11 @@ deleteGroup s checks = clientDeferred $ do
             space
             checkPtr (fromIntegral checkSize)
             returnCodePtr
+            countPtr
   let callback = do
         returnCode <- peekReturnCode returnCodePtr
         case returnCode of
-          ClientSuccess -> return $ Right countPtr
+          ClientSuccess -> liftIO $ fmap (Right . unCULong) $ peek countPtr 
           _             -> return $ Left returnCode
   return $ AsyncCall ccall callback
 

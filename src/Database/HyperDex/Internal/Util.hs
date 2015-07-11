@@ -45,6 +45,7 @@ import Control.Monad.Base
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
 import Control.Monad.Trans.Resource.Internal
+import Data.Acquire
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Unsafe (unsafeUseAsCString, unsafeUseAsCStringLen)
@@ -154,18 +155,18 @@ readInTQueue (InTQueue c) = readTQueue c
 readInTQueueIO :: MonadIO m => InTQueue a -> m a
 readInTQueueIO q = liftIO $ atomically $ readInTQueue q
 
--- | 'Resource' versions of string allocation and marshalling.
-resourceNew :: Storable a => a -> Resource (Ptr a)
-resourceNew a = mkResource (new a) free
+-- | 'Acquire' versions of string allocation and marshalling.
+resourceNew :: Storable a => a -> Acquire (Ptr a)
+resourceNew a = mkAcquire (new a) free
 
 rNew :: (Storable a, MonadResource m) => a -> m (Ptr a)
-rNew a = fmap snd $ allocateResource (resourceNew a)
+rNew a = fmap snd $ allocateAcquire (resourceNew a)
 
 rMallocArray :: (Storable a, MonadResource m) => Int -> m (Ptr a)
-rMallocArray sz = fmap snd $ allocateResource $ mkResource (mallocArray sz) free
+rMallocArray sz = fmap snd $ allocateAcquire $ mkAcquire (mallocArray sz) free
 
 rMalloc :: (Storable a, MonadResource m) => m (Ptr a)
-rMalloc = fmap snd $ allocateResource $ mkResource malloc free
+rMalloc = fmap snd $ allocateAcquire $ mkAcquire malloc free
 
 -- | Use a 'ByteString' as a NUL-terminated 'CString' in 'MonadResource'.
 --
@@ -189,7 +190,7 @@ rNewCBString0 :: MonadResource m => ByteString -> m CString
 rNewCBString0 bs = do
   case isNulTerminated of
     True -> do
-      (_, (_, cstr)) <- allocateResource $ mkResource alloc' free'
+      (_, (_, cstr)) <- allocateAcquire $ mkAcquire alloc' free'
       return cstr
       where 
         alloc' = unsafeUseAsCString bs $ \cstr -> do
@@ -197,7 +198,7 @@ rNewCBString0 bs = do
                   return (ptr, cstr)
         free' (ptr, _) = freeStablePtr ptr
     False -> do
-      (_, cstr) <- allocateResource $ mkResource alloc' free'
+      (_, cstr) <- allocateAcquire $ mkAcquire alloc' free'
       return cstr
       where
         alloc' = unsafeUseAsCString bs $ \cstr -> do
@@ -224,7 +225,7 @@ rNewCBString0 bs = do
 --
 rNewCBStringLen :: MonadResource m => ByteString -> m CStringLen
 rNewCBStringLen bs = do
-  (_, (_, cstrLen)) <- allocateResource $ mkResource alloc' free'
+  (_, (_, cstrLen)) <- allocateAcquire $ mkAcquire alloc' free'
   return cstrLen
   where 
     alloc' = unsafeUseAsCStringLen bs $ \cstrLen -> do
@@ -240,7 +241,7 @@ unwrapResourceT :: (MonadResource m, MonadBase IO m)
                 -> m (ReleaseKey, a)
 unwrapResourceT (ResourceT r) = do
   istate <- createInternalState
-  rkey <- register (stateCleanup istate)
+  rkey <- register (stateCleanup ReleaseNormal istate)
   result <- liftIO $ r istate
   return (rkey, result)
 

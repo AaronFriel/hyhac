@@ -1,7 +1,5 @@
 {-# LANGUAGE ExistentialQuantification, TypeFamilies, BangPatterns, RecordWildCards #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
--- For writing code this is really nice:
-{-# LANGUAGE TypeHoles #-}
 
 -- |
 -- Module       : Database.HyperDex.Internal.Core
@@ -39,6 +37,7 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
 import Data.IORef
+import Data.Acquire
 import Foreign.C
 
 -- | A generalization over the two types of HyperDex connections, admin and
@@ -335,7 +334,7 @@ allocateHandleMap :: (HyperDex o, MonadResource m)
                   => ConnectionStatus o
                   -> m (ReleaseKey, IORef (HandleMap o))
 allocateHandleMap status = do
-  allocateResource $ mkResource alloc free
+  allocateAcquire $ mkAcquire alloc free
   where
     alloc = newIORef HandleMap.empty
     free mapRef = do
