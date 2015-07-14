@@ -63,7 +63,7 @@ instance HyperDex Admin where
 
   isTransient AdminInterrupted = True
   isTransient AdminTimeout     = True
-  isTransient rc               = False 
+  isTransient _                = False 
   
   isGlobalError AdminInternal  = True
   isGlobalError AdminException = True
