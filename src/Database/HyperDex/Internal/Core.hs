@@ -323,7 +323,7 @@ loopUntil :: HyperDex o
           -> IO (Either (ReturnCode o) Handle, HandleMap o)
 loopUntil testHandle ptr inMap = do
   -- traceIO $ "in loopUntil, waiting for handle: " ++ show testHandle
-  (ret, outMap) <- loopGeneral (-1) ptr inMap
+  (ret, outMap) <- loopGeneral 100 ptr inMap
   case ret of
     Left rc
       | isTransient rc -> do
@@ -338,7 +338,7 @@ loopUntil testHandle ptr inMap = do
           return $ (Right h, outMap)
       | otherwise       -> do
           -- traceIO $ "  loopUntil: Did not get handle looking for, got instead: "++ show h
-          yield >> loopUntil testHandle ptr outMap
+          loopUntil testHandle ptr outMap
 
 hyhacLoopFailure :: HyperDex o
                  => ControlReader o

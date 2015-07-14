@@ -30,7 +30,7 @@ addSpace client d = withAdmin client $ \hyperdexClient -> do
   description <- newTextUtf8 d
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexAdminGarbage)
   handle <- wrapHyperCall $ 
-              {# call unsafe hyperdex_admin_add_space #}
+              {# call safe hyperdex_admin_add_space #}
               hyperdexClient description returnCodePtr
   let continuation = do
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr
@@ -47,7 +47,7 @@ removeSpace client s = withAdmin client $ \hyperdexClient -> do
   space <- newTextUtf8 s
   returnCodePtr <- new (fromIntegral . fromEnum $ HyperdexAdminGarbage)
   handle <- wrapHyperCall $ 
-              {# call unsafe hyperdex_admin_rm_space #}
+              {# call safe hyperdex_admin_rm_space #}
               hyperdexClient space returnCodePtr
   let continuation = do
         returnCode <- fmap (toEnum . fromIntegral) $ peek returnCodePtr

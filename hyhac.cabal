@@ -55,7 +55,7 @@ library
 
   if flag(tests)
     exposed-modules: Database.HyperDex.Internal.Util
-    ghc-options: -Werror -Wall -fno-warn-orphans -debug
+    ghc-options: -Werror -Wall -fno-warn-orphans
   else
     other-modules:   Database.HyperDex.Internal.Util
 
@@ -90,7 +90,7 @@ library
     cpp-options:   -D__UNIX__
     build-depends: unix
 
-  ghc-options:       -O2 -Wall
+  ghc-options:       -O2 -Wall -threaded
 
   include-dirs:      include
   includes:          hyperdex.h
