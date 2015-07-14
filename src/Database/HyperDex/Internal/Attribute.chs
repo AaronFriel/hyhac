@@ -18,13 +18,12 @@ module Database.HyperDex.Internal.Attribute
   )
   where
 
-import Foreign
-import Foreign.C
-
 import Data.ByteString (ByteString, empty, packCString, packCStringLen)
 
 import Database.HyperDex.Internal.Hyperdex
 import Database.HyperDex.Internal.Hyperdata
+import Database.HyperDex.Internal.Foreign
+import Database.HyperDex.Internal.Resource
 import Database.HyperDex.Internal.Util
 
 import Control.Monad

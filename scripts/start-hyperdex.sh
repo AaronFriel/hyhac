@@ -18,4 +18,4 @@ mkdir -p ./daemons/daemon5
 
 hyperdex coordinator -d -D ./daemons/coordinator/ -l 127.0.0.1
 sleep 1s
-hyperdex daemon -d -D ./daemons/daemon1/ -c 127.0.0.1 -P 1982 -l 127.0.0.1 -p 2001 -t 1
+hyperdex daemon -f -D ./daemons/daemon1/ -c 127.0.0.1 -P 1982 -l 127.0.0.1 -p 2001 -t 1

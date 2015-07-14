@@ -25,13 +25,6 @@ module Database.HyperDex.Internal.Util
  , writeOutTQueueIO
  , readInTQueue
  , readInTQueueIO
- -- MonadResource methods:
- , rNew
- , rMalloc
- , rMallocArray
- , rNewCBString0
- , rNewCBStringLen
- , unwrapResourceT
  -- Miscellany
  , forkIO_
  , unCULong
@@ -41,11 +34,7 @@ module Database.HyperDex.Internal.Util
 import Control.Concurrent
 import Control.Concurrent.STM
 import Control.Monad
-import Control.Monad.Base
 import Control.Monad.IO.Class
-import Control.Monad.Trans.Resource
-import Control.Monad.Trans.Resource.Internal
-import Data.Acquire
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import Data.ByteString.Unsafe (unsafeUseAsCString, unsafeUseAsCStringLen)
@@ -154,96 +143,6 @@ readInTQueue (InTQueue c) = readTQueue c
 
 readInTQueueIO :: MonadIO m => InTQueue a -> m a
 readInTQueueIO q = liftIO $ atomically $ readInTQueue q
-
--- | 'Acquire' versions of string allocation and marshalling.
-resourceNew :: Storable a => a -> Acquire (Ptr a)
-resourceNew a = mkAcquire (new a) free
-
-rNew :: (Storable a, MonadResource m) => a -> m (Ptr a)
-rNew a = fmap snd $ allocateAcquire (resourceNew a)
-
-rMallocArray :: (Storable a, MonadResource m) => Int -> m (Ptr a)
-rMallocArray sz = fmap snd $ allocateAcquire $ mkAcquire (mallocArray sz) free
-
-rMalloc :: (Storable a, MonadResource m) => m (Ptr a)
-rMalloc = fmap snd $ allocateAcquire $ mkAcquire malloc free
-
--- | Use a 'ByteString' as a NUL-terminated 'CString' in 'MonadResource'.
---
--- /O(n) construction/
---
--- This method of construction permits several advantages to 'newCBString'.
---
--- * If the 'ByteString' is already NUL terminated, the internal byte array is
---   returned and no allocation occurs. This permits the consuming client to
---   optimize strings for performance by constructing common strings with NUL
---   terminations.
---
--- * If the string requires NUL termination, a new string is allocated and freed
---   when the resource monad completes or an exception is thrown.
---
--- * When the allocation-less process occurs, to prevent garbage collection, a
---   stable pointer to the parent ByteString is held with a 'StablePtr'. This
---   also utilizes 'MonadResource'.
---
-rNewCBString0 :: MonadResource m => ByteString -> m CString
-rNewCBString0 bs = do
-  case isNulTerminated of
-    True -> do
-      (_, (_, cstr)) <- allocateAcquire $ mkAcquire alloc' free'
-      return cstr
-      where 
-        alloc' = unsafeUseAsCString bs $ \cstr -> do
-                  ptr <- newStablePtr cstr
-                  return (ptr, cstr)
-        free' (ptr, _) = freeStablePtr ptr
-    False -> do
-      (_, cstr) <- allocateAcquire $ mkAcquire alloc' free'
-      return cstr
-      where
-        alloc' = unsafeUseAsCString bs $ \cstr -> do
-                   buf <- mallocArray0 bsLen
-                   copyBytes buf cstr bsLen
-                   pokeElemOff buf bsLen 0
-                   return buf
-        free' = free
-  where
-    bsLen = BS.length bs
-    isNulTerminated = bsLen >= 1 && BS.last bs == 0
-
--- | Use a 'ByteString' as a 'CStringLen' in a 'MonadResource'.
---
--- /O(1) construction/
---
--- This method of construction permits several advantages to 'newCBStringLen'.
---
--- * The internal byte array is used without copying.
---
--- * To prevent garbage collection of the internal storage of the ByteString, a
---   stable pointer to the parent ByteString is held with a 'StablePtr'. This is
---   freed when the resource monad completes or an exception is thrown.
---
-rNewCBStringLen :: MonadResource m => ByteString -> m CStringLen
-rNewCBStringLen bs = do
-  (_, (_, cstrLen)) <- allocateAcquire $ mkAcquire alloc' free'
-  return cstrLen
-  where 
-    alloc' = unsafeUseAsCStringLen bs $ \cstrLen -> do
-              ptr <- newStablePtr cstrLen
-              return (ptr, cstrLen)
-    free' (ptr, _) = freeStablePtr ptr
-
--- | Run a ResourceT in an environment, capturing the resources it allocates and
--- registering them in a parent MonadResource. Return the release key for the 
--- captured resources, and the result of the action.
-unwrapResourceT :: (MonadResource m, MonadBase IO m)
-                => ResourceT IO a
-                -> m (ReleaseKey, a)
-unwrapResourceT (ResourceT r) = do
-  istate <- createInternalState
-  rkey <- register (stateCleanup ReleaseNormal istate)
-  result <- liftIO $ r istate
-  return (rkey, result)
 
 forkIO_ :: IO a -> IO ()
 forkIO_ = void . forkIO . void

@@ -31,7 +31,7 @@ import qualified Data.Map as Map
 import Data.Int
 import Data.Monoid
 
-testCanStoreLargeObject :: Client -> Test
+testCanStoreLargeObject :: ClientConnection -> Test
 testCanStoreLargeObject client = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
       attrs =
@@ -55,11 +55,11 @@ testCanStoreLargeObject client = testCase "Can store a large object" $ do
         , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
         , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
         ]
-  result <- join $ put client defaultSpace "large" attrs
+  result <- join $ put defaultSpace "large" attrs client
   assertEqual "Could store large object: " (Right ()) result
 
 
-getResult :: Text -> Either ReturnCode [Attribute] -> Either String Attribute
+getResult :: Text -> Either ClientReturnCode [Attribute] -> Either String Attribute
 getResult _         (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
 getResult attribute (Right attrList)  =
   case (filter (\a -> attrName a == encodeUtf8 attribute) attrList) of
@@ -67,13 +67,13 @@ getResult attribute (Right attrList)  =
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: Client -> Text -> ByteString -> Attribute -> QC.PropertyM IO (Either ReturnCode ())
+putHyper :: ClientConnection -> ByteString -> ByteString -> Attribute -> QC.PropertyM IO (Either ClientReturnCode ())
 putHyper client space key attribute = do
-    QC.run . join $ put client space key [attribute]
+    QC.run . join $ put space key [attribute] client
 
-getHyper :: Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
+getHyper :: ClientConnection -> ByteString -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
 getHyper client space key attribute = do
-    eitherAttrList <- QC.run . join $ get client space key
+    eitherAttrList <- QC.run . join $ get space key client
     let retValue = getResult attribute eitherAttrList 
     case retValue of
       Left err -> QC.run $ do
@@ -83,8 +83,8 @@ getHyper client space key attribute = do
       _ -> return ()
     return $ retValue
 
-propCanStore :: HyperSerialize a => Client -> ByteString -> a 
-                -> Text -> NonEmptyBS ByteString -> Property
+propCanStore :: HyperSerialize a => ClientConnection -> ByteString -> a 
+                -> ByteString -> NonEmptyBS ByteString -> Property
 propCanStore client _ input space (NonEmptyBS key) =
   QC.monadicIO $ do
     let attributeName = decodeUtf8 $ pickAttributeName input
@@ -112,7 +112,7 @@ propCanStore client _ input space (NonEmptyBS key) =
           putStrLn $ "  reason: " <> show reason
         QC.assert False
 
-testCanRoundtrip :: Client -> Test
+testCanRoundtrip :: ClientConnection -> Test
 testCanRoundtrip client =
   testProperty
     "roundtrip"
@@ -120,7 +120,7 @@ testCanRoundtrip client =
 
 sharedTests :: Test
 sharedTests = buildTest $ do
-  client <- connect defaultConnectInfo
+  client <- clientConnect defaultConnectInfo
   return $ testGroup "shared"
     $ map
       (\f -> f client)

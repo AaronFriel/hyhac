@@ -11,6 +11,9 @@
 --
 module Database.HyperDex.Internal.Client
   ( Client
+  , ClientConnection
+  , ClientReturnCode
+  , ClientResult
   , ReturnCode (..)
   , clientConnect
   , peekReturnCode
@@ -33,6 +36,12 @@ import Foreign.C
 
 data OpaqueClient
 {#pointer *hyperdex_client as Client -> OpaqueClient #}
+
+type ClientConnection = HyperDexConnection Client
+
+type ClientReturnCode = ReturnCode Client
+
+type ClientResult a = AsyncResult Client a
 
 peekReturnCode :: MonadIO m 
                => Ptr CInt
@@ -70,9 +79,10 @@ instance HyperDex Client where
                              deriving (Show,Eq)
 
 
-  failureCode = ClientSuccess
+  failureCode = ClientGarbage
 
   isTransient ClientInterrupted = True
+  isTransient ClientTimeout     = True
   isTransient _                 = False 
   
   isGlobalError ClientInternal  = True
@@ -153,18 +163,18 @@ instance Enum (ReturnCode Client) where
   toEnum 8575 = ClientGarbage
   toEnum unmatched = error ("ClientReturnCode.toEnum: Cannot match " ++ show unmatched)
 
-clientConnect :: ConnectInfo -> IO (HyperDexConnection Client)
+clientConnect :: ConnectInfo -> IO (ClientConnection)
 clientConnect = connect
 
 clientDeferred :: ResIO (AsyncCall Client a)
-               -> HyperDexConnection Client
+               -> ClientConnection
                -> IO (AsyncResult Client a)
 clientDeferred = wrapDeferred (ClientSuccess==)
 
 clientIterator :: ResIO (AsyncCall Client a)
-               -> HyperDexConnection Client
+               -> ClientConnection
                -> IO (Stream Client a)
-clientIterator = wrapIterator (ClientSuccess==) (ClientSearchdone==)
+clientIterator = wrapIterator (ClientSearchdone==) (ClientSuccess==)
 
--- clientDisconnect :: (HyperDexConnection Client) -> IO ()
+-- clientDisconnect :: (ClientConnection) -> IO ()
 -- clientDisconnect = disconnect

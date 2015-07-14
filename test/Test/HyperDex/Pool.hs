@@ -39,7 +39,7 @@ import Control.Concurrent (threadDelay)
 
 import Control.Applicative
 
-testCanStoreLargeObject :: Pool Client -> Test
+testCanStoreLargeObject :: Pool (ClientConnection) -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
   let attrs :: [Attribute]
       attrs =
@@ -63,10 +63,10 @@ testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
         , mkAttributeUtf8 "for_a_reason"        (Map.empty :: Map Double     Int64       )
         , mkAttributeUtf8 "for_float_keyed_map" (Map.empty :: Map Double     Double      )
         ]
-  result <- join $ withResource clientPool $ \client -> put client defaultSpace "large" attrs
+  result <- join $ withResource clientPool $ put defaultSpace "large" attrs
   assertEqual "Remove space: " (Right ()) result
 
-getResult :: Text -> Either ReturnCode [Attribute] -> Either String Attribute
+getResult :: Text -> Either ClientReturnCode [Attribute] -> Either String Attribute
 getResult _         (Left returnCode) = Left $ "Failure, returnCode: " <> show returnCode
 getResult attribute (Right attrList)  =
   case (filter (\a -> attrName a == encodeUtf8 attribute) attrList) of
@@ -74,13 +74,13 @@ getResult attribute (Right attrList)  =
           []  -> Left $ "No valid attribute, attributes list: " <> show attrList
           _   -> Left "More than one returned value"
 
-putHyper :: Pool Client -> Text -> ByteString -> Attribute -> QC.PropertyM IO (Either ReturnCode ())
+putHyper :: Pool ClientConnection -> ByteString -> ByteString -> Attribute -> QC.PropertyM IO (Either ClientReturnCode ())
 putHyper clientPool space key attribute = do
-    QC.run . join $ withResource clientPool $ \client -> put client space key [attribute]
+    QC.run . join $ withResource clientPool $ put space key [attribute]
 
-getHyper :: Pool Client -> Text -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
+getHyper :: Pool ClientConnection -> ByteString -> ByteString -> Text -> QC.PropertyM IO (Either String Attribute)
 getHyper clientPool space key attribute = do
-    eitherAttrList <- QC.run . join $ withResource clientPool $ \client -> get client space key
+    eitherAttrList <- QC.run . join $ withResource clientPool $ get space key
     let retValue = getResult attribute eitherAttrList
     case retValue of
       Left err -> QC.run $ do
@@ -90,8 +90,8 @@ getHyper clientPool space key attribute = do
       _ -> return ()
     return $ retValue
 
-propCanStore :: HyperSerialize a => Pool Client -> ByteString -> a
-                -> Text -> NonEmptyBS ByteString -> Property
+propCanStore :: HyperSerialize a => Pool (ClientConnection) -> ByteString -> a
+                -> ByteString -> NonEmptyBS ByteString -> Property
 propCanStore clientPool _ input space (NonEmptyBS key) =
   QC.monadicIO $ do
     let attributeName = decodeUtf8 $ pickAttributeName input
@@ -119,7 +119,7 @@ propCanStore clientPool _ input space (NonEmptyBS key) =
           putStrLn $ "  reason: " <> show reason
         QC.assert False
 
-propCanConditionalPutNumeric :: Pool Client -> Text
+propCanConditionalPutNumeric :: Pool ClientConnection -> ByteString
                              -> HyperRelated -> NonEmptyBS ByteString -> Property
 propCanConditionalPutNumeric
   clientPool space
@@ -136,11 +136,11 @@ propCanConditionalPutNumeric
           succeedingAttribute = mkAttributeUtf8 attributeName succeeding
           succeedingAttributeCheck = mkAttributeCheckUtf8 attributeName succeeding predicate
       _ <- QC.run . join $ withResource clientPool $
-             \client -> put client space key [initialAttribute]
+             put space key [initialAttribute]
       failingResult <- QC.run . join $ withResource clientPool $
-                          \client -> putConditional client space key [failingAttributeCheck] [failingAttribute]
+                          putConditional space key [failingAttributeCheck] [failingAttribute]
       case failingResult of
-        Left HyperdexClientCmpfail -> return ()
+        Left ClientCmpfail -> return ()
         _ -> do
           QC.run $ do
             putStrLn $ "Conditional store with failing put (not failing correctly):"
@@ -152,7 +152,7 @@ propCanConditionalPutNumeric
             putStrLn $ "  output: " <> show failingResult
           QC.assert False
       _ <- QC.run . join $ withResource clientPool $
-             \client -> putConditional client space key [succeedingAttributeCheck] [succeedingAttribute]
+             putConditional space key [succeedingAttributeCheck] [succeedingAttribute]
       eitherOutput <- getHyper clientPool space key attributeName
       case eitherOutput of
         Right output -> do
@@ -179,7 +179,7 @@ propCanConditionalPutNumeric
             putStrLn $ "  reason: " <> show reason
           QC.assert False
 
-type AsyncOp = Client -> Text -> ByteString -> [Attribute] -> AsyncResult ()
+type AsyncOp = ByteString -> ByteString -> [Attribute] -> ClientConnection -> IO (ClientResult ())
 
 generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a,
                              Show b, Eq b, HyperSerialize b,
@@ -188,7 +188,7 @@ generateTestPropAtomicOp :: (Show a, Eq a, HyperSerialize a,
                          -> AsyncOp        -- ^ The HyperDex operation to be performed
                          -> (a -> b -> a)  -- ^ The operation used to simulate execution
                          -> (x -> (a, b))  -- ^ The deconstructor for the arbitrary type
-                         -> (Pool Client -> Text -> Test)
+                         -> (Pool ClientConnection -> ByteString -> Test)
 generateTestPropAtomicOp testName hyperCall localOp decons =
   \clientPool space -> testProperty testName $
     \(NonEmptyBS key) arbitraryInput ->
@@ -197,8 +197,8 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
           attributeName      = decodeUtf8 $ pickAttributeName initial
           attribute          = mkAttributeUtf8 attributeName initial
           opAttribute        = mkAttributeUtf8 attributeName operand
-      _ <- QC.run . join $ withResource clientPool $ \client -> put client space key [attribute]
-      atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key [opAttribute]
+      _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
+      atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key [opAttribute]
       case atomicOpResult of
         Left err -> do
           QC.run $ do
@@ -240,7 +240,7 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
                 putStrLn $ "  reason: " <> show reason
               QC.assert False
 
-type AsyncMapOp = Client -> Text -> ByteString -> [MapAttribute] -> AsyncResult ()
+type AsyncMapOp = ByteString -> ByteString -> [MapAttribute] -> ClientConnection -> IO (ClientResult ())
 
 generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, HyperSerialize k, HyperSerialize v,
                                 HyperSerialize (Map k v),
@@ -249,7 +249,7 @@ generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, HyperSerialize k, Hy
                             -> AsyncMapOp     -- ^ The HyperDex operation to be performed
                             -> (Map k v -> Map k v -> Map k v)  -- ^ The operation used to simulate execution
                             -> (x -> (Map k v, Map k v))  -- ^ The deconstructor for the arbitrary type
-                            -> (Pool Client -> Text -> Test)
+                            -> (Pool ClientConnection -> ByteString -> Test)
 generateTestPropAtomicMapOp testName hyperCall localOp decons =
   \clientPool space -> testProperty testName $
     \(NonEmptyBS key) arbitraryInput ->
@@ -258,8 +258,8 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
           attributeName      = decodeUtf8 $ pickAttributeName initial
           attribute          = mkAttributeUtf8 attributeName initial
           opAttribute        = mkMapAttributesFromMapUtf8 attributeName operand
-      _ <- QC.run . join $ withResource clientPool $ \client -> put client space key [attribute]
-      atomicOpResult <- QC.run . join $ withResource clientPool $ \client -> hyperCall client space key opAttribute
+      _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
+      atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
       case atomicOpResult of
         Left err -> do
           QC.run $ do
@@ -290,6 +290,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
                     putStrLn $ "  operand:   " <> show operand
                     putStrLn $ "  output:    " <> show output
                     putStrLn $ "  expected:  " <> show (initial `localOp` operand)
+                    putStrLn $ "  output:    " <> show eitherOutput
                   QC.assert False
             Left reason  -> do
               QC.run $ do
@@ -301,7 +302,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
                 putStrLn $ "  reason: " <> show reason
               QC.assert False
 
-testAtomic :: Pool Client -> Text -> Test
+testAtomic :: Pool ClientConnection -> ByteString -> Test
 testAtomic clientPool space =
   testGroup "atomic"
   $ fmap (\f -> f clientPool space)
@@ -316,7 +317,7 @@ testAtomic clientPool space =
 type Op2 a b = a -> b -> a
 type Op a    = Op2 a a
 
-testAtomicInteger :: Pool Client -> Text -> Test
+testAtomicInteger :: Pool ClientConnection -> ByteString -> Test
 testAtomicInteger clientPool space =
   testGroup "integer"
   $ fmap (\f -> f clientPool space)
@@ -330,7 +331,7 @@ testAtomicInteger clientPool space =
     , generateTestPropAtomicOp "xor" atomicXor (  xor :: Op Int64) id
     ]
 
-testAtomicFloat :: Pool Client -> Text -> Test
+testAtomicFloat :: Pool ClientConnection -> ByteString -> Test
 testAtomicFloat clientPool space =
   testGroup "float"
   $ fmap (\f -> f clientPool space)
@@ -340,61 +341,61 @@ testAtomicFloat clientPool space =
     , generateTestPropAtomicOp "div" atomicDiv ((/) :: Op Double) safeDivideDouble
     ]
 
-testAtomicString :: Pool Client -> Text -> Test
+testAtomicString :: Pool ClientConnection -> ByteString -> Test
 testAtomicString clientPool space =
   testGroup "string"
   $ fmap (\f -> f clientPool space)
-    [ generateTestPropAtomicOp "prepend" atomicStringPrepend prepend id
-    , generateTestPropAtomicOp "append"  atomicStringAppend  append  id
+    [ generateTestPropAtomicOp "prepend" stringPrepend prepend id
+    , generateTestPropAtomicOp "append"  stringAppend  append  id
     ]
   where prepend = flip append
 
-testAtomicList :: Pool Client -> Text -> Test
+testAtomicList :: Pool ClientConnection -> ByteString -> Test
 testAtomicList clientPool space =
   testGroup "list"
   [ testGroup "int"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "lpush" atomicListLPush (prepend :: Op2 [Int64] Int64) id
-        , generateTestPropAtomicOp "rpush" atomicListRPush (append  :: Op2 [Int64] Int64) id
+        [ generateTestPropAtomicOp "lpush" listLPush (prepend :: Op2 [Int64] Int64) id
+        , generateTestPropAtomicOp "rpush" listRPush (append  :: Op2 [Int64] Int64) id
         ]
   , testGroup "float"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "lpush" atomicListLPush (prepend :: Op2 [Double] Double) id
-        , generateTestPropAtomicOp "rpush" atomicListRPush (append  :: Op2 [Double] Double) id
+        [ generateTestPropAtomicOp "lpush" listLPush (prepend :: Op2 [Double] Double) id
+        , generateTestPropAtomicOp "rpush" listRPush (append  :: Op2 [Double] Double) id
         ]
   , testGroup "string"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "lpush" atomicListLPush (prepend :: Op2 [ByteString] ByteString) id
-        , generateTestPropAtomicOp "rpush" atomicListRPush (append  :: Op2 [ByteString] ByteString) id
+        [ generateTestPropAtomicOp "lpush" listLPush (prepend :: Op2 [ByteString] ByteString) id
+        , generateTestPropAtomicOp "rpush" listRPush (append  :: Op2 [ByteString] ByteString) id
         ]
   ]
   where append, prepend :: Op2 [a] a
         append  a b = a ++ [b]
         prepend a b = [b] ++ a
 
-testAtomicSet :: Pool Client -> Text -> Test
+testAtomicSet :: Pool ClientConnection -> ByteString -> Test
 testAtomicSet clientPool space =
   testGroup "set"
   [ testGroup "int"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "add"       atomicSetAdd        (flip Set.insert  :: Op2 (Set Int64) Int64) id
-        , generateTestPropAtomicOp "remove"    atomicSetRemove     (flip Set.delete  :: Op2 (Set Int64) Int64) id
-        , generateTestPropAtomicOp "intersect" atomicSetIntersect  (Set.intersection :: Op (Set Int64)) id
-        , generateTestPropAtomicOp "union"     atomicSetUnion      (Set.union        :: Op (Set Int64)) id
+        [ generateTestPropAtomicOp "add"       setAdd        (flip Set.insert  :: Op2 (Set Int64) Int64) id
+        , generateTestPropAtomicOp "remove"    setRemove     (flip Set.delete  :: Op2 (Set Int64) Int64) id
+        , generateTestPropAtomicOp "intersect" setIntersect  (Set.intersection :: Op (Set Int64)) id
+        , generateTestPropAtomicOp "union"     setUnion      (Set.union        :: Op (Set Int64)) id
         ]
   , testGroup "float"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "add"       atomicSetAdd        (flip Set.insert  :: Op2 (Set Double) Double) id
-        , generateTestPropAtomicOp "remove"    atomicSetRemove     (flip Set.delete  :: Op2 (Set Double) Double) id
-        , generateTestPropAtomicOp "intersect" atomicSetIntersect  (Set.intersection :: Op (Set Double)) id
-        , generateTestPropAtomicOp "union"     atomicSetUnion      (Set.union        :: Op (Set Double)) id
+        [ generateTestPropAtomicOp "add"       setAdd        (flip Set.insert  :: Op2 (Set Double) Double) id
+        , generateTestPropAtomicOp "remove"    setRemove     (flip Set.delete  :: Op2 (Set Double) Double) id
+        , generateTestPropAtomicOp "intersect" setIntersect  (Set.intersection :: Op (Set Double)) id
+        , generateTestPropAtomicOp "union"     setUnion      (Set.union        :: Op (Set Double)) id
         ]
   , testGroup "string"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicOp "add"       atomicSetAdd        (flip Set.insert  :: Op2 (Set ByteString) ByteString) id
-        , generateTestPropAtomicOp "remove"    atomicSetRemove     (flip Set.delete  :: Op2 (Set ByteString) ByteString) id
-        , generateTestPropAtomicOp "intersect" atomicSetIntersect  (Set.intersection :: Op (Set ByteString)) id
-        , generateTestPropAtomicOp "union"     atomicSetUnion      (Set.union        :: Op (Set ByteString)) id
+        [ generateTestPropAtomicOp "add"       setAdd        (flip Set.insert  :: Op2 (Set ByteString) ByteString) id
+        , generateTestPropAtomicOp "remove"    setRemove     (flip Set.delete  :: Op2 (Set ByteString) ByteString) id
+        , generateTestPropAtomicOp "intersect" setIntersect  (Set.intersection :: Op (Set ByteString)) id
+        , generateTestPropAtomicOp "union"     setUnion      (Set.union        :: Op (Set ByteString)) id
         ]
   ]
 
@@ -405,123 +406,135 @@ opOverMap operator initials operands = Map.mapWithKey go initials
                 Just b  -> a `operator` b
                 Nothing -> a
 
-testAtomicMap :: Pool Client -> Text -> Test
+testAtomicMap :: Pool ClientConnection -> ByteString -> Test
 testAtomicMap clientPool space =
   testGroup "map"
   [ testGroup "int-int"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map Int64 Int64)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map Int64 Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Int64 Int64)) (checkAddition . overlappingMaps)
-        , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Int64 Int64)) (checkSubtraction . overlappingMaps)
-        , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Int64 Int64)) (checkMultiplication . overlappingMaps)
-        , generateTestPropAtomicMapOp "div"    atomicMapDiv    (opOverMap div   :: Op (Map Int64 Int64)) (checkIntDivision . overlappingMaps)
-        , generateTestPropAtomicMapOp "and"    atomicMapAnd    (opOverMap (.&.) :: Op (Map Int64 Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "or"     atomicMapOr     (opOverMap (.|.) :: Op (Map Int64 Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "xor"    atomicMapXor    (opOverMap xor   :: Op (Map Int64 Int64)) overlappingMaps
+        [ 
+        -- TODO: Implement mapAtomicInsert, mapAtomicDelete (conditional insert?)
+        --   generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union       :: Op (Map Int64 Int64)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference  :: Op (Map Int64 Int64)) overlappingMaps
+          generateTestPropAtomicMapOp "add"    mapAtomicAdd    (opOverMap (+)   :: Op (Map Int64 Int64)) (checkAddition . overlappingMaps)
+        , generateTestPropAtomicMapOp "sub"    mapAtomicSub    (opOverMap (-)   :: Op (Map Int64 Int64)) (checkSubtraction . overlappingMaps)
+        , generateTestPropAtomicMapOp "mul"    mapAtomicMul    (opOverMap (*)   :: Op (Map Int64 Int64)) (checkMultiplication . overlappingMaps)
+        , generateTestPropAtomicMapOp "div"    mapAtomicDiv    (opOverMap div   :: Op (Map Int64 Int64)) (checkIntDivision . overlappingMaps)
+        , generateTestPropAtomicMapOp "and"    mapAtomicAnd    (opOverMap (.&.) :: Op (Map Int64 Int64)) overlappingMaps
+        , generateTestPropAtomicMapOp "or"     mapAtomicOr     (opOverMap (.|.) :: Op (Map Int64 Int64)) overlappingMaps
+        , generateTestPropAtomicMapOp "xor"    mapAtomicXor    (opOverMap xor   :: Op (Map Int64 Int64)) overlappingMaps
         ]
   , testGroup "int-float"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Int64 Double)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Int64 Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Int64 Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Int64 Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Int64 Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "div"    atomicMapDiv    (opOverMap (/)   :: Op (Map Int64 Double)) (checkDoubleDivision . overlappingMaps)
+        [
+        --   generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union      :: Op (Map Int64 Double)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference :: Op (Map Int64 Double)) overlappingMaps
+          generateTestPropAtomicMapOp "add"    mapAtomicAdd    (opOverMap (+)   :: Op (Map Int64 Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "sub"    mapAtomicSub    (opOverMap (-)   :: Op (Map Int64 Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "mul"    mapAtomicMul    (opOverMap (*)   :: Op (Map Int64 Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "div"    mapAtomicDiv    (opOverMap (/)   :: Op (Map Int64 Double)) (checkDoubleDivision . overlappingMaps)
         ]
   , testGroup "int-string"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Int64 ByteString)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Int64 ByteString)) overlappingMaps
-        , generateTestPropAtomicMapOp "prepend" atomicMapStringPrepend (opOverMap prepend :: Op (Map Int64 ByteString)) overlappingMaps
-        , generateTestPropAtomicMapOp "prepend" atomicMapStringAppend  (opOverMap append  :: Op (Map Int64 ByteString)) overlappingMaps
+        [ 
+        -- generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union      :: Op (Map Int64 ByteString)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference :: Op (Map Int64 ByteString)) overlappingMaps
+          generateTestPropAtomicMapOp "prepend" mapStringPrepend (opOverMap prepend :: Op (Map Int64 ByteString)) overlappingMaps
+        , generateTestPropAtomicMapOp "prepend" mapStringAppend  (opOverMap append  :: Op (Map Int64 ByteString)) overlappingMaps
         ]
   ,  testGroup "float-int"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map Double Int64)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map Double Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Double Int64)) (checkAddition . overlappingMaps)
-        , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Double Int64)) (checkSubtraction . overlappingMaps)
-        , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Double Int64)) (checkMultiplication . overlappingMaps)
-        , generateTestPropAtomicMapOp "div"    atomicMapDiv    (opOverMap div   :: Op (Map Double Int64)) (checkIntDivision . overlappingMaps)
-        , generateTestPropAtomicMapOp "and"    atomicMapAnd    (opOverMap (.&.) :: Op (Map Double Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "or"     atomicMapOr     (opOverMap (.|.) :: Op (Map Double Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "xor"    atomicMapXor    (opOverMap xor   :: Op (Map Double Int64)) overlappingMaps
+        [
+        --   generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union       :: Op (Map Double Int64)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference  :: Op (Map Double Int64)) overlappingMaps
+          generateTestPropAtomicMapOp "add"    mapAtomicAdd    (opOverMap (+)   :: Op (Map Double Int64)) (checkAddition . overlappingMaps)
+        , generateTestPropAtomicMapOp "sub"    mapAtomicSub    (opOverMap (-)   :: Op (Map Double Int64)) (checkSubtraction . overlappingMaps)
+        , generateTestPropAtomicMapOp "mul"    mapAtomicMul    (opOverMap (*)   :: Op (Map Double Int64)) (checkMultiplication . overlappingMaps)
+        , generateTestPropAtomicMapOp "div"    mapAtomicDiv    (opOverMap div   :: Op (Map Double Int64)) (checkIntDivision . overlappingMaps)
+        , generateTestPropAtomicMapOp "and"    mapAtomicAnd    (opOverMap (.&.) :: Op (Map Double Int64)) overlappingMaps
+        , generateTestPropAtomicMapOp "or"     mapAtomicOr     (opOverMap (.|.) :: Op (Map Double Int64)) overlappingMaps
+        , generateTestPropAtomicMapOp "xor"    mapAtomicXor    (opOverMap xor   :: Op (Map Double Int64)) overlappingMaps
         ]
   , testGroup "float-float"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Double Double)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Double Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map Double Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map Double Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map Double Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "div"    atomicMapDiv    (opOverMap (/)   :: Op (Map Double Double)) (checkDoubleDivision . overlappingMaps)
+        [ 
+        --   generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union      :: Op (Map Double Double)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference :: Op (Map Double Double)) overlappingMaps
+          generateTestPropAtomicMapOp "add"    mapAtomicAdd    (opOverMap (+)   :: Op (Map Double Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "sub"    mapAtomicSub    (opOverMap (-)   :: Op (Map Double Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "mul"    mapAtomicMul    (opOverMap (*)   :: Op (Map Double Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "div"    mapAtomicDiv    (opOverMap (/)   :: Op (Map Double Double)) (checkDoubleDivision . overlappingMaps)
         ]
   , testGroup "float-string"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map Double ByteString)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map Double ByteString)) overlappingMaps
-        , generateTestPropAtomicMapOp "prepend" atomicMapStringPrepend (opOverMap prepend :: Op (Map Double ByteString)) overlappingMaps
-        , generateTestPropAtomicMapOp "prepend" atomicMapStringAppend  (opOverMap append  :: Op (Map Double ByteString)) overlappingMaps
+        [
+        --   generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union      :: Op (Map Double ByteString)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference :: Op (Map Double ByteString)) overlappingMaps
+          generateTestPropAtomicMapOp "prepend" mapStringPrepend (opOverMap prepend :: Op (Map Double ByteString)) overlappingMaps
+        , generateTestPropAtomicMapOp "prepend" mapStringAppend  (opOverMap append  :: Op (Map Double ByteString)) overlappingMaps
         ]
   ,  testGroup "string-int"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map ByteString Int64)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map ByteString Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map ByteString Int64)) (checkAddition . overlappingMaps)
-        , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map ByteString Int64)) (checkSubtraction . overlappingMaps)
-        , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map ByteString Int64)) (checkMultiplication . overlappingMaps)
-        , generateTestPropAtomicMapOp "div"    atomicMapDiv    (opOverMap div   :: Op (Map ByteString Int64)) (checkIntDivision . overlappingMaps)
-        , generateTestPropAtomicMapOp "and"    atomicMapAnd    (opOverMap (.&.) :: Op (Map ByteString Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "or"     atomicMapOr     (opOverMap (.|.) :: Op (Map ByteString Int64)) overlappingMaps
-        , generateTestPropAtomicMapOp "xor"    atomicMapXor    (opOverMap xor   :: Op (Map ByteString Int64)) overlappingMaps
+        [ 
+        --   generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union       :: Op (Map ByteString Int64)) nonOverlappingMaps
+        -- , generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference  :: Op (Map ByteString Int64)) overlappingMaps
+          generateTestPropAtomicMapOp "add"    mapAtomicAdd    (opOverMap (+)   :: Op (Map ByteString Int64)) (checkAddition . overlappingMaps)
+        , generateTestPropAtomicMapOp "sub"    mapAtomicSub    (opOverMap (-)   :: Op (Map ByteString Int64)) (checkSubtraction . overlappingMaps)
+        , generateTestPropAtomicMapOp "mul"    mapAtomicMul    (opOverMap (*)   :: Op (Map ByteString Int64)) (checkMultiplication . overlappingMaps)
+        , generateTestPropAtomicMapOp "div"    mapAtomicDiv    (opOverMap div   :: Op (Map ByteString Int64)) (checkIntDivision . overlappingMaps)
+        , generateTestPropAtomicMapOp "and"    mapAtomicAnd    (opOverMap (.&.) :: Op (Map ByteString Int64)) overlappingMaps
+        , generateTestPropAtomicMapOp "or"     mapAtomicOr     (opOverMap (.|.) :: Op (Map ByteString Int64)) overlappingMaps
+        , generateTestPropAtomicMapOp "xor"    mapAtomicXor    (opOverMap xor   :: Op (Map ByteString Int64)) overlappingMaps
         ]
   , testGroup "string-float"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union       :: Op (Map ByteString Double)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference  :: Op (Map ByteString Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "add"    atomicMapAdd    (opOverMap (+)   :: Op (Map ByteString Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "sub"    atomicMapSub    (opOverMap (-)   :: Op (Map ByteString Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "mul"    atomicMapMul    (opOverMap (*)   :: Op (Map ByteString Double)) overlappingMaps
-        , generateTestPropAtomicMapOp "div"    atomicMapDiv    (opOverMap (/)   :: Op (Map ByteString Double)) (checkDoubleDivision . overlappingMaps)
+        [ 
+        --  generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union       :: Op (Map ByteString Double)) nonOverlappingMaps
+        --, generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference  :: Op (Map ByteString Double)) overlappingMaps
+          generateTestPropAtomicMapOp "add"    mapAtomicAdd    (opOverMap (+)   :: Op (Map ByteString Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "sub"    mapAtomicSub    (opOverMap (-)   :: Op (Map ByteString Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "mul"    mapAtomicMul    (opOverMap (*)   :: Op (Map ByteString Double)) overlappingMaps
+        , generateTestPropAtomicMapOp "div"    mapAtomicDiv    (opOverMap (/)   :: Op (Map ByteString Double)) (checkDoubleDivision . overlappingMaps)
         ]
   , testGroup "string-string"
     $ fmap (\f -> f clientPool space)
-        [ generateTestPropAtomicMapOp "insert" atomicMapInsert (Map.union      :: Op (Map ByteString ByteString)) nonOverlappingMaps
-        --, generateTestPropAtomicOp    "delete" atomicMapDelete (Map.difference :: Op (Map ByteString ByteString)) overlappingMaps
-        , generateTestPropAtomicMapOp "prepend" atomicMapStringPrepend (opOverMap prepend :: Op (Map ByteString ByteString)) overlappingMaps
-        , generateTestPropAtomicMapOp "prepend" atomicMapStringAppend  (opOverMap append  :: Op (Map ByteString ByteString)) overlappingMaps
+        [ 
+        --  generateTestPropAtomicMapOp "insert" mapAtomicInsert (Map.union      :: Op (Map ByteString ByteString)) nonOverlappingMaps
+        --, generateTestPropAtomicOp    "delete" mapAtomicDelete (Map.difference :: Op (Map ByteString ByteString)) overlappingMaps
+          generateTestPropAtomicMapOp "prepend" mapStringPrepend (opOverMap prepend :: Op (Map ByteString ByteString)) overlappingMaps
+        , generateTestPropAtomicMapOp "prepend" mapStringAppend  (opOverMap append  :: Op (Map ByteString ByteString)) overlappingMaps
         ]
   ]
   where prepend = flip append
 
 createAction = do
-  connect defaultConnectInfo
+  clientConnect defaultConnectInfo
 
-closeAction client = do
-  close client
+closeAction _ = do
+  -- TODO: Implement disconnect/close?
+  -- close client
+  return ()
 
-mkPool = createPool createAction closeAction 4 0.5 10
+mkPool = createPool createAction closeAction 1 0.5 1
 
-testCanRoundtrip :: Pool Client -> Test
+testCanRoundtrip :: Pool (ClientConnection) -> Test
 testCanRoundtrip clientPool =
   testProperty
     "roundtrip"
     $ \(MkHyperSerializable value) -> propCanStore clientPool "arbitrary" value defaultSpace
 
-testConditional :: Pool Client -> Test
+testConditional :: Pool (ClientConnection) -> Test
 testConditional clientPool =
   testProperty
     "conditional"
     $ propCanConditionalPutNumeric clientPool defaultSpace
 
-propSearch :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
+propSearch :: Pool ClientConnection -> ByteString -> NonEmptyBS ByteString -> HyperSerializable -> Property
 propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
       keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
-  QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
-  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space [keyCheck]
+  QC.run $ join $ withResource clientPool $ put space key [attribute]
+  searchResults <- QC.run $ withResource clientPool $ collectSearch space [keyCheck]
   let resultSet = concat
                 $ map (filter ((== attributeName) . attrName))
                 $ filter (any (\attr -> attrName attr == keyAttributeName
@@ -533,42 +546,48 @@ propSearch clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.mo
       QC.run $ do
         putStrLn $ "Failed in propSearch"
         putStrLn $ "  attribute:\n" ++ show attribute
+        putStrLn $ "  key:\n" ++ show key
+        putStrLn $ "  attributeCheck:\n" ++ show keyCheck
         putStrLn $ "  resultSet:\n" ++ show resultSet
         putStrLn $ "  searchResults:\n" ++ show searchResults
       QC.assert False
 
-collectSearch :: Client -> Text -> [AttributeCheck] -> IO [[Attribute]]
-collectSearch client space checks = do
-  search <- join $ search client space checks
-  items <- collect search
+collectSearch :: ByteString -> [AttributeCheck] -> ClientConnection -> IO [[Attribute]]
+collectSearch space checks client = do
+  stream <- search space checks client
+  items <- collect stream
   return items
   where
-    collect (Left _) = do
-       return []
-    collect (Right (SearchStream (a, next))) = do
-      nextItem <- next
-      rest <- collect nextItem
-      return $! a : rest
+    -- TODO: Implement helper to work with streams.
+    -- This method is not efficient.
+    collect stream = do
+      result <- readStream stream
+      case result of
+        Nothing  -> return []
+        Just (Left _) -> return []
+        Just (Right value) -> do
+          rest <- collect stream
+          return $! value : rest
     {-# INLINE collect #-}
 {-# INLINE collectSearch #-}
 
-testSearch :: Pool Client -> Text -> Test
+testSearch :: Pool ClientConnection -> ByteString -> Test
 testSearch clientPool space = buildTest $ do
+  -- _ <- withResource clientPool $ deleteGroup space []
   let test = testProperty "search"
              $ propSearch clientPool space
-  -- _ <- withResource clientPool $ \client -> deleteGroup client space []
   return test
 
-propDeleteGroup :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
+propDeleteGroup :: Pool ClientConnection -> ByteString -> NonEmptyBS ByteString -> HyperSerializable -> Property
 propDeleteGroup clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
-  --QC.run $ join $ withResource clientPool $ \client -> deleteGroup client space []
+  --QC.run $ join $ withResource clientPool $ deleteGroup space []
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
       attributeCheck = mkAttributeCheckUtf8 (decodeUtf8 attributeName) entry HyperpredicateEquals
-  QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
-  QC.run $ join $ withResource clientPool $ \client -> deleteGroup client space [attributeCheck]
+  QC.run $ join $ withResource clientPool $ put space key [attribute]
+  QC.run $ join $ withResource clientPool $ deleteGroup space [attributeCheck]
   QC.run $ threadDelay 10000
-  searchResults <- QC.run $ withResource clientPool $ \client -> collectSearch client space []
+  searchResults <- QC.run $ withResource clientPool $ collectSearch space []
   let resultSet = concat
                 $ map (filter ((== attributeName) . attrName))
                 $ filter (any (\attr -> attrName attr == keyAttributeName
@@ -584,20 +603,20 @@ propDeleteGroup clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = 
         putStrLn $ "  searchResults:\n" ++ show searchResults
       QC.assert False
 
-testDeleteGroup :: Pool Client -> Text -> Test
+testDeleteGroup :: Pool (ClientConnection) -> ByteString -> Test
 testDeleteGroup clientPool space =
   testProperty
     "deleteGroup"
     $ propDeleteGroup clientPool space
 
-propCount :: Pool Client -> Text -> NonEmptyBS ByteString -> HyperSerializable -> Property
+propCount :: Pool (ClientConnection) -> ByteString -> NonEmptyBS ByteString -> HyperSerializable -> Property
 propCount clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.monadicIO $ do
   let attributeName = pickAttributeName entry
       attribute = mkAttributeUtf8 (decodeUtf8 attributeName) entry
       keyCheck  = mkAttributeCheckUtf8 (decodeUtf8 keyAttributeName) key HyperpredicateEquals
-  preCount <- QC.run $ join $ withResource clientPool $ \client -> count client space [keyCheck]
-  QC.run $ join $ withResource clientPool $ \client -> put client space key [attribute]
-  postCount <- QC.run $ join $ withResource clientPool $ \client -> count client space [keyCheck]
+  preCount <- QC.run $ join $ withResource clientPool $ count space [keyCheck]
+  QC.run $ join $ withResource clientPool $ put space key [attribute] 
+  postCount <- QC.run $ join $ withResource clientPool $ count space [keyCheck]
   case (preCount, liftA2 (-) postCount preCount) of
     (Right 0, Right 1) -> QC.assert True
     (Right 1, Right 0) -> QC.assert True
@@ -609,7 +628,7 @@ propCount clientPool space (NonEmptyBS key) (MkHyperSerializable entry) = QC.mon
         putStrLn $ "  attribute:\n" ++ show attribute
       QC.assert False
 
-testCount :: Pool Client -> Text -> Test
+testCount :: Pool (ClientConnection) -> ByteString -> Test
 testCount clientPool space =
   testProperty
     "count"
@@ -627,7 +646,8 @@ poolTests = buildTest $ do
                 ]
                 ++
                 fmap (\f -> f clientPool defaultSpace)
-                [ testSearch
+                [ 
+                  testSearch
                 -- , testDeleteGroup
                 , testCount
                 , testAtomic

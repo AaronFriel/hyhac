@@ -64,6 +64,7 @@ import Control.Monad.IO.Class
 import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
+import Database.HyperDex.Internal.Resource
 
 type ClientCall = Client
                 -> CString 
@@ -385,7 +386,7 @@ count s checks = clientDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ ClientGarbage)
   space <- rNewCBString0 s
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
-  countPtr <- rMalloc
+  countPtr <- rNew 0
   let ccall ptr =
         wrapHyperCallHandle $
           {# call unsafe hyperdex_client_count #}

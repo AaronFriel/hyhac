@@ -17,5 +17,5 @@ module Database.HyperDex.Admin
   )
   where
 
-import Database.HyperDex.Internal.Admin hiding (Admin, ReturnCode (..), adminConnect)
+import Database.HyperDex.Internal.Admin (AdminConnection, ReturnCode (..), adminConnect)
 import Database.HyperDex.Internal.HyperdexAdmin 

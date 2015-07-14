@@ -4,7 +4,7 @@ module Main ( main ) where
 
 import Test.HyperDex.Space
 
-import Database.HyperDex.Admin
+import Database.HyperDex
 
 import Control.Concurrent (threadDelay, forkFinally)
 import Control.Concurrent.MVar (newEmptyMVar, putMVar, takeMVar)
@@ -36,11 +36,13 @@ preamble = return ()
 
 postscript :: IO ()
 postscript = do
-  client <- connect defaultConnectInfo
+  client <- adminConnect defaultConnectInfo
   -- Force remove space in case it was not deleted.
-  _ <- join $ removeSpace client defaultSpace
-  close client
+  -- _ <- join $ rmSpace defaultSpace client
+  return ()
 
+
+  
 main = do
   preamble
   -- This hackish solution allows us to get around the fact that defaultMain

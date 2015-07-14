@@ -278,7 +278,12 @@ instance (Ord k, Show k, Show v, Arbitrary k, Arbitrary v) => Arbitrary (Overlap
     bkeys   <- elements . take 1000 . combinations . Map.keys $ a
     bvalues <- vectorOf (length bkeys) arbitrary
     let b = Map.fromList $ zip bkeys bvalues
-    return $ OverlappingMaps (a, b) 
+    return $ OverlappingMaps (a, b)
+  shrink (OverlappingMaps (a, b)) = 
+    [ OverlappingMaps (a', b')
+    | a' <- shrink a
+    , let b' = Map.intersection b a'
+    ]
 
 newtype NonOverlappingMaps k v = NonOverlappingMaps { nonOverlappingMaps :: (Map k v, Map k v) }
   deriving (Show)

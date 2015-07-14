@@ -1,7 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 import Criterion.Main
-import qualified Database.HyperDex as H
-import qualified Database.HyperDex.Admin as Admin
+import Database.HyperDex
 -- import qualified Database.Cassandra.Basic as C
 import System.Environment(getEnv)
 import Control.Monad --(forM_,forM,void,when,join,forever)
@@ -18,8 +17,8 @@ import System.Process
 -- import qualified Database.SQLite3 as SQL
 import qualified Control.Exception as E
 
-instance NFData H.Attribute where
-  rnf (H.Attribute a b c) = a `seq` b `seq` c `seq` ()
+instance NFData Attribute where
+  rnf (Attribute a b c) = a `seq` b `seq` c `seq` ()
 
 main :: IO ()
 main = do
@@ -51,20 +50,21 @@ main = do
 
   -- pool <- C.createCassandraPool C.defServers 3 300 5 "testkeyspace"
 
-  admin <- Admin.connect Admin.defaultConnectInfo
+  admin <- adminConnect defaultConnectInfo
 
-  E.handle ignore $ void $ Admin.removeSpace admin "phonebook"
-  _ <- Admin.addSpace admin
-       $ Text.unlines
+  E.handle ignore $ void $ rmSpace "phonebook" admin
+  _ <- addSpace
+       (BS.unlines
          [ "space phonebook"
          , "key username"
          , "attributes content"
          -- , "subspace first, last"
          , "create 32 partitions"
          , "tolerate 0 failures"
-         ]
+         ])
+       admin
 
-  client <- H.connect H.defaultConnectInfo
+  client <- clientConnect defaultConnectInfo
 
   -- db <- SQL.open "dummysql"
   -- SQL.execPrint db "PRAGMA journal_mode=MEMORY; PRAGMA synchronous = OFF"
@@ -97,8 +97,7 @@ main = do
                --                                  ])
                --                            (\insertions ->  void $ C.runCas pool $ sequence insertions),
                bench "hyperdex" . whnfIO $ finish (\(x,_,_) ->
-                                           H.put client "phonebook" x $!!
-                                             [H.mkAttribute "content"  lastname])
+                                           put "phonebook" x [mkAttribute "content"  lastname] client)
                                          (\actions -> do
                                              failures <- lefts <$> sequence actions
                                              when (failures /= []) $

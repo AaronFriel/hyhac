@@ -42,6 +42,7 @@ import Control.Monad.IO.Class
 import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
+import Database.HyperDex.Internal.Resource
 
 -- int64_t
 -- hyperdex_admin_dump_config(struct hyperdex_admin* admin,

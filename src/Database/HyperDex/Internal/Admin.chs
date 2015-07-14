@@ -11,6 +11,7 @@
 --
 module Database.HyperDex.Internal.Admin
   ( Admin
+  , AdminConnection
   , ReturnCode (..)
   , adminConnect
   , peekReturnCode
@@ -34,6 +35,8 @@ import Foreign.C
 data OpaqueAdmin
 {#pointer *hyperdex_admin as Admin -> OpaqueAdmin #}
 
+type AdminConnection = HyperDexConnection Admin
+
 peekReturnCode :: MonadIO m 
                => Ptr CInt
                -> m (ReturnCode Admin)
@@ -56,10 +59,11 @@ instance HyperDex Admin where
                         | AdminGarbage
                         deriving (Eq,Show)
 
-  failureCode = AdminSuccess
+  failureCode = AdminGarbage
 
   isTransient AdminInterrupted = True
-  isTransient _                = False 
+  isTransient AdminTimeout     = True
+  isTransient rc               = False 
   
   isGlobalError AdminInternal  = True
   isGlobalError AdminException = True
@@ -113,18 +117,18 @@ instance Enum (ReturnCode Admin) where
   toEnum 8831 = AdminGarbage
   toEnum unmatched = error ("AdminReturnCode.toEnum: Cannot match " ++ show unmatched)
 
-adminConnect :: ConnectInfo -> IO (HyperDexConnection Admin)
+adminConnect :: ConnectInfo -> IO (AdminConnection)
 adminConnect = connect
 
 adminDeferred :: ResIO (AsyncCall Admin a) 
-              -> HyperDexConnection Admin
+              -> AdminConnection
               -> IO (AsyncResult Admin a)
 adminDeferred = wrapDeferred (AdminSuccess==)
 
 adminImmediate :: ResIO (SyncCall Admin a)
-               -> HyperDexConnection Admin
+               -> AdminConnection
                -> IO (AsyncResult Admin a)
 adminImmediate = wrapImmediate
 
--- adminDisconnect :: (HyperDexConnection Admin) -> IO ()
+-- adminDisconnect :: (AdminConnection) -> IO ()
 -- adminDisconnect = disconnect

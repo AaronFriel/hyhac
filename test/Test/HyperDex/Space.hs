@@ -2,7 +2,6 @@
 
 module Test.HyperDex.Space where
 
-import Data.Text
 import Data.Monoid ((<>))
 import Test.QuickCheck.Arbitrary
 
@@ -17,19 +16,18 @@ import Data.Map (Map)
 
 import Control.Monad
 
-import Database.HyperDex hiding (connect, defaultConnectInfo)
+import Database.HyperDex
 import Database.HyperDex.Utf8
-import Database.HyperDex.Admin
 
 import Test.HyperDex.Util ()
 
-defaultSpace :: Text
+defaultSpace :: ByteString
 defaultSpace = "profiles"
 
-defaultSpaceDesc :: Text
+defaultSpaceDesc :: ByteString
 defaultSpaceDesc = makeSpaceDesc defaultSpace
 
-makeSpaceDesc :: Text -> Text
+makeSpaceDesc :: ByteString -> ByteString
 makeSpaceDesc name =
   "space "<>name<>"                         \n\
   \key username                             \n\
@@ -116,12 +114,12 @@ keyAttributeName = "username"
 
 addSpaceTest :: Test
 addSpaceTest = testCase "Can add a space" $ do
-  client <- connect defaultConnectInfo
-  result <- join $ addSpace client defaultSpaceDesc
+  client <- adminConnect defaultConnectInfo
+  result <- join $ addSpace defaultSpaceDesc client
   assertEqual "Add space: " (Right ()) result
 
 removeSpaceTest :: Test
 removeSpaceTest = testCase "Can remove a space" $ do
-  client <- connect defaultConnectInfo
-  result <- join $ removeSpace client defaultSpace
+  client <- adminConnect defaultConnectInfo
+  result <- join $ rmSpace defaultSpace client
   assertEqual "remove space: " (Right ()) result

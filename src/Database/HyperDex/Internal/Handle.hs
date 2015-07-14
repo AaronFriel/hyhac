@@ -63,7 +63,6 @@ invalidHandle = Handle minBound
 
 wrapHyperCallHandle :: IO CLong -> IO Handle
 wrapHyperCallHandle = fmap mkHandle . wrapHyperCall
-{-# INLINE wrapHyperCallHandle #-}
 
 -- | A mapping of handles to callbacks functions that perform cleanup and return
 -- the asynchronous values to their caller.

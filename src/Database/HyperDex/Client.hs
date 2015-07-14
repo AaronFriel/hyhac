@@ -29,14 +29,8 @@ module Database.HyperDex.Client
   )
   where
 
-import Database.HyperDex.Internal.Client (
-      --   Client, connect, close, AsyncResult, Result
-      -- , ConnectInfo, defaultConnectInfo
-      -- , ConnectOptions, defaultConnectOptions
-      -- , SearchStream (..)
-      )
 import Database.HyperDex.Internal.HyperdexClient
-import Database.HyperDex.Internal.Client (Client, ReturnCode (..), clientConnect)
+import Database.HyperDex.Internal.Client (ClientConnection, ClientReturnCode, ClientResult, ReturnCode (..), clientConnect)
 import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
 import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
 import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)
