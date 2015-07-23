@@ -85,6 +85,7 @@ library
     , monad-control              >= 1.0
     , resourcet                  >= 1.0
     , data-default
+    , deepseq
 
     , attoparsec                 >= 0.13 && < 1.0
 
@@ -148,6 +149,7 @@ Test-suite tests
     , text
     , resource-pool              >= 0.2.0
     , data-default
+    , deepseq
 
     -- Test suite packages:
     , test-framework             >= 0.8

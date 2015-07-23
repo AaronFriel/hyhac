@@ -39,6 +39,7 @@ import Data.Bits
 import Control.Concurrent (threadDelay)
 
 import Control.Applicative
+import Control.DeepSeq
 
 testCanStoreLargeObject :: Pool (ClientConnection) -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
@@ -263,7 +264,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
           opAttribute        = mkMapAttributesFromMapUtf8 attributeName operand
       _ <- QC.run . join $ withResource clientPool $ delete space key
       _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
-      atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
+      atomicOpResult <-  deepseq opAttribute $ QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
       case atomicOpResult of
         Left err -> do
           QC.run $ do
@@ -293,7 +294,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
     -- \}\n"
           case eitherOutput >>= deserialize . attrValue of
             Right output -> do
-              QC.run $ putStrLn $ show attributeName
+              QC.run $ return $ rnf opAttribute
               case output == (initial `localOp` operand)  of
                 True -> QC.assert True
                 False -> do
