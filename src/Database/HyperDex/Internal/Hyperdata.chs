@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances, DataKinds #-}
-
+{-# LANGUAGE DeriveGeneric #-}
 -- |
 -- Module     	: Database.HyperDex.Internal.Hyperdata
 -- Copyright  	: (c) Aaron Friel 2013-2014

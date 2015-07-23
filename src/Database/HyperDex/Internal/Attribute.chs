@@ -1,4 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE DeriveGeneric #-}
 -- |
 -- Module       : Database.HyperDex.Internal.Attribute
 -- Copyright    : (c) Aaron Friel 2013-2014
@@ -26,6 +27,8 @@ import Database.HyperDex.Internal.Foreign
 import Database.HyperDex.Internal.Resource
 import Database.HyperDex.Internal.Util
 
+import GHC.Generics (Generic)
+import Control.DeepSeq
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
@@ -48,7 +51,8 @@ data Attribute = Attribute
   , attrValue    :: ByteString
   , attrDatatype :: Hyperdatatype
   }
-  deriving (Show, Eq, Ord)
+  deriving (Show, Eq, Ord, Generic)
+instance NFData (Attribute)
 instance Storable Attribute where
   -- Note [sizeOf fudging]
   sizeOf _ = 

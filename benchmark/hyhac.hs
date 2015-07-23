@@ -17,9 +17,6 @@ import System.Process
 -- import qualified Database.SQLite3 as SQL
 import qualified Control.Exception as E
 
-instance NFData Attribute where
-  rnf (Attribute a b c) = a `seq` b `seq` c `seq` ()
-
 main :: IO ()
 main = do
   reps <- read  <$> getEnv "REPS"

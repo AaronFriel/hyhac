@@ -246,7 +246,7 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
 
 type AsyncMapOp = ByteString -> ByteString -> [MapAttribute] -> ClientConnection -> IO (ClientResult ())
 
-generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, HyperSerialize k, HyperSerialize v,
+generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, NFData v, NFData k, HyperSerialize k, HyperSerialize v,
                                 HyperSerialize (Map k v),
                                 Show x, Arbitrary x)
                             => String         -- ^ The test name
@@ -258,13 +258,19 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
   \clientPool space -> testProperty testName $
     \(NonEmptyBS key) arbitraryInput ->
       QC.monadicIO $ do
-      let (initial, operand) = decons arbitraryInput
-          attributeName      = decodeUtf8 $ pickAttributeName initial
-          attribute          = mkAttributeUtf8 attributeName initial
-          opAttribute        = mkMapAttributesFromMapUtf8 attributeName operand
+      let (initial', operand') = decons arbitraryInput
+          initial = force initial'
+          operand = force operand'
+          attributeName      = force $ decodeUtf8 $ pickAttributeName initial
+          attribute          = force $ mkAttributeUtf8 attributeName initial
+          opAttribute        = force $ mkMapAttributesFromMapUtf8 attributeName operand
       _ <- QC.run . join $ withResource clientPool $ delete space key
       _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
-      atomicOpResult <-  deepseq opAttribute $ QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
+      -- QC.run $ return $ rnf opAttribute
+      atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
+      -- atomicOpResult <-  QC.run $ do
+      --   return $ rnf opAttribute
+      --   join $ withResource clientPool $ hyperCall space key opAttribute
       case atomicOpResult of
         Left err -> do
           QC.run $ do
@@ -294,7 +300,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
     -- \}\n"
           case eitherOutput >>= deserialize . attrValue of
             Right output -> do
-              QC.run $ return $ rnf opAttribute
+              -- QC.run $ return $ rnf opAttribute
               case output == (initial `localOp` operand)  of
                 True -> QC.assert True
                 False -> do
