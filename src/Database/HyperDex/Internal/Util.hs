@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, ScopedTypeVariables, FlexibleContexts #-}
-
+{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module       : Database.HyperDex.Internal.Util
 -- Copyright    : (c) Aaron Friel 2013-2014
@@ -28,6 +28,12 @@ module Database.HyperDex.Internal.Util
  -- Miscellany
  , forkIO_
  , unCULong
+ , whenDebug
+ , traceIO
+ , traceByteString
+ , traceCStringLen
+ , traceIndirectCStringLen
+ , traceAsCStringLiteral
  )
  where
 
@@ -42,6 +48,14 @@ import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Foreign hiding (void)
 import Foreign.C
+
+import Data.ByteString.Unsafe (unsafePackCStringLen)
+import GHC.IO.Handle
+import GHC.IO.Handle.FD
+import Data.Attoparsec.ByteString hiding (word8)
+import Data.ByteString.Builder
+import Data.Monoid
+import Control.Applicative ((<|>))
 
 #ifdef __UNIX__
 import System.Posix.Signals (reservedSignals, blockSignals, unblockSignals)
@@ -150,3 +164,95 @@ forkIO_ = void . forkIO . void
 
 unCULong :: CULong -> Word64
 unCULong (CULong w) = w
+
+whenDebug :: Monad m => m () -> m ()
+#ifdef DEBUG
+whenDebug f = f
+#else
+whenDebug _ = return ()
+#endif
+
+traceHandle :: Handle
+traceHandle = stderr 
+traceIO :: MonadIO m => String -> m ()
+traceIO = whenDebug . liftIO . hPutStr traceHandle
+
+traceByteString :: MonadIO m => ByteString -> m ()
+traceByteString bs = whenDebug $ 
+  liftIO $ hPutBuilder traceHandle (byteStringHex bs)
+
+traceCStringLen :: forall a m. MonadIO m => Storable a => (Ptr a, Int) -> m ()
+traceCStringLen (ptr, sz) = whenDebug $ do
+  liftIO (unsafePackCStringLen (castPtr ptr, sz * sizeOfStorable)) >>= traceByteString
+  where sizeOfStorable = sizeOf (undefined :: a)  
+
+traceIndirectCStringLen :: MonadIO m => Storable a => (Ptr (Ptr a), Ptr CULong) -> m ()
+traceIndirectCStringLen (ptrPtr, ptrSz) = whenDebug $ do
+  cstr <- liftIO $ do
+    ptr <- peek ptrPtr
+    sz <- peek ptrSz
+    return (ptr, fromIntegral sz)
+  traceCStringLen cstr
+
+printableChar :: Word8 -> Bool
+printableChar c = 
+  case c of
+    0x07 -> False
+    0x08 -> False
+    0x0a -> False
+    0x0b -> False
+    0x0c -> False
+    0x0d -> False
+    0x22 -> False
+    0x27 -> False
+    0x3f -> False
+    0x5c -> False
+    _    -> c >= 0x20 && c < 0x80
+
+hex :: Word8 -> Char
+hex 0  = '0'
+hex 1  = '1'
+hex 2  = '2'
+hex 3  = '3'
+hex 4  = '4'
+hex 5  = '5'
+hex 6  = '6'
+hex 7  = '7'
+hex 8  = '8'
+hex 9  = '9'
+hex 10 = 'a'
+hex 11 = 'b'
+hex 12 = 'c'
+hex 13 = 'd'
+hex 14 = 'e'
+hex 15 = 'f'
+hex _  = '\0'
+
+parseNonPrintableChar :: Parser Builder
+parseNonPrintableChar = do
+  char <- anyWord8
+  let (high, low) = char `divMod` 16
+  return $ byteString "\\x" <> char7 (hex high) <> char7 (hex low)
+            <> byteString "\"\""
+
+parsePrintableChars :: Parser Builder
+parsePrintableChars = do
+  str <- takeWhile1 printableChar
+  return $ byteString str
+
+parseStringLiteral :: Parser Builder
+parseStringLiteral = do
+  strs <- many1 (parsePrintableChars <|> parseNonPrintableChar)
+  return $ mconcat strs
+
+parseAsCStringLiteral :: ByteString -> Either String Builder
+parseAsCStringLiteral bs = 
+  case parseOnly parseStringLiteral bs of 
+    Left e        -> Left e
+    Right builder -> Right $ char7 '\"' <> builder <> char7 '\"'
+
+traceAsCStringLiteral :: MonadIO m => ByteString -> m ()
+traceAsCStringLiteral bs = whenDebug $ do
+  case parseAsCStringLiteral bs of
+    Left  _ -> liftIO $ hPutStr traceHandle "\"\""
+    Right builder -> liftIO $ hPutBuilder traceHandle builder

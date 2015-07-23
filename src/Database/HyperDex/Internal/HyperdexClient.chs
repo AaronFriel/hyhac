@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
+{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module       : Database.HyperDex.Internal.HyperdexClient
 -- Copyright    : (c) Aaron Friel 2013-2014
@@ -65,6 +66,8 @@ import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
 import Database.HyperDex.Internal.Resource
+import qualified Data.ByteString as BS
+import Control.Monad
 
 type ClientCall = Client
                 -> CString 
@@ -80,38 +83,38 @@ type MapCall = Client
              -> Ptr CInt
              -> IO CLong
 
-put           = hyperdexClientOp {# call unsafe hyperdex_client_put              #}
-putIfNotExist = hyperdexClientOp {# call unsafe hyperdex_client_put_if_not_exist #}
-atomicAdd     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_add #}
-atomicSub     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_sub #}
-atomicMul     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_mul #}
-atomicDiv     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_div #}
-atomicMod     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_mod #}
-atomicAnd     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_and #}
-atomicOr      = hyperdexClientOp {# call unsafe hyperdex_client_atomic_or  #}
-atomicXor     = hyperdexClientOp {# call unsafe hyperdex_client_atomic_xor #}
-stringPrepend = hyperdexClientOp {# call unsafe hyperdex_client_string_prepend #}
-stringAppend  = hyperdexClientOp {# call unsafe hyperdex_client_string_append  #}
-listLPush     = hyperdexClientOp {# call unsafe hyperdex_client_list_lpush    #}
-listRPush     = hyperdexClientOp {# call unsafe hyperdex_client_list_rpush    #}
-setAdd        = hyperdexClientOp {# call unsafe hyperdex_client_set_add       #}
-setRemove     = hyperdexClientOp {# call unsafe hyperdex_client_set_remove    #}
-setIntersect  = hyperdexClientOp {# call unsafe hyperdex_client_set_intersect #}
-setUnion      = hyperdexClientOp {# call unsafe hyperdex_client_set_union     #}
+put           = hyperdexClientOp {# call hyperdex_client_put              #}
+putIfNotExist = hyperdexClientOp {# call hyperdex_client_put_if_not_exist #}
+atomicAdd     = hyperdexClientOp {# call hyperdex_client_atomic_add #}
+atomicSub     = hyperdexClientOp {# call hyperdex_client_atomic_sub #}
+atomicMul     = hyperdexClientOp {# call hyperdex_client_atomic_mul #}
+atomicDiv     = hyperdexClientOp {# call hyperdex_client_atomic_div #}
+atomicMod     = hyperdexClientOp {# call hyperdex_client_atomic_mod #}
+atomicAnd     = hyperdexClientOp {# call hyperdex_client_atomic_and #}
+atomicOr      = hyperdexClientOp {# call hyperdex_client_atomic_or  #}
+atomicXor     = hyperdexClientOp {# call hyperdex_client_atomic_xor #}
+stringPrepend = hyperdexClientOp {# call hyperdex_client_string_prepend #}
+stringAppend  = hyperdexClientOp {# call hyperdex_client_string_append  #}
+listLPush     = hyperdexClientOp {# call hyperdex_client_list_lpush    #}
+listRPush     = hyperdexClientOp {# call hyperdex_client_list_rpush    #}
+setAdd        = hyperdexClientOp {# call hyperdex_client_set_add       #}
+setRemove     = hyperdexClientOp {# call hyperdex_client_set_remove    #}
+setIntersect  = hyperdexClientOp {# call hyperdex_client_set_intersect #}
+setUnion      = hyperdexClientOp {# call hyperdex_client_set_union     #}
 
--- mapAtomicInsert        = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_insert #}
-mapAdd                 = hyperdexClientMapOp {# call unsafe hyperdex_client_map_add #}
-mapRemove              = hyperdexClientOp {# call unsafe hyperdex_client_map_remove #}
-mapAtomicAdd           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_add #}
-mapAtomicSub           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_sub #}
-mapAtomicMul           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_mul #}
-mapAtomicDiv           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_div #}
-mapAtomicMod           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_mod #}
-mapAtomicAnd           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_and #}
-mapAtomicOr            = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_or  #}
-mapAtomicXor           = hyperdexClientMapOp {# call unsafe hyperdex_client_map_atomic_xor #}
-mapStringPrepend = hyperdexClientMapOp {# call unsafe hyperdex_client_map_string_prepend #}
-mapStringAppend  = hyperdexClientMapOp {# call unsafe hyperdex_client_map_string_append  #}
+-- mapAtomicInsert        = hyperdexClientMapOp {# call hyperdex_client_map_atomic_insert #}
+mapAdd                 = hyperdexClientMapOp {# call hyperdex_client_map_add #}
+mapRemove              = hyperdexClientOp {# call hyperdex_client_map_remove #}
+mapAtomicAdd           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_add #}
+mapAtomicSub           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_sub #}
+mapAtomicMul           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_mul #}
+mapAtomicDiv           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_div #}
+mapAtomicMod           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_mod #}
+mapAtomicAnd           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_and #}
+mapAtomicOr            = hyperdexClientMapOp {# call hyperdex_client_map_atomic_or  #}
+mapAtomicXor           = hyperdexClientMapOp {# call hyperdex_client_map_atomic_xor #}
+mapStringPrepend = hyperdexClientMapOp {# call hyperdex_client_map_string_prepend #}
+mapStringAppend  = hyperdexClientMapOp {# call hyperdex_client_map_string_append  #}
 
 -- mapAtomicInsert = hyperdexClientMapOp OpAtomicMapInsert
 -- mapAtomicAdd    = hyperdexClientMapOp OpAtomicMapAdd
@@ -149,9 +152,17 @@ get s k = clientDeferred $ do
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
   (attrPtrPtr, attrSzPtr, peekResult) <- rMallocAttributeArray
-  let ccall ptr = 
+  let ccall ptr = do
+        -- whenDebug $ do
+        --   traceIO $ "op_id = hyperdex_client_get(client, "
+        --   traceAsCStringLiteral s
+        --   traceIO $ ", "
+        --   traceAsCStringLiteral k
+        --   traceIO $ ", " ++ (show keySize) ++ ", \n"
+        --   traceIO $ "                            &op_status, &attrs, &attrs_sz);\n"
+        --   traceIO $ "loop_id = hyperdex_client_loop(client, -1, &loop_status);\n"
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_get #}
+          {# call hyperdex_client_get #}
             ptr
             space key (fromIntegral keySize)
             returnCodePtr attrPtrPtr attrSzPtr
@@ -177,7 +188,7 @@ delete s k = clientDeferred $ do
   (key,keySize) <- rNewCBStringLen k
   let ccall ptr = 
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_del #}
+          {# call hyperdex_client_del #}
             ptr
             space key (fromIntegral keySize)
             returnCodePtr
@@ -208,7 +219,7 @@ putConditional s k checks attrs = clientDeferred $ do
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
   let ccall ptr = 
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_cond_put #}
+          {# call hyperdex_client_cond_put #}
             ptr
             space key (fromIntegral keySize)
             checkPtr (fromIntegral checkSize)
@@ -237,7 +248,28 @@ hyperdexClientOp call s k attrs = clientDeferred $ do
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
   (attributePtr, attributeSize) <- rNewAttributeArray attrs
-  let ccall ptr = 
+  let ccall ptr = do
+        whenDebug $ do
+          case attrs of
+            [attr] -> do
+              traceIO "attr.attr = "
+              traceAsCStringLiteral (attrName attr) 
+              traceIO ";\n"
+
+              traceIO "attr.value = "
+              traceAsCStringLiteral (attrValue attr) 
+              traceIO ";\n"
+
+              traceIO $ "attr.value_sz = " ++ show (BS.length (attrValue attr)) ++ ";\n"
+              traceIO $ "attr.datatype = HYPERDATATYPE_MAP_INT64_INT64;\n"
+              traceIO $ "op_id = hyperdex_client_put(client, "
+              traceAsCStringLiteral s
+              traceIO $ ", "
+              traceAsCStringLiteral k
+              traceIO $ ", " ++ (show keySize) ++ ", \n"
+              traceIO $ "                            &attr, 1, &op_status);\n"
+              traceIO $ "loop_id = hyperdex_client_loop(client, -1, &loop_status);\n"
+            _ -> return ()
         wrapHyperCallHandle $
           call
             ptr
@@ -251,6 +283,14 @@ hyperdexClientOp call s k attrs = clientDeferred $ do
           _             -> return $ Left returnCode
   return $ AsyncCall ccall callback
 {-# INLINE hyperdexClientOp #-}
+
+
+-- data MapAttribute = MapAttribute
+--   { mapAttrName      :: ByteString
+--   , mapAttrKey       :: ByteString
+--   , mapAttrKeyDatatype   :: Hyperdatatype
+--   , mapAttrValue     :: ByteString
+--   , mapAttrValueDatatype :: Hyperdatatype
 
 -- int64_t
 -- hyperdex_client_map_add(struct hyperdexClient* client, const char* space,
@@ -268,7 +308,47 @@ hyperdexClientMapOp call s k mapAttrs = clientDeferred $ do
   space <- rNewCBString0 s
   (key,keySize) <- rNewCBStringLen k
   (mapAttributePtr, mapAttributeSize) <- rNewMapAttributeArray mapAttrs
-  let ccall ptr =
+  let ccall ptr = do
+        whenDebug $ do
+          traceIO "{"
+          let printAttr attr = do
+                traceIO $ "{ "
+                traceAsCStringLiteral (mapAttrName attr)
+                traceIO $ ", "
+                traceAsCStringLiteral (mapAttrKey attr)
+                traceIO $ ", "
+                traceIO $ show (BS.length (mapAttrKey attr))
+                traceIO $ ", "
+                traceIO $ "HYPERDATATYPE_INT64"
+                traceIO $ ", "
+                traceAsCStringLiteral (mapAttrValue attr)
+                traceIO $ ", "
+                traceIO $ show (BS.length (mapAttrValue attr))
+                traceIO $ ", "
+                traceIO $ "HYPERDATATYPE_INT64"
+                traceIO $ " }\n"
+          case mapAttrs of 
+            []     -> traceIO "  struct hyperdex_client_map_attribute mapattr[] = {};\n"
+            [attr] -> do
+              traceIO "  struct hyperdex_client_map_attribute mapattr[] = {\n"
+              printAttr attr
+              traceIO "};\n"
+            a:as   -> do
+              traceIO "  struct hyperdex_client_map_attribute mapattr[] = {\n"
+              printAttr a
+              forM_ as $ \attr -> do
+                traceIO ", "
+                printAttr attr
+              traceIO "};\n"
+          traceIO $ "op_id = hyperdex_client_map_atomic_add(client, "
+          traceAsCStringLiteral s
+          traceIO $ ", "
+          traceAsCStringLiteral k
+          traceIO $ ", " ++ (show keySize) ++ ", \n"
+          traceIO $ "                            &mapattr,"++show (length mapAttrs)
+          traceIO $ ", &op_status);\n"
+          traceIO $ "loop_id = hyperdex_client_loop(client, -1, &loop_status);\n"
+          traceIO $ "}\n"
         wrapHyperCallHandle $
           call
             ptr space
@@ -299,7 +379,7 @@ search s checks = clientIterator $ do
   (resultPtrPtr, resultSizePtr, peekResult) <- rMallocAttributeArray
   let ccall ptr =
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_search #}
+          {# call hyperdex_client_search #}
             ptr
             space
             checkPtr (fromIntegral checkSize)
@@ -329,7 +409,7 @@ deleteGroup s checks = clientDeferred $ do
   (checkPtr, checkSize) <- rNewAttributeCheckArray checks
   let ccall ptr =
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_group_del #}
+          {# call hyperdex_client_group_del #}
             ptr
             space
             checkPtr (fromIntegral checkSize)
@@ -357,7 +437,7 @@ describeSearch s checks = clientDeferred $ do
   descriptionPtr <- rMalloc
   let ccall ptr =
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_search_describe #}
+          {# call hyperdex_client_search_describe #}
             ptr
             space
             checkPtr (fromIntegral checkSize)
@@ -389,7 +469,7 @@ count s checks = clientDeferred $ do
   countPtr <- rNew 0
   let ccall ptr =
         wrapHyperCallHandle $
-          {# call unsafe hyperdex_client_count #}
+          {# call hyperdex_client_count #}
             ptr
             space
             checkPtr (fromIntegral checkSize)

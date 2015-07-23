@@ -323,7 +323,7 @@ loopUntil :: HyperDex o
           -> IO (Either (ReturnCode o) Handle, HandleMap o)
 loopUntil testHandle ptr inMap = do
   -- traceIO $ "in loopUntil, waiting for handle: " ++ show testHandle
-  (ret, outMap) <- loopGeneral 100 ptr inMap
+  (ret, outMap) <- loopGeneral (-1) ptr inMap
   case ret of
     Left rc
       | isTransient rc -> do

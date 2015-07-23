@@ -27,6 +27,14 @@ defaultSpace = "profiles"
 defaultSpaceDesc :: ByteString
 defaultSpaceDesc = makeSpaceDesc defaultSpace
 
+-- makeSpaceDesc :: ByteString -> ByteString
+-- makeSpaceDesc name =
+--   "space "<>name<>"                         \n\
+--   \key username                             \n\
+--   \attributes                               \n\
+--   \   map(int, int) friendremapping         \n\
+--   \tolerate 0 failures"
+
 makeSpaceDesc :: ByteString -> ByteString
 makeSpaceDesc name =
   "space "<>name<>"                         \n\

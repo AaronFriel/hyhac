@@ -22,6 +22,7 @@ import Data.ByteString.Char8 (ByteString, append)
 
 import Database.HyperDex
 import Database.HyperDex.Utf8
+import Database.HyperDex.Internal.Util
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -135,6 +136,7 @@ propCanConditionalPutNumeric
           failingAttributeCheck = mkAttributeCheckUtf8 attributeName failing predicate
           succeedingAttribute = mkAttributeUtf8 attributeName succeeding
           succeedingAttributeCheck = mkAttributeCheckUtf8 attributeName succeeding predicate
+      _ <- QC.run . join $ withResource clientPool $ delete space key
       _ <- QC.run . join $ withResource clientPool $
              put space key [initialAttribute]
       failingResult <- QC.run . join $ withResource clientPool $
@@ -197,6 +199,7 @@ generateTestPropAtomicOp testName hyperCall localOp decons =
           attributeName      = decodeUtf8 $ pickAttributeName initial
           attribute          = mkAttributeUtf8 attributeName initial
           opAttribute        = mkAttributeUtf8 attributeName operand
+      _ <- QC.run . join $ withResource clientPool $ delete space key
       _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
       atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key [opAttribute]
       case atomicOpResult of
@@ -258,6 +261,7 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
           attributeName      = decodeUtf8 $ pickAttributeName initial
           attribute          = mkAttributeUtf8 attributeName initial
           opAttribute        = mkMapAttributesFromMapUtf8 attributeName operand
+      _ <- QC.run . join $ withResource clientPool $ delete space key
       _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
       atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
       case atomicOpResult of
@@ -275,8 +279,21 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
           QC.assert False
         Right () -> do
           eitherOutput <- getHyper clientPool space key attributeName
+    --       QC.run $ traceIO "\
+    -- \if (attrs_sz <= 0) {\n\
+    -- \  printf(\"Error! Attribute doesn't exist. Line %d\", __LINE__);\n\
+    -- \} else {\n\
+    -- \  if (attrs[1].value_sz != attr.value_sz) {\n\
+    -- \    printf(\"Error! Attribute has incorrect size. Line %d\", __LINE__);\n\
+    -- \  } else {\n\
+    -- \    if (memcmp(&attrs[1].value, &attr.value, attr.value_sz) != 0) {\n\
+    -- \        printf(\"Error! Attribute values not equal.\");\n\
+    -- \    }\n\
+    -- \  }\n\
+    -- \}\n"
           case eitherOutput >>= deserialize . attrValue of
             Right output -> do
+              QC.run $ putStrLn $ show attributeName
               case output == (initial `localOp` operand)  of
                 True -> QC.assert True
                 False -> do
