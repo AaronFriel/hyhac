@@ -33,8 +33,7 @@ import Foreign
 import Foreign.C
 import Data.Typeable
 import Data.Hashable
-import Data.HashMap.Strict (HashMap)
-import qualified Data.HashMap.Strict as HashMap
+import Data.HashMap.Strict
 
 -- | Primary return value from hyperdex operations.
 --
@@ -67,30 +66,3 @@ wrapHyperCallHandle = fmap mkHandle . wrapHyperCall
 -- | A mapping of handles to callbacks functions that perform cleanup and return
 -- the asynchronous values to their caller.
 type HandleMap a = HashMap Handle a
-
-empty :: HandleMap a
-empty = HashMap.empty
-
-null :: HandleMap a -> Bool
-null = HashMap.null
-
-insert :: Handle -> a -> HandleMap a -> HandleMap a
-insert k v = HashMap.insert k v
-
-delete :: Handle -> HandleMap a -> HandleMap a
-delete k = HashMap.delete k
-
-lookup :: Handle -> HandleMap a -> Maybe a
-lookup k = HashMap.lookup k
-
-member :: Handle -> HandleMap a -> Bool
-member k = HashMap.member k
-
-elems :: HandleMap a -> [a]
-elems = HashMap.elems
-
-keys :: HandleMap a -> [Handle]
-keys = HashMap.keys
-
-toList :: HandleMap a -> [(Handle, a)]
-toList = HashMap.toList

@@ -43,13 +43,12 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import Data.ByteString.Unsafe (unsafeUseAsCString, unsafeUseAsCStringLen)
+import Data.ByteString.Unsafe (unsafeUseAsCString, unsafeUseAsCStringLen, unsafePackCStringLen)
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8, decodeUtf8)
 import Foreign hiding (void)
 import Foreign.C
 
-import Data.ByteString.Unsafe (unsafePackCStringLen)
 import GHC.IO.Handle
 import GHC.IO.Handle.FD
 import Data.Attoparsec.ByteString hiding (word8)
@@ -182,7 +181,7 @@ traceByteString bs = whenDebug $
   liftIO $ hPutBuilder traceHandle (byteStringHex bs)
 
 traceCStringLen :: forall a m. MonadIO m => Storable a => (Ptr a, Int) -> m ()
-traceCStringLen (ptr, sz) = whenDebug $ do
+traceCStringLen (ptr, sz) = whenDebug $
   liftIO (unsafePackCStringLen (castPtr ptr, sz * sizeOfStorable)) >>= traceByteString
   where sizeOfStorable = sizeOf (undefined :: a)  
 
@@ -252,7 +251,7 @@ parseAsCStringLiteral bs =
     Right builder -> Right $ char7 '\"' <> builder <> char7 '\"'
 
 traceAsCStringLiteral :: MonadIO m => ByteString -> m ()
-traceAsCStringLiteral bs = whenDebug $ do
+traceAsCStringLiteral bs = whenDebug $
   case parseAsCStringLiteral bs of
     Left  _ -> liftIO $ hPutStr traceHandle "\"\""
     Right builder -> liftIO $ hPutBuilder traceHandle builder

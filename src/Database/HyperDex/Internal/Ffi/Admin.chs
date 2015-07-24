@@ -121,16 +121,13 @@ validateSpace desc = adminImmediate $ do
           _            -> return $ Left returnCode
   return $ SyncCall ccall callback
 
--- int64_t
--- hyperdex_admin_add_space(struct hyperdex_admin* admin,
---                          const char* description,
---                          enum hyperdex_admin_returncode* status);
-addSpace desc = adminDeferred $ do
+-- | Generaqlizes over add_space, rm_space
+simpleOp call str = adminDeferred $ do
   returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
-  descPtr <- rNewCBString0 desc
+  descPtr <- rNewCBString0 str
   let ccall ptr = 
         wrapHyperCallHandle $
-          {# call hyperdex_admin_add_space #}
+          call
             ptr
             descPtr
             returnCodePtr
@@ -142,24 +139,16 @@ addSpace desc = adminDeferred $ do
   return $ AsyncCall ccall callback
 
 -- int64_t
+-- hyperdex_admin_add_space(struct hyperdex_admin* admin,
+--                          const char* description,
+--                          enum hyperdex_admin_returncode* status);
+addSpace = simpleOp {# call hyperdex_admin_add_space #}
+
+-- int64_t
 -- hyperdex_admin_rm_space(struct hyperdex_admin* admin,
 --                         const char* name,
 --                         enum hyperdex_admin_returncode* status);
-rmSpace s = adminDeferred $ do
-  returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
-  space <- rNewCBString0 s
-  let ccall ptr = 
-        wrapHyperCallHandle $
-          {# call hyperdex_admin_rm_space #}
-            ptr
-            space
-            returnCodePtr
-  let callback = do
-        returnCode <- peekReturnCode returnCodePtr
-        case returnCode of
-          AdminSuccess -> return $ Right ()
-          _            -> return $ Left returnCode
-  return $ AsyncCall ccall callback
+rmSpace = simpleOp {# call hyperdex_admin_rm_space #}
 
 -- int64_t
 -- hyperdex_admin_list_spaces(struct hyperdex_admin* admin,
@@ -266,9 +255,9 @@ disablePerfCounters = adminImmediate $ do
 --                           enum hyperdex_admin_returncode* status);
 -- TODO: update to latest API for backup
 rawBackup host port name = adminImmediate $ do
-  let portVal = CUShort $ port
-  hostPtr <- rNewCBString0 $ host
-  namePtr <- rNewCBString0 $ name
+  let portVal = CUShort port
+  hostPtr <- rNewCBString0 host
+  namePtr <- rNewCBString0 name
   returnCodePtr <- rNew (fromIntegral . fromEnum $ AdminGarbage)
   let ccall _ = 
         wrapHyperCall $

@@ -60,7 +60,7 @@ instance Storable AttributeCheck where
       size = {#sizeof hyperdex_client_attribute_check_struct #}
   alignment _ = {#alignof hyperdex_client_attribute_check_struct #}
   peek p = AttributeCheck
-    <$> (packCString =<< ({#get hyperdex_client_attribute_check.attr #} p))
+    <$> (packCString =<< {#get hyperdex_client_attribute_check.attr #} p)
     <*> (do
           str <- {#get hyperdex_client_attribute_check.value #} p
           len <- {#get hyperdex_client_attribute_check.value_sz #} p

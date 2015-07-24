@@ -1,4 +1,3 @@
-{-# LANGUAGE RecordWildCards #-}
 -- |
 -- Module       : Database.HyperDex.Internal.PerfCounter
 -- Copyright    : (c) Aaron Friel 2013-2014

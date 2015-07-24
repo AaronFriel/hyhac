@@ -24,6 +24,7 @@ module Database.HyperDex.Internal.Util.Resource
   )
  where
 
+import Control.Monad
 import Control.Monad.Base
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Resource
@@ -69,17 +70,16 @@ rMalloc = fmap snd $ allocateAcquire $ hAcquire malloc free
 newtype ResourceContext = ResourceContext InternalState
 
 mkContext :: MonadBase IO m => m ResourceContext
-mkContext = createInternalState >>= return . ResourceContext
+mkContext = liftM ResourceContext createInternalState
 
 runInContext :: MonadBaseControl IO m
              => ResourceContext
              -> ResourceT m a
              -> m a
-runInContext (ResourceContext istate) (ResourceT r) = control $ \run -> do
-  E.mask $ \restore -> do
-    res <- restore (run (r istate))
+runInContext (ResourceContext istate) (ResourceT r) = control $ \run ->
+  E.mask $ \restore ->
+    restore (run (r istate))
              `E.onException` stateCleanup ReleaseException istate
-    return res
 
 closeContext :: MonadBase IO m => ResourceContext -> m ()
 closeContext (ResourceContext istate) = closeInternalState istate 
@@ -103,7 +103,7 @@ closeContext (ResourceContext istate) = closeInternalState istate
 --   also utilizes 'MonadResource'.
 --
 rNewCBString0 :: MonadResource m => ByteString -> m CString
-rNewCBString0 bs = do
+rNewCBString0 bs =
   case isNulTerminated of
     True -> do
       (_, (_, cstr)) <- allocateAcquire $ hAcquire alloc' free'

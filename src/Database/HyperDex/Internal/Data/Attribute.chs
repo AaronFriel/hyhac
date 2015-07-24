@@ -64,7 +64,7 @@ instance Storable Attribute where
       size = {#sizeof hyperdex_client_attribute_struct #}
   alignment _ = {#alignof hyperdex_client_attribute_struct #}
   peek p = Attribute
-    <$> (packCString =<< ({#get hyperdex_client_attribute.attr #} p))
+    <$> (packCString =<< {#get hyperdex_client_attribute.attr #} p)
     <*> (do
           str <- {#get hyperdex_client_attribute.value #} p
           len <- {#get hyperdex_client_attribute.value_sz #} p

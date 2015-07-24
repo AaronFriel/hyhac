@@ -1,5 +1,7 @@
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances, DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE DataKinds #-}
 -- |
 -- Module     	: Database.HyperDex.Internal.Serialize
 -- Copyright  	: (c) Aaron Friel 2013-2014
@@ -83,16 +85,16 @@ instance Serialize (ListElem ByteString) where
 listGet :: (Serialize (ListElem a)) => Get [a]
 listGet = do
   i <- remaining
-  case i <= 0 of
-    True  -> return []
-    False -> do
-      first <- fmap unListElem get
-      rest <- listGet
-      return $ first : rest
+  if i <= 0
+  then return []
+  else do
+    first <- fmap unListElem get
+    rest <- listGet
+    return $ first : rest
 
 listPut :: (Serialize (ListElem a)) => [a] -> Put 
 listPut []     = return ()
-listPut (x:xs) = (put $ ListElem x) >> listPut xs
+listPut (x:xs) = put (ListElem x) >> listPut xs
 
 instance HyperSerialize [Int64] where
   getH = listGet
@@ -133,13 +135,13 @@ instance HyperSerialize (Set ByteString) where
 mapListGet :: (Show k, Show v, Ord k, Serialize (ListElem k), Serialize (ListElem v)) => Get [(k, v)]
 mapListGet = do
   i <- remaining
-  case i <= 0 of
-    True  -> return [] 
-    False -> do
-      key <- fmap unListElem get
-      value <- fmap unListElem get
-      rest <- mapListGet
-      return $ (key, value) : rest
+  if i <= 0
+  then return []
+  else do
+    key <- fmap unListElem get
+    value <- fmap unListElem get
+    rest <- mapListGet
+    return $ (key, value) : rest
 
 mapListPut :: (Show k, Show v, Ord k, Serialize (ListElem k), Serialize (ListElem v)) => [(k,v)]-> Put
 mapListPut ((k,v):xs) = do

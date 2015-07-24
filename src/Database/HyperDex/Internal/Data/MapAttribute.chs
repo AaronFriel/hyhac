@@ -72,7 +72,7 @@ instance Storable MapAttribute where
       size = {#sizeof hyperdex_client_map_attribute_struct #}
   alignment _ = {#alignof hyperdex_client_map_attribute_struct #}
   peek p = MapAttribute
-    <$> (packCString =<< ({#get hyperdex_client_map_attribute.attr #} p))
+    <$> (packCString =<< {#get hyperdex_client_map_attribute.attr #} p)
     <*> (do
           str <- {#get hyperdex_client_map_attribute.map_key #} p
           len <- {#get hyperdex_client_map_attribute.map_key_sz #} p
