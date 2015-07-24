@@ -24,11 +24,11 @@ module Database.HyperDex.Utf8
   )
   where
 
-import Database.HyperDex.Internal.Attribute
-import Database.HyperDex.Internal.AttributeCheck
-import Database.HyperDex.Internal.MapAttribute
-import Database.HyperDex.Internal.Hyperdata
-import Database.HyperDex.Internal.Hyperdex
+import Database.HyperDex.Internal.Data.Attribute
+import Database.HyperDex.Internal.Data.AttributeCheck
+import Database.HyperDex.Internal.Data.MapAttribute
+import Database.HyperDex.Internal.Serialize
+import Database.HyperDex.Internal.Data.Hyperdex
 import Data.Serialize
 
 import Data.Text (Text)

@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-{-# LANGUAGE OverloadedStrings #-}
 -- |
--- Module       : Database.HyperDex.Internal.HyperdexClient
+-- Module       : Database.HyperDex.Internal.Ffi.Client
 -- Copyright    : (c) Aaron Friel 2013-2014
 --                (c) Niklas Hambüchen 2013-2014 
 -- License      : BSD-style
@@ -9,7 +8,7 @@
 -- Stability    : unstable
 -- Portability  : portable
 --
-module Database.HyperDex.Internal.HyperdexClient
+module Database.HyperDex.Internal.Ffi.Client
   ( -- Simple, single-key operations
     get
   , put
@@ -59,13 +58,13 @@ import Control.Monad.IO.Class
 #include "hyperdex/client.h"
 
 {# import Database.HyperDex.Internal.Client #}
-{# import Database.HyperDex.Internal.Attribute #}
-{# import Database.HyperDex.Internal.AttributeCheck #}
-{# import Database.HyperDex.Internal.MapAttribute #}
+{# import Database.HyperDex.Internal.Data.Attribute #}
+{# import Database.HyperDex.Internal.Data.AttributeCheck #}
+{# import Database.HyperDex.Internal.Data.MapAttribute #}
 import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
-import Database.HyperDex.Internal.Resource
+import Database.HyperDex.Internal.Util.Resource
 import qualified Data.ByteString as BS
 import Control.Monad
 

@@ -1,14 +1,13 @@
 {-# OPTIONS_GHC -fno-warn-missing-signatures #-}
-{-# LANGUAGE RankNTypes #-}
 -- |
--- Module       : Database.HyperDex.Internal.HyperdexAdmin
+-- Module       : Database.HyperDex.Internal.Ffi.Admin
 -- Copyright    : (c) Aaron Friel 2013-2014
 -- License      : BSD-style
 -- Maintainer   : mayreply@aaronfriel.com
 -- Stability    : unstable
 -- Portability  : portable
 --
-module Database.HyperDex.Internal.HyperdexAdmin
+module Database.HyperDex.Internal.Ffi.Admin
   ( dumpConfig
   , addSpace
   , rmSpace
@@ -38,11 +37,11 @@ import Control.Monad.IO.Class
 #include "hyperdex/admin.h"
 
 {# import Database.HyperDex.Internal.Admin #}
-{# import Database.HyperDex.Internal.PerfCounter #}
+{# import Database.HyperDex.Internal.Data.PerfCounter #}
 import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
-import Database.HyperDex.Internal.Resource
+import Database.HyperDex.Internal.Util.Resource
 
 -- int64_t
 -- hyperdex_admin_dump_config(struct hyperdex_admin* admin,
@@ -286,8 +285,7 @@ rawBackup host port name = adminImmediate $ do
 
 type ServerCall t = Admin -> t -> Ptr CInt -> IO CLong
 
-
-serverOp :: forall t. ServerCall t
+serverOp :: ServerCall t
          -> t
          -> HyperDexConnection Admin
          -> IO (AsyncResult Admin ())	

@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 -- |
--- Module       : Database.HyperDex.Internal.Foreign
+-- Module       : Database.HyperDex.Internal.Util.Foreign
 -- Copyright    : (c) Aaron Friel 2014
 -- License      : BSD-style
 -- Maintainer   : mayreply@aaronfriel.com
@@ -8,7 +8,7 @@
 -- Portability  : portable
 --
 
-module Database.HyperDex.Internal.Foreign
+module Database.HyperDex.Internal.Util.Foreign
  ( module Foreign
  , module Foreign.C.Types
  )

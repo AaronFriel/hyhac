@@ -13,9 +13,9 @@
 --
 module Database.HyperDex.Admin
   ( module Database.HyperDex.Internal.Admin
-  , module Database.HyperDex.Internal.HyperdexAdmin
+  , module Database.HyperDex.Internal.Ffi.Admin
   )
   where
 
 import Database.HyperDex.Internal.Admin (AdminConnection, ReturnCode (..), adminConnect)
-import Database.HyperDex.Internal.HyperdexAdmin 
+import Database.HyperDex.Internal.Ffi.Admin 

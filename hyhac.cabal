@@ -43,19 +43,19 @@ library
     Database.HyperDex.Internal
     Database.HyperDex.Internal.Admin
     Database.HyperDex.Internal.Client
-    Database.HyperDex.Internal.Attribute
-    Database.HyperDex.Internal.AttributeCheck
-    Database.HyperDex.Internal.Foreign
-    Database.HyperDex.Internal.MapAttribute
-    Database.HyperDex.Internal.PerfCounter
-    Database.HyperDex.Internal.Resource
-    Database.HyperDex.Internal.Handle
-    Database.HyperDex.Internal.Hyperdex
-    Database.HyperDex.Internal.Hyperdata
-    Database.HyperDex.Internal.HyperdexAdmin
-    Database.HyperDex.Internal.HyperdexClient
-    Database.HyperDex.Internal.Options
     Database.HyperDex.Internal.Core
+    Database.HyperDex.Internal.Handle
+    Database.HyperDex.Internal.Options
+    Database.HyperDex.Internal.Serialize
+    Database.HyperDex.Internal.Data.Attribute
+    Database.HyperDex.Internal.Data.AttributeCheck
+    Database.HyperDex.Internal.Data.Hyperdex
+    Database.HyperDex.Internal.Data.MapAttribute
+    Database.HyperDex.Internal.Data.PerfCounter
+    Database.HyperDex.Internal.Ffi.Admin
+    Database.HyperDex.Internal.Ffi.Client
+    Database.HyperDex.Internal.Util.Foreign
+    Database.HyperDex.Internal.Util.Resource
 
   if flag(tests) || flag(debug)
     exposed-modules: Database.HyperDex.Internal.Util

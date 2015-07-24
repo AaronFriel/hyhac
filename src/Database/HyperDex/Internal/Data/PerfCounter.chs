@@ -8,7 +8,7 @@
 -- Stability    : unstable
 -- Portability  : portable
 --
-module Database.HyperDex.Internal.PerfCounter
+module Database.HyperDex.Internal.Data.PerfCounter
   ( PerfCounter (..)
   , PerfCounterPtr
   )

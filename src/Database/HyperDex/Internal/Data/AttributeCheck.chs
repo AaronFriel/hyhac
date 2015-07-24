@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 -- |
--- Module       : Database.HyperDex.Internal.AttributeCheck
+-- Module       : Database.HyperDex.Internal.Data.AttributeCheck
 -- Copyright    : (c) Aaron Friel 2013-2014
 --                (c) Niklas Hambüchen 2013-2014 
 -- License      : BSD-style
@@ -8,7 +8,7 @@
 -- Stability    : unstable
 -- Portability  : portable
 --
-module Database.HyperDex.Internal.AttributeCheck
+module Database.HyperDex.Internal.Data.AttributeCheck
   ( AttributeCheck (..)
   , AttributeCheckPtr
   , mkAttributeCheck
@@ -18,10 +18,10 @@ module Database.HyperDex.Internal.AttributeCheck
 
 import Data.ByteString (ByteString, packCString, packCStringLen)
 
-import Database.HyperDex.Internal.Hyperdex
-import Database.HyperDex.Internal.Hyperdata
-import Database.HyperDex.Internal.Foreign
-import Database.HyperDex.Internal.Resource
+import Database.HyperDex.Internal.Serialize
+import Database.HyperDex.Internal.Data.Hyperdex
+import Database.HyperDex.Internal.Util.Foreign
+import Database.HyperDex.Internal.Util.Resource
 import Database.HyperDex.Internal.Util
 
 import Control.Monad

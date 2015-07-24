@@ -19,20 +19,20 @@
 
 module Database.HyperDex.Client
   ( module Database.HyperDex.Internal.Client
-  , module Database.HyperDex.Internal.Hyperdex
-  , module Database.HyperDex.Internal.Hyperdata
-  , module Database.HyperDex.Internal.HyperdexClient
+  , module Database.HyperDex.Internal.Serialize
+  , module Database.HyperDex.Internal.Ffi.Client
   -- Data structures
-  , module Database.HyperDex.Internal.Attribute
-  , module Database.HyperDex.Internal.AttributeCheck
-  , module Database.HyperDex.Internal.MapAttribute
+  , module Database.HyperDex.Internal.Data.Hyperdex
+  , module Database.HyperDex.Internal.Data.Attribute
+  , module Database.HyperDex.Internal.Data.AttributeCheck
+  , module Database.HyperDex.Internal.Data.MapAttribute
   )
   where
 
-import Database.HyperDex.Internal.HyperdexClient
+import Database.HyperDex.Internal.Ffi.Client
 import Database.HyperDex.Internal.Client (ClientConnection, ClientReturnCode, ClientResult, ReturnCode (..), clientConnect)
-import Database.HyperDex.Internal.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
-import Database.HyperDex.Internal.Hyperdata (HyperSerialize, serialize, deserialize, datatype)
-import Database.HyperDex.Internal.Attribute (Attribute (..), mkAttribute)
-import Database.HyperDex.Internal.AttributeCheck (AttributeCheck (..), mkAttributeCheck)
-import Database.HyperDex.Internal.MapAttribute (MapAttribute (..), mkMapAttribute, mkMapAttributesFromMap)
+import Database.HyperDex.Internal.Data.Hyperdex (Hyperdatatype (..), Hyperpredicate (..))
+import Database.HyperDex.Internal.Serialize (HyperSerialize, serialize, deserialize, datatype)
+import Database.HyperDex.Internal.Data.Attribute (Attribute (..), mkAttribute)
+import Database.HyperDex.Internal.Data.AttributeCheck (AttributeCheck (..), mkAttributeCheck)
+import Database.HyperDex.Internal.Data.MapAttribute (MapAttribute (..), mkMapAttribute, mkMapAttributesFromMap)

@@ -8,7 +8,7 @@
 -- Stability  	: unstable
 -- Portability	: portable
 --
-module Database.HyperDex.Internal.Hyperdex where
+module Database.HyperDex.Internal.Data.Hyperdex where
 
 -- import Foreign.C.Types
 -- import Foreign.C.String

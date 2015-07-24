@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 -- |
--- Module       : Database.HyperDex.Internal.Resource
+-- Module       : Database.HyperDex.Internal.Util.Resource
 -- Copyright    : (c) Aaron Friel 2014
 -- License      : BSD-style
 -- Maintainer   : mayreply@aaronfriel.com
@@ -8,7 +8,7 @@
 -- Portability  : portable
 --
 
-module Database.HyperDex.Internal.Resource
+module Database.HyperDex.Internal.Util.Resource
   ( -- Resource Allocation
     rNew
   , rMallocArray
@@ -37,7 +37,7 @@ import qualified Data.ByteString as BS
 import Data.ByteString.Unsafe (unsafeUseAsCString, unsafeUseAsCStringLen)
 
 -- See Note [Foreign imports] in Foreign.hs
-import Database.HyperDex.Internal.Foreign
+import Database.HyperDex.Internal.Util.Foreign
 import Foreign ( new, free, malloc, mallocArray, mallocArray0, copyBytes
                , newStablePtr, freeStablePtr, pokeElemOff )
 import Foreign.C.String 

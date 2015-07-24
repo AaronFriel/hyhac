@@ -1,14 +1,14 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances, DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 -- |
--- Module     	: Database.HyperDex.Internal.Hyperdata
+-- Module     	: Database.HyperDex.Internal.Serialize
 -- Copyright  	: (c) Aaron Friel 2013-2014
 -- License    	: BSD-style
 -- Maintainer 	: mayreply@aaronfriel.com
 -- Stability  	: unstable
 -- Portability	: portable
 --
-module Database.HyperDex.Internal.Hyperdata
+module Database.HyperDex.Internal.Serialize
   ( Hyper (..)
   , HyperSerialize (..)
   , serialize
@@ -16,7 +16,7 @@ module Database.HyperDex.Internal.Hyperdata
   )
   where
 
-{# import Database.HyperDex.Internal.Hyperdex #}
+import Database.HyperDex.Internal.Data.Hyperdex
 
 import Data.Int
 import Control.Monad

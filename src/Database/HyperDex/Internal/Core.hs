@@ -29,7 +29,7 @@ import Database.HyperDex.Internal.Handle (Handle, handleSuccess, invalidHandle)
 import qualified Database.HyperDex.Internal.Handle as HandleMap
 import Database.HyperDex.Internal.Options
 import Database.HyperDex.Internal.Util
-import Database.HyperDex.Internal.Resource
+import Database.HyperDex.Internal.Util.Resource
 
 import Control.Concurrent
 import Control.Concurrent.STM

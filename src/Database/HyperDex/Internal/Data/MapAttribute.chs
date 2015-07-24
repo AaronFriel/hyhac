@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveGeneric #-}
 -- |
--- Module     	: Database.HyperDex.Internal.MapAttribute
+-- Module     	: Database.HyperDex.Internal.Data.MapAttribute
 -- Copyright  	: (c) Aaron Friel 2013-2014
 --            	  (c) Niklas Hambüchen 2013-2014 
 -- License    	: BSD-style
@@ -9,7 +9,7 @@
 -- Stability  	: unstable
 -- Portability	: portable
 --
-module Database.HyperDex.Internal.MapAttribute
+module Database.HyperDex.Internal.Data.MapAttribute
   ( MapAttribute (..)
   , MapAttributePtr
   , mkMapAttribute
@@ -20,10 +20,10 @@ module Database.HyperDex.Internal.MapAttribute
 
 import Data.ByteString (ByteString, packCString, packCStringLen)
 
-import Database.HyperDex.Internal.Hyperdex
-import Database.HyperDex.Internal.Hyperdata
-import Database.HyperDex.Internal.Foreign
-import Database.HyperDex.Internal.Resource
+import Database.HyperDex.Internal.Serialize
+import Database.HyperDex.Internal.Data.Hyperdex
+import Database.HyperDex.Internal.Util.Foreign
+import Database.HyperDex.Internal.Util.Resource
 import Database.HyperDex.Internal.Util
 
 import Data.Map (Map)
