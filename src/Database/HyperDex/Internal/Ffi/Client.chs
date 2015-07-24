@@ -65,8 +65,6 @@ import Database.HyperDex.Internal.Core
 import Database.HyperDex.Internal.Handle (wrapHyperCallHandle)
 import Database.HyperDex.Internal.Util
 import Database.HyperDex.Internal.Util.Resource
-import qualified Data.ByteString as BS
-import Control.Monad
 
 type ClientCall = Client
                 -> CString 
