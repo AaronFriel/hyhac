@@ -110,7 +110,7 @@ rNewCBString0 bs = do
       return cstr
       where 
         alloc' = unsafeUseAsCString bs $ \cstr -> do
-                  ptr <- newStablePtr cstr
+                  ptr <- newStablePtr bs
                   return (ptr, cstr)
         free' (ptr, _) = freeStablePtr ptr
     False -> do
@@ -145,7 +145,7 @@ rNewCBStringLen bs = do
   return cstrLen
   where 
     alloc' = unsafeUseAsCStringLen bs $ \cstrLen -> do
-              ptr <- newStablePtr cstrLen
+              ptr <- newStablePtr bs
               return (ptr, cstrLen)
     free' (ptr, _) = freeStablePtr ptr
 

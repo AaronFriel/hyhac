@@ -104,9 +104,6 @@ rPokeMapAttribute (MapAttribute {..}) p = do
   (value, valueLen) <- rNewCBStringLen mapAttrValue
   let keyType = fromIntegral . fromEnum $ mapAttrKeyDatatype
   let valueType = fromIntegral . fromEnum $ mapAttrValueDatatype
-  -- traceIO "Poing map attribute with key & value"
-  -- traceCStringLen (key, fromIntegral keyLen)
-  -- traceCStringLen (value, fromIntegral valueLen)
   liftIO $ do
     {#set hyperdex_client_map_attribute.attr #} p name
     {#set hyperdex_client_map_attribute.map_key #} p key

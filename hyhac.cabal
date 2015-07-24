@@ -57,9 +57,9 @@ library
     Database.HyperDex.Internal.Options
     Database.HyperDex.Internal.Core
 
-  if flag(tests)
+  if flag(tests) || flag(debug)
     exposed-modules: Database.HyperDex.Internal.Util
-    ghc-options: -Werror -Wall -fno-warn-orphans
+    ghc-options: -O0
   else
     other-modules:   Database.HyperDex.Internal.Util
 
@@ -101,7 +101,6 @@ library
     cpp-options:   -D__UNIX__
     build-depends: unix
 
-  ghc-options:       -O2 -Wall -threaded
 
   include-dirs:      include
   includes:          hyperdex.h
@@ -157,5 +156,12 @@ Test-suite tests
     , test-framework-quickcheck2 >= 0.3
     , HUnit
     , QuickCheck
+
+  if flag(tests) || flag(debug)
+    ghc-options: -O0
+
+  if flag(debug)
+    cpp-options: -DDEBUG 
+    ghc-options: -Werror -Wall -fno-warn-orphans -debug
 
   ghc-options:       -W -threaded -rtsopts

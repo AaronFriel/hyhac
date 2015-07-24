@@ -153,14 +153,6 @@ get s k = clientDeferred $ do
   (key,keySize) <- rNewCBStringLen k
   (attrPtrPtr, attrSzPtr, peekResult) <- rMallocAttributeArray
   let ccall ptr = do
-        -- whenDebug $ do
-        --   traceIO $ "op_id = hyperdex_client_get(client, "
-        --   traceAsCStringLiteral s
-        --   traceIO $ ", "
-        --   traceAsCStringLiteral k
-        --   traceIO $ ", " ++ (show keySize) ++ ", \n"
-        --   traceIO $ "                            &op_status, &attrs, &attrs_sz);\n"
-        --   traceIO $ "loop_id = hyperdex_client_loop(client, -1, &loop_status);\n"
         wrapHyperCallHandle $
           {# call hyperdex_client_get #}
             ptr
@@ -249,27 +241,6 @@ hyperdexClientOp call s k attrs = clientDeferred $ do
   (key,keySize) <- rNewCBStringLen k
   (attributePtr, attributeSize) <- rNewAttributeArray attrs
   let ccall ptr = do
-        whenDebug $ do
-          case attrs of
-            [attr] -> do
-              traceIO "attr.attr = "
-              traceAsCStringLiteral (attrName attr) 
-              traceIO ";\n"
-
-              traceIO "attr.value = "
-              traceAsCStringLiteral (attrValue attr) 
-              traceIO ";\n"
-
-              traceIO $ "attr.value_sz = " ++ show (BS.length (attrValue attr)) ++ ";\n"
-              traceIO $ "attr.datatype = HYPERDATATYPE_MAP_INT64_INT64;\n"
-              traceIO $ "op_id = hyperdex_client_put(client, "
-              traceAsCStringLiteral s
-              traceIO $ ", "
-              traceAsCStringLiteral k
-              traceIO $ ", " ++ (show keySize) ++ ", \n"
-              traceIO $ "                            &attr, 1, &op_status);\n"
-              traceIO $ "loop_id = hyperdex_client_loop(client, -1, &loop_status);\n"
-            _ -> return ()
         wrapHyperCallHandle $
           call
             ptr
@@ -309,46 +280,6 @@ hyperdexClientMapOp call s k mapAttrs = clientDeferred $ do
   (key,keySize) <- rNewCBStringLen k
   (mapAttributePtr, mapAttributeSize) <- rNewMapAttributeArray mapAttrs
   let ccall ptr = do
-        whenDebug $ do
-          traceIO "{"
-          let printAttr attr = do
-                traceIO $ "{ "
-                traceAsCStringLiteral (mapAttrName attr)
-                traceIO $ ", "
-                traceAsCStringLiteral (mapAttrKey attr)
-                traceIO $ ", "
-                traceIO $ show (BS.length (mapAttrKey attr))
-                traceIO $ ", "
-                traceIO $ "HYPERDATATYPE_INT64"
-                traceIO $ ", "
-                traceAsCStringLiteral (mapAttrValue attr)
-                traceIO $ ", "
-                traceIO $ show (BS.length (mapAttrValue attr))
-                traceIO $ ", "
-                traceIO $ "HYPERDATATYPE_INT64"
-                traceIO $ " }\n"
-          case mapAttrs of 
-            []     -> traceIO "  struct hyperdex_client_map_attribute mapattr[] = {};\n"
-            [attr] -> do
-              traceIO "  struct hyperdex_client_map_attribute mapattr[] = {\n"
-              printAttr attr
-              traceIO "};\n"
-            a:as   -> do
-              traceIO "  struct hyperdex_client_map_attribute mapattr[] = {\n"
-              printAttr a
-              forM_ as $ \attr -> do
-                traceIO ", "
-                printAttr attr
-              traceIO "};\n"
-          traceIO $ "op_id = hyperdex_client_map_atomic_add(client, "
-          traceAsCStringLiteral s
-          traceIO $ ", "
-          traceAsCStringLiteral k
-          traceIO $ ", " ++ (show keySize) ++ ", \n"
-          traceIO $ "                            &mapattr,"++show (length mapAttrs)
-          traceIO $ ", &op_status);\n"
-          traceIO $ "loop_id = hyperdex_client_loop(client, -1, &loop_status);\n"
-          traceIO $ "}\n"
         wrapHyperCallHandle $
           call
             ptr space

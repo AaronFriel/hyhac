@@ -22,7 +22,7 @@ import Data.ByteString.Char8 (ByteString, append)
 
 import Database.HyperDex
 import Database.HyperDex.Utf8
-import Database.HyperDex.Internal.Util
+-- import Database.HyperDex.Internal.Util
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -40,6 +40,7 @@ import Control.Concurrent (threadDelay)
 
 import Control.Applicative
 import Control.DeepSeq
+import Control.Exception.Base
 
 testCanStoreLargeObject :: Pool (ClientConnection) -> Test
 testCanStoreLargeObject clientPool = testCase "Can store a large object" $ do
@@ -254,23 +255,20 @@ generateTestPropAtomicMapOp :: (Show k, Show v, Eq k, Eq v, NFData v, NFData k, 
                             -> (Map k v -> Map k v -> Map k v)  -- ^ The operation used to simulate execution
                             -> (x -> (Map k v, Map k v))  -- ^ The deconstructor for the arbitrary type
                             -> (Pool ClientConnection -> ByteString -> Test)
-generateTestPropAtomicMapOp testName hyperCall localOp decons =
+generateTestPropAtomicMapOp testName hyperCall localOp' decons =
   \clientPool space -> testProperty testName $
     \(NonEmptyBS key) arbitraryInput ->
       QC.monadicIO $ do
       let (initial', operand') = decons arbitraryInput
           initial = force initial'
           operand = force operand'
+          localOp = localOp' `seq` localOp'
           attributeName      = force $ decodeUtf8 $ pickAttributeName initial
           attribute          = force $ mkAttributeUtf8 attributeName initial
           opAttribute        = force $ mkMapAttributesFromMapUtf8 attributeName operand
       _ <- QC.run . join $ withResource clientPool $ delete space key
       _ <- QC.run . join $ withResource clientPool $ put space key [attribute]
-      -- QC.run $ return $ rnf opAttribute
       atomicOpResult <- QC.run . join $ withResource clientPool $ hyperCall space key opAttribute
-      -- atomicOpResult <-  QC.run $ do
-      --   return $ rnf opAttribute
-      --   join $ withResource clientPool $ hyperCall space key opAttribute
       case atomicOpResult of
         Left err -> do
           QC.run $ do
@@ -286,21 +284,8 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
           QC.assert False
         Right () -> do
           eitherOutput <- getHyper clientPool space key attributeName
-    --       QC.run $ traceIO "\
-    -- \if (attrs_sz <= 0) {\n\
-    -- \  printf(\"Error! Attribute doesn't exist. Line %d\", __LINE__);\n\
-    -- \} else {\n\
-    -- \  if (attrs[1].value_sz != attr.value_sz) {\n\
-    -- \    printf(\"Error! Attribute has incorrect size. Line %d\", __LINE__);\n\
-    -- \  } else {\n\
-    -- \    if (memcmp(&attrs[1].value, &attr.value, attr.value_sz) != 0) {\n\
-    -- \        printf(\"Error! Attribute values not equal.\");\n\
-    -- \    }\n\
-    -- \  }\n\
-    -- \}\n"
           case eitherOutput >>= deserialize . attrValue of
             Right output -> do
-              -- QC.run $ return $ rnf opAttribute
               case output == (initial `localOp` operand)  of
                 True -> QC.assert True
                 False -> do
@@ -314,7 +299,6 @@ generateTestPropAtomicMapOp testName hyperCall localOp decons =
                     putStrLn $ "  operand:   " <> show operand
                     putStrLn $ "  output:    " <> show output
                     putStrLn $ "  expected:  " <> show (initial `localOp` operand)
-                    putStrLn $ "  output:    " <> show eitherOutput
                   QC.assert False
             Left reason  -> do
               QC.run $ do
