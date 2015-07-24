@@ -13,3 +13,6 @@ cabal.config
 *.TMP
 .tags
 /daemons/
+
+# added by GitSavvy
+/.tags_sorted_by_file
