@@ -1,8 +1,15 @@
-{-# LANGUAGE FlexibleInstances, FlexibleContexts, DeriveFunctor, MultiParamTypeClasses, TypeFamilies, UndecidableInstances, ExistentialQuantification #-}
-
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Test.HyperDex.Util where
 
 import Database.HyperDex
+import Database.HyperDex.Utf8
 
 import Test.QuickCheck
 import Data.ByteString (ByteString)
@@ -15,6 +22,65 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 import Data.Map (Map)
 import qualified Data.Map as Map
+
+newtype DefaultSpaceAttributes = DefaultSpaceAttributes { unDefaultSpace :: [Attribute] }
+  deriving (Show, Eq)
+
+instance Arbitrary DefaultSpaceAttributes where
+  arbitrary = do
+    (first', last', score', profile_views',
+      (pending_requests', rankings', todolist', hobbies',
+        (imonafloat', friendids', unread_messages', upvotes',
+          (friendranks', posts', friendremapping', intfloatmap',
+            (still_looking', for_a_reason', for_float_keyed_map')))))
+      <- arbitrary
+    return $ DefaultSpaceAttributes
+                [ mkAttributeUtf8 "first"               (first'               :: ByteString               )
+                , mkAttributeUtf8 "last"                (last'                :: ByteString               )
+                , mkAttributeUtf8 "score"               (score'               :: Double                   )
+                , mkAttributeUtf8 "profile_views"       (profile_views'       :: Int64                    )
+                , mkAttributeUtf8 "pending_requests"    (pending_requests'    :: [ByteString]             )
+                , mkAttributeUtf8 "rankings"            (rankings'            :: [Double]                 )
+                , mkAttributeUtf8 "todolist"            (todolist'            :: [Int64]                  )
+                , mkAttributeUtf8 "hobbies"             (hobbies'             :: Set ByteString           )
+                , mkAttributeUtf8 "imonafloat"          (imonafloat'          :: Set Double               )
+                , mkAttributeUtf8 "friendids"           (friendids'           :: Set Int64                )
+                , mkAttributeUtf8 "unread_messages"     (unread_messages'     :: Map ByteString ByteString)
+                , mkAttributeUtf8 "upvotes"             (upvotes'             :: Map ByteString Int64     )
+                , mkAttributeUtf8 "friendranks"         (friendranks'         :: Map ByteString Double    )
+                , mkAttributeUtf8 "posts"               (posts'               :: Map Int64      ByteString)
+                , mkAttributeUtf8 "friendremapping"     (friendremapping'     :: Map Int64      Int64     )
+                , mkAttributeUtf8 "intfloatmap"         (intfloatmap'         :: Map Int64      Double    )
+                , mkAttributeUtf8 "still_looking"       (still_looking'       :: Map Double     ByteString)
+                , mkAttributeUtf8 "for_a_reason"        (for_a_reason'        :: Map Double     Int64     )
+                , mkAttributeUtf8 "for_float_keyed_map" (for_float_keyed_map' :: Map Double     Double    )
+                ]
+
+pickAttributeName :: HyperSerialize a => a -> ByteString
+pickAttributeName value =
+  case datatype value of 
+    HyperdatatypeString           -> "first"
+    HyperdatatypeInt64            -> "profile_views"
+    HyperdatatypeFloat            -> "score"
+    HyperdatatypeListString       -> "pending_requests"
+    HyperdatatypeListInt64        -> "todolist"
+    HyperdatatypeListFloat        -> "rankings"
+    HyperdatatypeSetString        -> "hobbies"
+    HyperdatatypeSetInt64         -> "friendids"
+    HyperdatatypeSetFloat         -> "imonafloat"
+    HyperdatatypeMapStringString  -> "unread_messages"
+    HyperdatatypeMapStringInt64   -> "upvotes"
+    HyperdatatypeMapStringFloat   -> "friendranks"
+    HyperdatatypeMapInt64String   -> "posts"
+    HyperdatatypeMapInt64Int64    -> "friendremapping"
+    HyperdatatypeMapInt64Float    -> "intfloatmap"
+    HyperdatatypeMapFloatString   -> "still_looking"
+    HyperdatatypeMapFloatInt64    -> "for_a_reason"
+    HyperdatatypeMapFloatFloat    -> "for_float_keyed_map"
+    _                             -> error "Invalid data type"
+
+keyAttributeName :: ByteString
+keyAttributeName = "username"
 
 -- | An arbitrary bytestring
 
@@ -281,6 +347,22 @@ instance (Ord k, Show k, Show v, Arbitrary k, Arbitrary v) => Arbitrary (Overlap
     return $ OverlappingMaps (a, b)
   shrink (OverlappingMaps (a, b)) = 
     [ OverlappingMaps (a', b')
+    | a' <- shrink a
+    , let b' = Map.intersection b a'
+    ]
+
+newtype KeyMap k v = KeyMap { unKeyMap :: (Map k v, Map ByteString k) }
+  deriving (Show)
+
+instance (Ord k, Show k, Show v, Arbitrary k, Arbitrary v, HyperSerialize (Map k v)) => Arbitrary (KeyMap k v) where
+  arbitrary = do
+    a <- arbitrary
+    let bkeys = repeat $ pickAttributeName a
+    bvalues <- elements . take 1000 . combinations . Map.keys $ a
+    let b = Map.fromList $ zip bkeys bvalues
+    return $ KeyMap (a, b)
+  shrink (KeyMap (a, b)) = 
+    [ KeyMap (a', b')
     | a' <- shrink a
     , let b' = Map.intersection b a'
     ]
