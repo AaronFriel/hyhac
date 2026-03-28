@@ -56,7 +56,7 @@ done
 export HYPERDEX_EXEC_PATH="${hyperdex_root}"
 export HYPERDEX_COORD_LIB="${hyperdex_root}/.libs/libhyperdex-coordinator"
 export LD_LIBRARY_PATH="${hyperdex_root}/.libs${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-export PATH="${hyperdex_root}:${PATH}"
+export PATH="${hyperdex_root}:${hyperdex_root}/bin${PATH:+:${PATH}}"
 export HYPERDEX_COORD_HOST="${coord_host}"
 export HYPERDEX_COORD_PORT="${coord_port}"
 export HYPERDEX_DAEMON_HOST="${daemon_host}"
