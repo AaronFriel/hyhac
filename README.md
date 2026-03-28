@@ -67,3 +67,45 @@ scripts/cabal.sh test -f tests test:tests \
   --test-option=--test-seed=1 \
   --test-option=--select-tests='hyhac-tests/CBString API Tests*'
 ```
+
+Automation
+----------
+
+The isolated `hyhac` worktree also carries repo-local helper scripts under
+`.agent/`:
+
+```bash
+make -C .agent smoke
+make -C .agent check
+```
+
+`make -C .agent smoke` runs the fast `CBString` subset. `make -C .agent check`
+builds `hyhac`, starts a temporary HyperDex cluster, and runs the full suite.
+If the sibling HyperDex checkout at `../HyperDex` is not already built, build it
+first with:
+
+```bash
+sudo ../HyperDex/.agent/setup.sh
+```
+
+That setup path builds HyperDex in `../HyperDex/target`, so the effective
+runtime root for `hyhac` is `../HyperDex/target`. The `.agent/check.sh` helper
+detects that automatically, and you can also set it explicitly:
+
+```bash
+HYPERDEX_ROOT=../HyperDex/target make -C .agent check
+```
+
+To exercise the GitHub Actions workflow locally with `nektos/act`, run:
+
+```bash
+make -C .agent act-ci
+```
+
+If the HyperDex branch you need is not yet `aaronfriel/HyperDex@master`, set the
+workflow variables `HYPERDEX_REPOSITORY` and `HYPERDEX_REF` in GitHub, or pass
+them to `act` locally:
+
+```bash
+make -C .agent act-ci -- --var HYPERDEX_REPOSITORY=aaronfriel/HyperDex --var HYPERDEX_REF=master
+```

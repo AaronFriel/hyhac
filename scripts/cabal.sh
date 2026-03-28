@@ -8,19 +8,21 @@ hyperdex_root=${HYPERDEX_ROOT:-"${repo_root}/../HyperDex"}
 ghcup_env=${GHCUP_ENV:-"${HOME}/.ghcup/env"}
 toolchain_lib_dir="${repo_root}/.toolchain/lib"
 
-if [ ! -f "${ghcup_env}" ]; then
-  echo "missing ghcup environment file: ${ghcup_env}" >&2
-  echo "install GHCup first, then re-run this script" >&2
-  exit 1
-fi
-
 if [ ! -d "${hyperdex_root}/.libs" ]; then
   echo "missing HyperDex build output: ${hyperdex_root}/.libs" >&2
   echo "set HYPERDEX_ROOT to a built HyperDex checkout" >&2
   exit 1
 fi
 
-. "${ghcup_env}"
+if [ -f "${ghcup_env}" ]; then
+  # Prefer the ghcup environment when it exists, but permit CI to provide
+  # cabal and ghc directly on PATH.
+  . "${ghcup_env}"
+elif ! command -v cabal >/dev/null 2>&1; then
+  echo "missing ghcup environment file: ${ghcup_env}" >&2
+  echo "install GHCup or place cabal on PATH, then re-run this script" >&2
+  exit 1
+fi
 
 mkdir -p "${toolchain_lib_dir}"
 
