@@ -1,0 +1,16 @@
+repos:
+  - repo: local
+    hooks:
+      - id: workflow-audit
+        name: github actions audit
+        entry: scripts/check-actions.sh
+        language: system
+        pass_filenames: false
+        files: ^\.github/workflows/.*\.ya?ml$
+
+      - id: shell-syntax
+        name: shell syntax
+        entry: scripts/check-shell-syntax.sh
+        language: system
+        pass_filenames: false
+        files: ^(\.agent|scripts)/.*\.sh$

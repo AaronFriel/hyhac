@@ -1,0 +1,49 @@
+name: Lint
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare-prek-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Generate prek hook matrix
+        id: matrix
+        run: |
+          matrix="$(python3 scripts/list-prek-hooks.py)"
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "$matrix"
+
+  prek:
+    needs: prepare-prek-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-prek-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install prek
+        run: |
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          scripts/install-prek.sh
+
+      - name: Run prek hook
+        env:
+          PREK_HOOK_ID: ${{ matrix.id }}
+        run: prek run "$PREK_HOOK_ID" --all-files -c .pre-commit-config.yaml

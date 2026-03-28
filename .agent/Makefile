@@ -1,7 +1,10 @@
-.PHONY: check smoke lint-actions act-ci
+.PHONY: check lint smoke lint-actions act-ci
 
 check:
 	./check.sh
+
+lint:
+	./lint.sh
 
 smoke:
 	./smoke.sh
