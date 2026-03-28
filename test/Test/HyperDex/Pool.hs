@@ -3,7 +3,7 @@
 module Test.HyperDex.Pool ( poolTests )
   where
 
-import Test.HyperDex.Space
+import Test.HyperDex.Space hiding (pickAttributeName, keyAttributeName, DefaultSpaceAttributes(..))
 
 import Test.Framework
 import Test.Framework.Providers.HUnit
@@ -506,7 +506,7 @@ testAtomicMap clientPool space =
   where prepend = flip append
 
 createAction = do
-  clientConnect defaultConnectInfo
+  testConnectInfo >>= clientConnect
 
 closeAction _ = do
   -- TODO: Implement disconnect/close?

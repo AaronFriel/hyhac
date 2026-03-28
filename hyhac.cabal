@@ -84,6 +84,7 @@ library
     , text
     , monad-control              >= 1.0
     , resourcet                  >= 1.0
+    , unliftio-core
     , data-default
     , deepseq
 
@@ -134,6 +135,12 @@ Test-suite tests
   type:              exitcode-stdio-1.0
   hs-source-dirs:    test
   main-is:           main.hs
+  other-modules:
+      Test.HyperDex.CBString
+    , Test.HyperDex.Pool
+    , Test.HyperDex.Shared
+    , Test.HyperDex.Space
+    , Test.HyperDex.Util
 
   build-depends:
       base                       >= 4.6

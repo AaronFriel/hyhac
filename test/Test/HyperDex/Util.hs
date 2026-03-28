@@ -17,6 +17,8 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isAsciiLower)
 
 import Data.Int
+import System.Environment (lookupEnv)
+import Text.Read (readMaybe)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
@@ -132,15 +134,20 @@ instance Arbitrary (Identifier ByteString) where
   arbitrary = fmap (Identifier . BS.pack . fmap getLowerAscii) $ listOf1 arbitrary
   shrink (Identifier xs) = map Identifier $ filter (\x -> BS.all isAsciiLower x && not (BS.null x)) $ shrink xs
 
--- | Definitions for arbitrary sets
-
-instance (Ord a, Arbitrary [a]) => Arbitrary (Set a) where
-  arbitrary = fmap Set.fromList arbitrary
-  shrink = map Set.fromList . shrink . Set.toList 
-
-instance (Ord k, Arbitrary [(k, v)]) => Arbitrary (Map k v) where
-  arbitrary = fmap Map.fromList arbitrary
-  shrink = map Map.fromList . shrink . Map.toList 
+testConnectInfo :: IO ConnectInfo
+testConnectInfo = do
+  host <- fmap (maybe "127.0.0.1" BS.pack) $ lookupEnv "HYPERDEX_COORD_HOST"
+  port <- fmap parsePort $ lookupEnv "HYPERDEX_COORD_PORT"
+  return defaultConnectInfo
+    { connectHost = host
+    , connectPort = port
+    }
+  where
+    parsePort Nothing = connectPort defaultConnectInfo
+    parsePort (Just raw) =
+      case readMaybe raw of
+        Just value -> value
+        Nothing -> error $ "invalid HYPERDEX_COORD_PORT: " ++ raw
 
 -- | A type for a pair where the second is greater than the first.
 
@@ -364,7 +371,7 @@ instance (Ord k, Show k, Show v, Arbitrary k, Arbitrary v, HyperSerialize (Map k
   shrink (KeyMap (a, b)) = 
     [ KeyMap (a', b')
     | a' <- shrink a
-    , let b' = Map.intersection b a'
+    , let b' = Map.filter (`Map.member` a') b
     ]
 
 newtype NonOverlappingMaps k v = NonOverlappingMaps { nonOverlappingMaps :: (Map k v, Map k v) }

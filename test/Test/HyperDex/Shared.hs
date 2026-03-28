@@ -3,7 +3,7 @@
 module Test.HyperDex.Shared (sharedTests)
   where
 
-import Test.HyperDex.Space
+import Test.HyperDex.Space hiding (pickAttributeName, keyAttributeName, DefaultSpaceAttributes(..))
 
 import Test.Framework
 import Test.Framework.Providers.HUnit
@@ -120,7 +120,8 @@ testCanRoundtrip client =
 
 sharedTests :: Test
 sharedTests = buildTest $ do
-  client <- clientConnect defaultConnectInfo
+  info <- testConnectInfo
+  client <- clientConnect info
   return $ testGroup "shared"
     $ map
       (\f -> f client)
