@@ -8,6 +8,8 @@ hyperdex_root=${HYPERDEX_ROOT:-"${repo_root}/../HyperDex"}
 ghcup_env=${GHCUP_ENV:-"${HOME}/.ghcup/env"}
 toolchain_lib_dir="${repo_root}/.toolchain/lib"
 
+hyperdex_root=$(cd "${hyperdex_root}" && pwd)
+
 if [ ! -d "${hyperdex_root}/.libs" ]; then
   echo "missing HyperDex build output: ${hyperdex_root}/.libs" >&2
   echo "set HYPERDEX_ROOT to a built HyperDex checkout" >&2
