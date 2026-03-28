@@ -54,6 +54,7 @@ instance HyperDex Admin where
                         | AdminBadspace
                         | AdminDuplicate
                         | AdminNotfound
+                        | AdminLocalerror
                         | AdminInternal
                         | AdminException
                         | AdminGarbage
@@ -97,6 +98,7 @@ instance Enum (ReturnCode Admin) where
   fromEnum AdminBadspace = 8775
   fromEnum AdminDuplicate = 8776
   fromEnum AdminNotfound = 8777
+  fromEnum AdminLocalerror = 8778
   fromEnum AdminInternal = 8829
   fromEnum AdminException = 8830
   fromEnum AdminGarbage = 8831
@@ -112,6 +114,7 @@ instance Enum (ReturnCode Admin) where
   toEnum 8775 = AdminBadspace
   toEnum 8776 = AdminDuplicate
   toEnum 8777 = AdminNotfound
+  toEnum 8778 = AdminLocalerror
   toEnum 8829 = AdminInternal
   toEnum 8830 = AdminException
   toEnum 8831 = AdminGarbage

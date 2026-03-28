@@ -563,7 +563,8 @@ collectSearch space checks client = do
       result <- readStream stream
       case result of
         Nothing  -> return []
-        Just (Left _) -> return []
+        Just (Left ClientSearchdone) -> return []
+        Just (Left err) -> fail $ "search failed: " ++ show err
         Just (Right value) -> do
           rest <- collect stream
           return $! value : rest
