@@ -25,13 +25,13 @@ module Database.HyperDex.Internal.Util.Resource
  where
 
 import Control.Monad
-import Control.Monad.Base
 import Control.Monad.IO.Class
+import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Resource
 import Control.Monad.Trans.Resource.Internal
-import Control.Monad.Trans.Control (control)
 import qualified Control.Exception as E
 import Data.Acquire
+import Data.Acquire.Internal (ReleaseType(..))
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -69,19 +69,25 @@ rMalloc = fmap snd $ allocateAcquire $ hAcquire malloc free
 -- The internal state is 
 newtype ResourceContext = ResourceContext InternalState
 
-mkContext :: MonadBase IO m => m ResourceContext
+mkContext :: MonadIO m => m ResourceContext
 mkContext = liftM ResourceContext createInternalState
 
-runInContext :: MonadBaseControl IO m
+runInContext :: MonadUnliftIO m
              => ResourceContext
              -> ResourceT m a
              -> m a
-runInContext (ResourceContext istate) (ResourceT r) = control $ \run ->
-  E.mask $ \restore ->
-    restore (run (r istate))
-             `E.onException` stateCleanup ReleaseException istate
+runInContext (ResourceContext istate) (ResourceT r) =
+  withRunInIO $ \run ->
+    E.mask $ \restore -> do
+      result <- E.try $ restore (run (r istate))
 
-closeContext :: MonadBase IO m => ResourceContext -> m ()
+      case result of
+        Right value -> return value
+        Left err -> do
+          stateCleanup (ReleaseExceptionWith err) istate
+          E.throwIO (err :: E.SomeException)
+
+closeContext :: MonadIO m => ResourceContext -> m ()
 closeContext (ResourceContext istate) = closeInternalState istate 
 
 -- | Use a 'ByteString' as a NUL-terminated 'CString' in 'MonadResource'.
@@ -152,7 +158,7 @@ rNewCBStringLen bs = do
 -- | Run a ResourceT in an environment, capturing the resources it allocates and
 -- registering them in a parent MonadResource. Return the release key for the 
 -- captured resources, and the result of the action.
-unwrapResourceT :: (MonadResource m, MonadBase IO m)
+unwrapResourceT :: (MonadResource m, MonadIO m)
                 => ResourceT IO a
                 -> m (ReleaseKey, a)
 unwrapResourceT (ResourceT r) = do

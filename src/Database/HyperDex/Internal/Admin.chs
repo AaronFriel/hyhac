@@ -54,6 +54,7 @@ instance HyperDex Admin where
                         | AdminBadspace
                         | AdminDuplicate
                         | AdminNotfound
+                        | AdminLocalerror
                         | AdminInternal
                         | AdminException
                         | AdminGarbage
@@ -85,40 +86,39 @@ instance HyperDex Admin where
       returnCode <- peekReturnCode returnCodePtr
       return (mkHandle handle, returnCode)
 
-{# enum hyperdex_admin_returncode as `ReturnCode Admin`
-   nocode#}
+instance Enum (ReturnCode Admin) where
+  fromEnum AdminSuccess = 8704
+  fromEnum AdminNomem = 8768
+  fromEnum AdminNonepending = 8769
+  fromEnum AdminPollfailed = 8770
+  fromEnum AdminTimeout = 8771
+  fromEnum AdminInterrupted = 8772
+  fromEnum AdminServererror = 8773
+  fromEnum AdminCoordfail = 8774
+  fromEnum AdminBadspace = 8775
+  fromEnum AdminDuplicate = 8776
+  fromEnum AdminNotfound = 8777
+  fromEnum AdminLocalerror = 8778
+  fromEnum AdminInternal = 8829
+  fromEnum AdminException = 8830
+  fromEnum AdminGarbage = 8831
 
--- instance Enum (ReturnCode Admin) where
---   fromEnum AdminSuccess = 8704
---   fromEnum AdminNomem = 8768
---   fromEnum AdminNonepending = 8769
---   fromEnum AdminPollfailed = 8770
---   fromEnum AdminTimeout = 8771
---   fromEnum AdminInterrupted = 8772
---   fromEnum AdminServererror = 8773
---   fromEnum AdminCoordfail = 8774
---   fromEnum AdminBadspace = 8775
---   fromEnum AdminDuplicate = 8776
---   fromEnum AdminNotfound = 8777
---   fromEnum AdminInternal = 8829
---   fromEnum AdminException = 8830
---   fromEnum AdminGarbage = 8831
-
---   toEnum 8704 = AdminSuccess
---   toEnum 8768 = AdminNomem
---   toEnum 8769 = AdminNonepending
---   toEnum 8770 = AdminPollfailed
---   toEnum 8771 = AdminTimeout
---   toEnum 8772 = AdminInterrupted
---   toEnum 8773 = AdminServererror
---   toEnum 8774 = AdminCoordfail
---   toEnum 8775 = AdminBadspace
---   toEnum 8776 = AdminDuplicate
---   toEnum 8777 = AdminNotfound
---   toEnum 8829 = AdminInternal
---   toEnum 8830 = AdminException
---   toEnum 8831 = AdminGarbage
---   toEnum unmatched = error ("AdminReturnCode.toEnum: Cannot match " ++ show unmatched)
+  toEnum 8704 = AdminSuccess
+  toEnum 8768 = AdminNomem
+  toEnum 8769 = AdminNonepending
+  toEnum 8770 = AdminPollfailed
+  toEnum 8771 = AdminTimeout
+  toEnum 8772 = AdminInterrupted
+  toEnum 8773 = AdminServererror
+  toEnum 8774 = AdminCoordfail
+  toEnum 8775 = AdminBadspace
+  toEnum 8776 = AdminDuplicate
+  toEnum 8777 = AdminNotfound
+  toEnum 8778 = AdminLocalerror
+  toEnum 8829 = AdminInternal
+  toEnum 8830 = AdminException
+  toEnum 8831 = AdminGarbage
+  toEnum unmatched = error ("AdminReturnCode.toEnum: Cannot match " ++ show unmatched)
 
 adminConnect :: ConnectInfo -> IO (AdminConnection)
 adminConnect = connect

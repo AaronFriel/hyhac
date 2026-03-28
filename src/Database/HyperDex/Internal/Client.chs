@@ -67,12 +67,10 @@ instance HyperDex Client where
                              | ClientDontusekey
                              | ClientWrongtype
                              | ClientNomem
-                             | ClientBadconfig
-                             | ClientDuplicate
                              | ClientInterrupted
                              | ClientClusterJump
-                             | ClientCoordLogged
                              | ClientOffline
+                             | ClientUnauthorized
                              | ClientInternal
                              | ClientException
                              | ClientGarbage
@@ -124,12 +122,10 @@ instance Enum (ReturnCode Client) where
   fromEnum ClientDontusekey = 8524
   fromEnum ClientWrongtype = 8525
   fromEnum ClientNomem = 8526
-  fromEnum ClientBadconfig = 8527
-  fromEnum ClientDuplicate = 8529
   fromEnum ClientInterrupted = 8530
   fromEnum ClientClusterJump = 8531
-  fromEnum ClientCoordLogged = 8532
   fromEnum ClientOffline = 8533
+  fromEnum ClientUnauthorized = 8534
   fromEnum ClientInternal = 8573
   fromEnum ClientException = 8574
   fromEnum ClientGarbage = 8575
@@ -152,12 +148,10 @@ instance Enum (ReturnCode Client) where
   toEnum 8524 = ClientDontusekey
   toEnum 8525 = ClientWrongtype
   toEnum 8526 = ClientNomem
-  toEnum 8527 = ClientBadconfig
-  toEnum 8529 = ClientDuplicate
   toEnum 8530 = ClientInterrupted
   toEnum 8531 = ClientClusterJump
-  toEnum 8532 = ClientCoordLogged
   toEnum 8533 = ClientOffline
+  toEnum 8534 = ClientUnauthorized
   toEnum 8573 = ClientInternal
   toEnum 8574 = ClientException
   toEnum 8575 = ClientGarbage

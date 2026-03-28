@@ -1,5 +1,4 @@
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE DeriveGeneric #-}
 -- |
 -- Module     	: Database.HyperDex.Internal.Data.MapAttribute
 -- Copyright  	: (c) Aaron Friel 2013-2014
@@ -29,7 +28,6 @@ import Database.HyperDex.Internal.Util
 import Data.Map (Map)
 import qualified Data.Map as Map
 
-import GHC.Generics (Generic)
 import Control.DeepSeq
 import Control.Monad
 import Control.Monad.IO.Class
@@ -59,8 +57,12 @@ data MapAttribute = MapAttribute
   , mapAttrValue     :: ByteString
   , mapAttrValueDatatype :: Hyperdatatype
   }
-  deriving (Show, Eq, Generic)
+  deriving (Show, Eq)
 instance NFData (MapAttribute)
+  where
+    rnf (MapAttribute name key keyDatatype value valueDatatype) =
+      rnf name `seq` rnf key `seq` keyDatatype `seq`
+      rnf value `seq` valueDatatype `seq` ()
 instance Storable MapAttribute where
   -- Note [sizeOf fudging] in Attribute.chs
   sizeOf _ = 

@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+
+env:
+  HYPERDEX_REPOSITORY: ${{ vars.HYPERDEX_REPOSITORY || 'aaronfriel/HyperDex' }}
+  HYPERDEX_REF: ${{ vars.HYPERDEX_REF || 'master' }}
+
+jobs:
+  lint-actions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Lint GitHub Actions
+        run: make -C .agent lint-actions
+
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out hyhac
+        uses: actions/checkout@v4
+        with:
+          path: hyhac
+
+      - name: Check out HyperDex
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.HYPERDEX_REPOSITORY }}
+          ref: ${{ env.HYPERDEX_REF }}
+          path: HyperDex
+
+      - name: Set up Haskell
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.6.7"
+          cabal-version: "3.12.1.0"
+
+      - name: Cache cabal store and HyperDex build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            hyhac/dist-newstyle
+            HyperDex/target
+          key: ${{ runner.os }}-ghc-9.6.7-cabal-3.12-${{ hashFiles('hyhac/hyhac.cabal', 'hyhac/scripts/**', 'hyhac/.agent/**', 'HyperDex/.agent/Makefile', 'HyperDex/.agent/deps.sh', 'HyperDex/configure.ac', 'HyperDex/Makefile.am') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-9.6.7-cabal-3.12-
+
+      - name: Build HyperDex and its dependencies
+        working-directory: HyperDex
+        run: sudo ./.agent/setup.sh
+
+      - name: Run hyhac smoke check
+        working-directory: hyhac
+        env:
+          HYPERDEX_ROOT: ../HyperDex/target
+        run: ./.agent/smoke.sh
+
+      - name: Run hyhac integration check
+        working-directory: hyhac
+        env:
+          HYPERDEX_ROOT: ../HyperDex/target
+        run: ./.agent/check.sh

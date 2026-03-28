@@ -11,7 +11,7 @@ module Database.HyperDex
 import Database.HyperDex.Client
 import Database.HyperDex.Admin
 import Database.HyperDex.Internal.Core (AsyncResult, Stream, readStream)
-import Database.HyperDex.Internal.Options (defaultConnectInfo)
+import Database.HyperDex.Internal.Options
 
 hyhacVersion :: String
 hyhacVersion = "0.2.0.0"

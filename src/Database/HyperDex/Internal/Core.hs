@@ -245,12 +245,17 @@ hyhacLoop queue ptr failLoop mapRef = forever $ do
   !outMap <- case cmd of
     RunAsync (Wrapped state ccall callback) -> do
       handle <- liftIO $ ccall ptr
-      -- TODO: Handle this as an error condition?
-      -- current behavior: the resourecontext is left dangling.
-      -- case HandleMap.lookup handle inMap of
-      --   Just (priorState, _) -> release priorState
-      --   _                    -> return ()
-      return $ HandleMap.insert handle (state, callback) inMap
+      if handleSuccess handle
+        then
+          -- TODO: Handle this as an error condition?
+          -- current behavior: the resourecontext is left dangling.
+          -- case HandleMap.lookup handle inMap of
+          --   Just (priorState, _) -> release priorState
+          --   _                    -> return ()
+          return $ HandleMap.insert handle (state, callback) inMap
+        else do
+          void $ liftIO $ callback failureCode
+          return inMap
     RunSync f -> do
       liftIO $ f ptr
       return inMap
@@ -465,7 +470,10 @@ wrapGeneral (CallDescription {..}) = \hyhacCall client -> do
             (False, False) -> do
                   unregister
                   void $ tryPutMVar handleVar invalidHandle
-                  failureAction output rc
+                  result <- runResourceT callback
+                  case result of
+                    Left callbackRc -> failureAction output callbackRc
+                    Right _         -> failureAction output rc
           return complete
     return $ Wrapped context ccall' callback'
   clientCall client $ RunAsync wrappedCall

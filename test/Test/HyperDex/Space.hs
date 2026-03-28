@@ -19,7 +19,7 @@ import Control.Monad
 import Database.HyperDex
 import Database.HyperDex.Utf8
 
-import Test.HyperDex.Util ()
+import Test.HyperDex.Util (testConnectInfo)
 
 defaultSpace :: ByteString
 defaultSpace = "profiles"
@@ -122,12 +122,16 @@ keyAttributeName = "username"
 
 addSpaceTest :: Test
 addSpaceTest = testCase "Can add a space" $ do
-  client <- adminConnect defaultConnectInfo
+  info <- testConnectInfo
+  client <- adminConnect info
   result <- join $ addSpace defaultSpaceDesc client
   assertEqual "Add space: " (Right ()) result
+  stable <- join $ waitUntilStable client
+  assertEqual "Wait until stable: " (Right ()) stable
 
 removeSpaceTest :: Test
 removeSpaceTest = testCase "Can remove a space" $ do
-  client <- adminConnect defaultConnectInfo
+  info <- testConnectInfo
+  client <- adminConnect info
   result <- join $ rmSpace defaultSpace client
   assertEqual "remove space: " (Right ()) result

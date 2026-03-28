@@ -19,7 +19,8 @@ import Test.HyperDex.CBString (cBStringTests)
 tests :: Test
 tests =
   testGroup "hyhac-tests"
-  [ testGroup "hyperdex"
+  [ mutuallyExclusive
+    $ testGroup "hyperdex"
     [ addSpaceTest
     , poolTests
     , sharedTests
